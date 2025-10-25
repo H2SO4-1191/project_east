@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Project East — Auth API Docs</title>
+<style>
+  :root {
+    --bg: #0b0f10;
+    --panel: #0f1517;
+    --accent: #00ff9c;
+    --accent2: #36d399;
+    --text: #e5f4ee;
+    --muted: #8aa29e;
+    --code: #0a0f11;
+    --border: #122022;
+    --danger: #ff5e6b;
+    --warn: #ffc561;
+    --ok: #7cfba0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    background: radial-gradient(1600px 600px at 20% -10%, rgba(0,255,156,.08), transparent 40%),
+                radial-gradient(1200px 400px at 110% 10%, rgba(0,255,156,.06), transparent 50%),
+                var(--bg);
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    line-height: 1.55;
+  }
+  header {
+    padding: 32px 20px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(0,255,156,.06), transparent 60%);
+  }
+  h1 { margin: 0 0 8px; font-weight: 800; letter-spacing: .5px; }
+  .sub { color: var(--muted); }
+  main { display: grid; grid-template-columns: 300px 1fr; gap: 24px; padding: 20px; }
+  nav {
+    position: sticky; top: 12px; height: max-content;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px;
+  }
+  nav a {
+    color: var(--accent2); text-decoration: none; display: block; padding: 8px 10px; border-radius: 8px;
+  }
+  nav a:hover { background: #0f1d1a; }
+  section {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; margin-bottom: 20px;
+  }
+  h2, h3 { margin-top: 0; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    border: 1px solid var(--border); background: #0c1415; padding: 4px 8px; border-radius: 999px; color: var(--muted);
+    font-size: 12px; letter-spacing: .4px; text-transform: uppercase;
+  }
+  .method { font-weight: 800; color: var(--accent); }
+  .url { color: #9feccb; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 14px; }
+  .card {
+    background: #0b1112; border: 1px solid var(--border); border-radius: 10px; padding: 12px;
+  }
+  code, pre {
+    font-family: inherit;
+    background: var(--code);
+    color: #c6fff0;
+    border: 1px solid #143334;
+    border-radius: 8px;
+  }
+  pre { padding: 14px; overflow: auto; }
+  code.inline { padding: 2px 6px; border-radius: 6px; }
+  .hl { color: var(--accent); font-weight: 700; }
+  .note { color: var(--muted); }
+  .ok { color: var(--ok); }
+  .warn { color: var(--warn); }
+  .dang { color: var(--danger); }
+  .kbd { border: 1px solid var(--border); background: #0b1213; padding: 2px 6px; border-radius: 6px; }
+  footer { color: var(--muted); padding: 30px 20px; text-align: center; }
+  details { border: 1px dashed var(--border); border-radius: 8px; padding: 10px 12px; background: #0b1213; }
+  summary { cursor: pointer; color: var(--accent2); margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Project East API Endpoints Documentation</h1>
+</header>
+
+<main>
+  <nav>
+    <div class="tag">Endpoints</div>
+    <a href="#base">Base URL</a>
+    <a href="#signup">/api/signup/</a>
+    <a href="#login">/api/login/</a>
+    <a href="#otp">/api/otp/</a>
+    <a href="#refresh">/api/refresh/</a>
+    <div style="height:12px"></div>
+    <div class="tag">Guides</div>
+    <a href="#tokens">Using JWT</a>
+    <a href="#errors">Errors</a>
+    <a href="#notes">Notes</a>
+  </nav>
+
+  <div>
+    <section id="base">
+      <h2>Base URL</h2>
+      <pre><code>http://127.0.0.1:8000/api</code></pre>
+    </section>
+
+    <section id="signup">
+      <h2><span class="method">POST</span> <span class="url">/api/signup/</span></h2>
+      <p>Create a user (no password). <span class="note">Signals will auto-create a role profile based on <code class="inline">user_type</code>.</span></p>
+      <div class="grid">
+        <div class="card">
+          <h3>Request (JSON)</h3>
+<pre><code>{
+  "username": "ahmed",
+  "email": "ahmed@example.com",
+  "phone_number": "+9647712345678",
+  "user_type": "student"   // one of: institution | lecturer | student
+}</code></pre>
+        </div>
+        <div class="card">
+          <h3>Response — 201</h3>
+<pre><code>{
+  "success": true,
+  "user_id": 12,
+  "message": "Account registered successfully."
+}</code></pre>
+        </div>
+      </div>
+
+      <details>
+        <summary>Fetch &amp; cURL examples</summary>
+        <h4>fetch</h4>
+<pre><code>await fetch("http://127.0.0.1:8000/api/signup/", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    username: "ahmed",
+    email: "ahmed@example.com",
+    phone_number: "+9647712345678",
+    user_type: "student"
+  })
+});</code></pre>
+        <h4>curl</h4>
+<pre><code>curl -X POST http://127.0.0.1:8000/api/signup/ \
+  -H "Content-Type: application/json" \
+  -d '{"username":"ahmed","email":"ahmed@example.com","phone_number":"+9647712345678","user_type":"student"}'</code></pre>
+      </details>
+
+      <h3>Validation</h3>
+      <ul>
+        <li><code>email</code> must be unique &amp; valid.</li>
+        <li><code>phone_number</code> regex: <code>^\+?\d{9,15}$</code>.</li>
+        <li><code>user_type</code> ∈ {<code>institution</code>, <code>lecturer</code>, <code>student</code>}.</li>
+      </ul>
+    </section>
+
+    <section id="login">
+      <h2><span class="method">POST</span> <span class="url">/api/login/</span></h2>
+      <p>Send an OTP to the user’s email. Cooldown is <span class="hl">3 minutes</span>. OTP expiry is <span class="hl">5 minutes</span>.</p>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Request (JSON)</h3>
+<pre><code>{
+  "email": "ahmed@example.com"
+}</code></pre>
+        </div>
+        <div class="card">
+          <h3>Response — 200</h3>
+<pre><code>{
+  "success": true,
+  "message": "OTP code has been sent to 'ahmed@example.com'."
+}</code></pre>
+        </div>
+      </div>
+
+      <details>
+        <summary>Fetch &amp; cURL examples</summary>
+        <h4>fetch</h4>
+<pre><code>await fetch("http://127.0.0.1:8000/api/login/", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email: "ahmed@example.com" })
+});</code></pre>
+        <h4>curl</h4>
+<pre><code>curl -X POST http://127.0.0.1:8000/api/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ahmed@example.com"}'</code></pre>
+      </details>
+
+      <h3>Rate/Cooldown</h3>
+      <ul>
+        <li>Resend blocked for <code>180</code> seconds after last OTP generation.</li>
+        <li>Error example — 400:
+<pre><code>{
+  "success": false,
+  "message": "An OTP was already sent to ahmed@example.com. Try again after 137 seconds."
+}</code></pre>
+        </li>
+      </ul>
+    </section>
+
+    <section id="otp">
+      <h2><span class="method">POST</span> <span class="url">/api/otp/</span></h2>
+      <p>Verify the OTP and receive JWT <code class="inline">access</code> &amp; <code class="inline">refresh</code> tokens.</p>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Request (JSON)</h3>
+<pre><code>{
+  "email": "ahmed@example.com",
+  "otp_code": "123456"
+}</code></pre>
+        </div>
+        <div class="card">
+          <h3>Response — 200</h3>
+<pre><code>{
+  "success": true,
+  "access": "&lt;JWT_ACCESS_TOKEN&gt;",
+  "refresh": "&lt;JWT_REFRESH_TOKEN&gt;",
+  "user_id": 12,
+  "user_type": "student"
+}</code></pre>
+        </div>
+      </div>
+
+      <details>
+        <summary>Fetch &amp; cURL examples</summary>
+        <h4>fetch</h4>
+<pre><code>const res = await fetch("http://127.0.0.1:8000/api/otp/", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email: "ahmed@example.com", otp_code: "123456" })
+});
+const data = await res.json();
+localStorage.setItem("access", data.access);
+localStorage.setItem("refresh", data.refresh);</code></pre>
+        <h4>curl</h4>
+<pre><code>curl -X POST http://127.0.0.1:8000/api/otp/ \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ahmed@example.com","otp_code":"123456"}'</code></pre>
+      </details>
+
+      <h3>Failure cases</h3>
+      <ul>
+        <li>Wrong OTP — 400:
+<pre><code>{
+  "success": false,
+  "errors": { "otp_code": ["Invalid OTP code."] }
+}</code></pre></li>
+        <li>Expired OTP (>5 min) — 400:
+<pre><code>{
+  "success": false,
+  "errors": { "otp_code": ["OTP code expired."] }
+}</code></pre></li>
+      </ul>
+    </section>
+
+    <section id="refresh">
+  <h2><span class="method">POST</span> <span class="url">/api/refresh/</span></h2>
+  <p>Obtain a new <code class="inline">access</code> token using a valid <code class="inline">refresh</code> token. This endpoint is provided by <strong>SimpleJWT</strong>.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Request (JSON)</h3>
+<pre><code>{
+  "refresh": "&lt;YOUR_REFRESH_TOKEN&gt;"
+}</code></pre>
+    </div>
+    <div class="card">
+      <h3>Response — 200</h3>
+<pre><code>{
+  "access": "&lt;NEW_ACCESS_TOKEN&gt;"
+}</code></pre>
+    </div>
+  </div>
+
+  <details>
+    <summary>Fetch &amp; cURL examples</summary>
+    <h4>fetch</h4>
+<pre><code>await fetch("http://127.0.0.1:8000/api/refresh/", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ refresh: localStorage.getItem("refresh") })
+})
+.then(r => r.json())
+.then(d => localStorage.setItem("access", d.access));</code></pre>
+
+    <h4>curl</h4>
+<pre><code>curl -X POST http://127.0.0.1:8000/api/token/refresh/ \
+  -H "Content-Type: application/json" \
+  -d '{"refresh":"&lt;YOUR_REFRESH_TOKEN&gt;"}'</code></pre>
+  </details>
+
+  <h3>Error — 401 (Invalid refresh)</h3>
+<pre><code>{
+  "detail": "Token is invalid or expired",
+  "code": "token_not_valid"
+}</code></pre>
+</section>
+
+
+    <section id="tokens">
+      <h2>Using JWT Tokens</h2>
+      <p>Protect future API calls by sending the <span class="hl">access</span> token in the <code class="inline">Authorization</code> header.</p>
+      <div class="grid">
+        <div class="card">
+          <h3>Header</h3>
+<pre><code>Authorization: Bearer &lt;JWT_ACCESS_TOKEN&gt;</code></pre>
+        </div>
+        <div class="card">
+          <h3>Example fetch</h3>
+<pre><code>await fetch("http://127.0.0.1:8000/api/courses/", {
+  headers: {
+    "Authorization": `Bearer ${localStorage.getItem("access")}`
+  }
+});</code></pre>
+        </div>
+      </div>
+      <p class="note">When access token expires, use your refresh token with <code class="inline">/api/token/refresh/</code> (from SimpleJWT) to get a new access token.</p>
+<pre><code>POST /api/token/refresh/
+Content-Type: application/json
+
+{ "refresh": "&lt;JWT_REFRESH_TOKEN&gt;" }</code></pre>
+    </section>
+
+    <section id="errors">
+      <h2>Error Conventions</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Validation error — 400</h3>
+<pre><code>{
+  "success": false,
+  "errors": { "email": ["Email not found."] }
+}</code></pre>
+        </div>
+        <div class="card">
+          <h3>Not authenticated — 401</h3>
+<pre><code>{
+  "detail": "Authentication credentials were not provided."
+}</code></pre>
+        </div>
+        <div class="card">
+          <h3>Permission denied — 403</h3>
+<pre><code>{
+  "detail": "You do not have permission to perform this action."
+}</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section id="notes">
+      <h2>Implementation Notes</h2>
+      <ul>
+        <li>OTP resend cooldown: <span class="hl">3 minutes</span>.</li>
+        <li>OTP expiry: <span class="hl">5 minutes</span>.</li>
+        <li>Users have <code class="inline">unusable</code> passwords (OTP-only login).</li>
+        <li>All user types (<code>institution</code>, <code>lecturer</code>, <code>student</code>) use the same endpoints.</li>
+        <li>Media uploads require <code class="inline">MEDIA_URL</code>/<code class="inline">MEDIA_ROOT</code> configured server-side (already covered in backend).</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Quick Test Script (paste in browser console)</h2>
+<pre><code>// Set base
+const BASE = "http://127.0.0.1:8000/api";
+
+// 1) Signup
+await fetch(`${BASE}/signup/`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    username: "demo_user",
+    email: "demo@example.com",
+    phone_number: "+9647700000000",
+    user_type: "student"
+  })
+}).then(r => r.json()).then(console.log);
+
+// 2) Trigger OTP
+await fetch(`${BASE}/login/`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email: "demo@example.com" })
+}).then(r => r.json()).then(console.log);
+
+// 3) Verify OTP (replace 123456 with the actual one)
+await fetch(`${BASE}/otp/`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email: "demo@example.com", otp_code: "123456" })
+}).then(r => r.json()).then(d => {
+  console.log(d);
+  localStorage.setItem("access", d.access);
+  localStorage.setItem("refresh", d.refresh);
+});</code></pre>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <span class="tag">Built for OTP-only auth • DRF + SimpleJWT</span>
+</footer>
+</body>
+</html>

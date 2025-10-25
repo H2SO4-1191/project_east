@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Signup</title>
+</head>
+<body>
+  <h2>Signup</h2>
+  <form id="signupForm">
+    <label>Username:</label>
+    <input type="text" name="username" required /><br />
+
+    <label>Email:</label>
+    <input type="email" name="email" required /><br />
+
+    <label>Phone Number:</label>
+    <input type="text" name="phone_number" required /><br />
+
+    <label>User Type:</label>
+    <select name="user_type" required>
+      <option value="institution">Institution</option>
+      <option value="lecturer">Lecturer</option>
+      <option value="student">Student</option>
+    </select><br />
+
+    <button type="submit">Sign Up</button>
+  </form>
+
+  <pre id="output"></pre>
+
+  <script>
+    const BASE_URL = "http://127.0.0.1:8000/api"; // change if needed
+    const form = document.getElementById("signupForm");
+    const output = document.getElementById("output");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = Object.fromEntries(new FormData(form).entries());
+      const res = await fetch(`${BASE_URL}/signup/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json();
+      output.textContent = JSON.stringify(data, null, 2);
+    });
+  </script>
+</body>
+</html>
