@@ -89,10 +89,10 @@
   <nav>
     <div class="tag">Endpoints</div>
     <a href="#base">Base URL</a>
-    <a href="#signup">/api/signup/</a>
-    <a href="#login">/api/login/</a>
-    <a href="#otp">/api/otp/</a>
-    <a href="#refresh">/api/refresh/</a>
+    <a href="#signup">/signup/</a>
+    <a href="#login">/login/</a>
+    <a href="#otp">/otp/</a>
+    <a href="#refresh">/refresh/</a>
     <div style="height:12px"></div>
     <div class="tag">Guides</div>
     <a href="#tokens">Using JWT</a>
@@ -103,11 +103,11 @@
   <div>
     <section id="base">
       <h2>Base URL</h2>
-      <pre><code>http://127.0.0.1:8000/api</code></pre>
+      <pre><code>https://projecteastapi/api</code></pre>
     </section>
 
     <section id="signup">
-      <h2><span class="method">POST</span> <span class="url">/api/signup/</span></h2>
+      <h2><span class="method">POST</span> <span class="url">/signup/</span></h2>
       <p>Create a user (no password). <span class="note">Signals will auto-create a role profile based on <code class="inline">user_type</code>.</span></p>
       <div class="grid">
         <div class="card">
@@ -132,7 +132,7 @@
       <details>
         <summary>Fetch &amp; cURL examples</summary>
         <h4>fetch</h4>
-<pre><code>await fetch("http://127.0.0.1:8000/api/signup/", {
+<pre><code>await fetch("https://projecteastapi/signup/", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
@@ -143,7 +143,7 @@
   })
 });</code></pre>
         <h4>curl</h4>
-<pre><code>curl -X POST http://127.0.0.1:8000/api/signup/ \
+<pre><code>curl -X POST https://projecteastapi/signup/ \
   -H "Content-Type: application/json" \
   -d '{"username":"ahmed","email":"ahmed@example.com","phone_number":"+9647712345678","user_type":"student"}'</code></pre>
       </details>
@@ -157,7 +157,7 @@
     </section>
 
     <section id="login">
-      <h2><span class="method">POST</span> <span class="url">/api/login/</span></h2>
+      <h2><span class="method">POST</span> <span class="url">/login/</span></h2>
       <p>Send an OTP to the user’s email. Cooldown is <span class="hl">3 minutes</span>. OTP expiry is <span class="hl">5 minutes</span>.</p>
 
       <div class="grid">
@@ -179,13 +179,13 @@
       <details>
         <summary>Fetch &amp; cURL examples</summary>
         <h4>fetch</h4>
-<pre><code>await fetch("http://127.0.0.1:8000/api/login/", {
+<pre><code>await fetch("https://projecteastapi/login/", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ email: "ahmed@example.com" })
 });</code></pre>
         <h4>curl</h4>
-<pre><code>curl -X POST http://127.0.0.1:8000/api/login/ \
+<pre><code>curl -X POST https://projecteastapi/login/ \
   -H "Content-Type: application/json" \
   -d '{"email":"ahmed@example.com"}'</code></pre>
       </details>
@@ -203,7 +203,7 @@
     </section>
 
     <section id="otp">
-      <h2><span class="method">POST</span> <span class="url">/api/otp/</span></h2>
+      <h2><span class="method">POST</span> <span class="url">/otp/</span></h2>
       <p>Verify the OTP and receive JWT <code class="inline">access</code> &amp; <code class="inline">refresh</code> tokens.</p>
 
       <div class="grid">
@@ -229,7 +229,7 @@
       <details>
         <summary>Fetch &amp; cURL examples</summary>
         <h4>fetch</h4>
-<pre><code>const res = await fetch("http://127.0.0.1:8000/api/otp/", {
+<pre><code>const res = await fetch("https://projecteastapi/otp/", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ email: "ahmed@example.com", otp_code: "123456" })
@@ -238,7 +238,7 @@ const data = await res.json();
 localStorage.setItem("access", data.access);
 localStorage.setItem("refresh", data.refresh);</code></pre>
         <h4>curl</h4>
-<pre><code>curl -X POST http://127.0.0.1:8000/api/otp/ \
+<pre><code>curl -X POST https://projecteastapi/otp/ \
   -H "Content-Type: application/json" \
   -d '{"email":"ahmed@example.com","otp_code":"123456"}'</code></pre>
       </details>
@@ -259,7 +259,7 @@ localStorage.setItem("refresh", data.refresh);</code></pre>
     </section>
 
     <section id="refresh">
-  <h2><span class="method">POST</span> <span class="url">/api/refresh/</span></h2>
+  <h2><span class="method">POST</span> <span class="url">/refresh/</span></h2>
   <p>Obtain a new <code class="inline">access</code> token using a valid <code class="inline">refresh</code> token. This endpoint is provided by <strong>SimpleJWT</strong>.</p>
 
   <div class="grid">
@@ -280,7 +280,7 @@ localStorage.setItem("refresh", data.refresh);</code></pre>
   <details>
     <summary>Fetch &amp; cURL examples</summary>
     <h4>fetch</h4>
-<pre><code>await fetch("http://127.0.0.1:8000/api/refresh/", {
+<pre><code>await fetch("https://projecteastapi/refresh/", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ refresh: localStorage.getItem("refresh") })
@@ -289,7 +289,7 @@ localStorage.setItem("refresh", data.refresh);</code></pre>
 .then(d => localStorage.setItem("access", d.access));</code></pre>
 
     <h4>curl</h4>
-<pre><code>curl -X POST http://127.0.0.1:8000/api/token/refresh/ \
+<pre><code>curl -X POST https://projecteastapi/token/refresh/ \
   -H "Content-Type: application/json" \
   -d '{"refresh":"&lt;YOUR_REFRESH_TOKEN&gt;"}'</code></pre>
   </details>
@@ -312,15 +312,15 @@ localStorage.setItem("refresh", data.refresh);</code></pre>
         </div>
         <div class="card">
           <h3>Example fetch</h3>
-<pre><code>await fetch("http://127.0.0.1:8000/api/courses/", {
+<pre><code>await fetch("https://projecteastapi/courses/", {
   headers: {
     "Authorization": `Bearer ${localStorage.getItem("access")}`
   }
 });</code></pre>
         </div>
       </div>
-      <p class="note">When access token expires, use your refresh token with <code class="inline">/api/token/refresh/</code> (from SimpleJWT) to get a new access token.</p>
-<pre><code>POST /api/token/refresh/
+      <p class="note">When access token expires, use your refresh token with <code class="inline">/token/refresh/</code> (from SimpleJWT) to get a new access token.</p>
+<pre><code>POST /token/refresh/
 Content-Type: application/json
 
 { "refresh": "&lt;JWT_REFRESH_TOKEN&gt;" }</code></pre>
@@ -365,7 +365,7 @@ Content-Type: application/json
     <section>
       <h2>Quick Test Script (paste in browser console)</h2>
 <pre><code>// Set base
-const BASE = "http://127.0.0.1:8000/api";
+const BASE = "https://projecteastapi/api";
 
 // 1) Signup
 await fetch(`${BASE}/signup/`, {
