@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../widgets/card_widget.dart';
+import '../../widgets/enhanced_button.dart';
 import '../../data/demo_data.dart';
 
 class EmployeesPage extends StatelessWidget {
@@ -16,23 +17,40 @@ class EmployeesPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Employees', style: theme.textTheme.displaySmall),
-                  const SizedBox(height: 4),
-                  Text('Manage employee information', style: theme.textTheme.bodyMedium),
-                ],
-              ),
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.add),
-                label: const Text('Add Employee'),
-              ),
-            ],
+          // Header
+          Text('Employees', style: theme.textTheme.displaySmall),
+          const SizedBox(height: 4),
+          Text('Manage employee information', style: theme.textTheme.bodyMedium),
+          
+          const SizedBox(height: 16),
+          
+          // Add Employee Button
+          SizedBox(
+            width: double.infinity,
+            child: EnhancedButton(
+              text: 'Add Employee',
+              icon: Icons.add,
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Row(
+                      children: [
+                        Icon(Icons.info, color: Colors.white),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text('Add Employee feature coming soon!'),
+                        ),
+                      ],
+                    ),
+                    backgroundColor: AppTheme.primary600,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
           const SizedBox(height: 24),
           CardWidget(

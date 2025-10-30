@@ -4,12 +4,15 @@ import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/institute_provider.dart';
 import '../widgets/animated_background.dart';
-import '../widgets/animated_button.dart';
-import '../widgets/card_widget.dart';
+import '../widgets/enhanced_button.dart';
 import '../config/theme.dart';
+import '../utils/page_transitions.dart';
+import 'dashboard/dashboard_screen.dart';
 
 class OTPScreen extends StatefulWidget {
-  const OTPScreen({super.key});
+  final String? email;
+  
+  const OTPScreen({super.key, this.email});
 
   @override
   State<OTPScreen> createState() => _OTPScreenState();
@@ -26,10 +29,12 @@ class _OTPScreenState extends State<OTPScreen> {
   );
   bool _isLoading = false;
   String _error = '';
+  String? _email;
 
   @override
   void initState() {
     super.initState();
+    _email = widget.email;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNodes[0].requestFocus();
     });
@@ -71,22 +76,39 @@ class _OTPScreenState extends State<OTPScreen> {
     if (mounted) {
       if (otpCode == '200471') {
         // Success
-        final String? email = ModalRoute.of(context)?.settings.arguments as String?;
         final instituteProvider = Provider.of<InstituteProvider>(context, listen: false);
         
         instituteProvider.updateInstituteData({
           'name': 'Al-Noor Educational Institute',
-          'email': email ?? 'info@alnoor.edu',
+          'email': _email ?? 'info@alnoor.edu',
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Verification successful! Welcome back!'),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text('Verification successful! Welcome back!'),
+                ),
+              ],
+            ),
             backgroundColor: AppTheme.teal500,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
 
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            ScaleSlideTransition(page: const DashboardScreen()),
+          );
+        }
       } else {
         setState(() {
           _error = 'Invalid verification code. Please try again.';
@@ -124,7 +146,6 @@ class _OTPScreenState extends State<OTPScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final String? email = ModalRoute.of(context)?.settings.arguments as String?;
 
     return Scaffold(
       body: AnimatedBackground(
@@ -234,7 +255,7 @@ class _OTPScreenState extends State<OTPScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                email ?? '',
+                                _email ?? '',
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: isDark
                                       ? AppTheme.teal400
@@ -262,7 +283,29 @@ class _OTPScreenState extends State<OTPScreen> {
                               ),
                             );
                           },
-                          child: CardWidget(
+                          child: Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF243B53).withOpacity(0.8)
+                                  : Colors.white.withOpacity(0.8),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isDark
+                                    ? Colors.white.withOpacity(0.1)
+                                    : Colors.white.withOpacity(0.3),
+                                width: 1.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isDark
+                                      ? Colors.black.withOpacity(0.2)
+                                      : Colors.black.withOpacity(0.08),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
                             child: Column(
                               children: [
                                 Text(
@@ -274,58 +317,76 @@ class _OTPScreenState extends State<OTPScreen> {
                                 const SizedBox(height: 24),
                                 
                                 // OTP Input Fields
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                  children: List.generate(6, (index) {
-                                    return SizedBox(
-                                      width: 48,
-                                      height: 56,
-                                      child: TextField(
-                                        controller: _controllers[index],
-                                        focusNode: _focusNodes[index],
-                                        textAlign: TextAlign.center,
-                                        keyboardType: TextInputType.number,
-                                        maxLength: 1,
-                                        style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        decoration: InputDecoration(
-                                          counterText: '',
-                                          contentPadding: EdgeInsets.zero,
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(12),
-                                            borderSide: BorderSide(
-                                              color: isDark
-                                                  ? AppTheme.navy600
-                                                  : Colors.grey.shade300,
-                                              width: 2,
-                                            ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: List.generate(6, (index) {
+                                      return Flexible(
+                                        child: Container(
+                                          constraints: const BoxConstraints(
+                                            maxWidth: 52,
+                                            minWidth: 40,
                                           ),
-                                          focusedBorder: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(12),
-                                            borderSide: const BorderSide(
-                                              color: AppTheme.teal500,
-                                              width: 2,
+                                          height: 56,
+                                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                                          child: TextField(
+                                            controller: _controllers[index],
+                                            focusNode: _focusNodes[index],
+                                            textAlign: TextAlign.center,
+                                            keyboardType: TextInputType.number,
+                                            maxLength: 1,
+                                            style: const TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
                                             ),
+                                            decoration: InputDecoration(
+                                              counterText: '',
+                                              contentPadding: EdgeInsets.zero,
+                                              border: OutlineInputBorder(
+                                                borderRadius: BorderRadius.circular(12),
+                                                borderSide: BorderSide(
+                                                  color: isDark
+                                                      ? AppTheme.navy600
+                                                      : Colors.grey.shade300,
+                                                  width: 2,
+                                                ),
+                                              ),
+                                              focusedBorder: OutlineInputBorder(
+                                                borderRadius: BorderRadius.circular(12),
+                                                borderSide: const BorderSide(
+                                                  color: AppTheme.teal500,
+                                                  width: 2,
+                                                ),
+                                              ),
+                                              enabledBorder: OutlineInputBorder(
+                                                borderRadius: BorderRadius.circular(12),
+                                                borderSide: BorderSide(
+                                                  color: isDark
+                                                      ? AppTheme.navy600
+                                                      : Colors.grey.shade300,
+                                                  width: 2,
+                                                ),
+                                              ),
+                                            ),
+                                            inputFormatters: [
+                                              FilteringTextInputFormatter.digitsOnly,
+                                            ],
+                                            onChanged: (value) {
+                                              if (value.isNotEmpty && index < 5) {
+                                                _focusNodes[index + 1].requestFocus();
+                                              } else if (value.isEmpty && index > 0) {
+                                                _focusNodes[index - 1].requestFocus();
+                                              }
+                                              setState(() {
+                                                _error = '';
+                                              });
+                                            },
                                           ),
                                         ),
-                                        inputFormatters: [
-                                          FilteringTextInputFormatter.digitsOnly,
-                                        ],
-                                        onChanged: (value) {
-                                          if (value.isNotEmpty && index < 5) {
-                                            _focusNodes[index + 1].requestFocus();
-                                          } else if (value.isEmpty && index > 0) {
-                                            _focusNodes[index - 1].requestFocus();
-                                          }
-                                          setState(() {
-                                            _error = '';
-                                          });
-                                        },
-                                      ),
-                                    );
-                                  }),
+                                      );
+                                    }),
+                                  ),
                                 ),
                                 
                                 if (_error.isNotEmpty) ...[
@@ -392,8 +453,9 @@ class _OTPScreenState extends State<OTPScreen> {
                                 
                                 SizedBox(
                                   width: double.infinity,
-                                  child: AnimatedButton(
+                                  child: EnhancedButton(
                                     text: _isLoading ? 'Verifying...' : 'Verify Code',
+                                    icon: Icons.verified_user,
                                     onPressed: _handleSubmit,
                                     isLoading: _isLoading,
                                   ),

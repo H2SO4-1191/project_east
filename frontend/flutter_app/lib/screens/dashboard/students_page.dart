@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../widgets/card_widget.dart';
+import '../../widgets/enhanced_button.dart';
 import '../../data/demo_data.dart';
 import '../../models/student.dart';
 
@@ -38,26 +39,42 @@ class _StudentsPageState extends State<StudentsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Students', style: theme.textTheme.displaySmall),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Manage student information',
-                    style: theme.textTheme.bodyMedium,
+          Text('Students', style: theme.textTheme.displaySmall),
+          const SizedBox(height: 4),
+          Text(
+            'Manage student information',
+            style: theme.textTheme.bodyMedium,
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Add Student Button
+          SizedBox(
+            width: double.infinity,
+            child: EnhancedButton(
+              text: 'Add Student',
+              icon: Icons.add,
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Row(
+                      children: [
+                        Icon(Icons.info, color: Colors.white),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text('Add Student feature coming soon!'),
+                        ),
+                      ],
+                    ),
+                    backgroundColor: AppTheme.primary600,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                ],
-              ),
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.add),
-                label: const Text('Add Student'),
-              ),
-            ],
+                );
+              },
+            ),
           ),
           const SizedBox(height: 24),
 

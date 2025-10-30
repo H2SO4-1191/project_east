@@ -48,7 +48,7 @@ class FinancePage extends StatelessWidget {
                     Text('Total Paid', style: theme.textTheme.bodySmall),
                     const SizedBox(height: 8),
                     Text(
-                      '\$${totalPaid.toStringAsFixed(0)}',
+                      'IQD ${totalPaid.toStringAsFixed(0)}',
                       style: theme.textTheme.displaySmall?.copyWith(
                         color: AppTheme.teal600,
                       ),
@@ -64,7 +64,7 @@ class FinancePage extends StatelessWidget {
                     Text('Pending', style: theme.textTheme.bodySmall),
                     const SizedBox(height: 8),
                     Text(
-                      '\$${totalPending.toStringAsFixed(0)}',
+                      'IQD ${totalPending.toStringAsFixed(0)}',
                       style: theme.textTheme.displaySmall?.copyWith(
                         color: Colors.orange,
                       ),
@@ -80,7 +80,7 @@ class FinancePage extends StatelessWidget {
                     Text('Overdue', style: theme.textTheme.bodySmall),
                     const SizedBox(height: 8),
                     Text(
-                      '\$${totalOverdue.toStringAsFixed(0)}',
+                      'IQD ${totalOverdue.toStringAsFixed(0)}',
                       style: theme.textTheme.displaySmall?.copyWith(
                         color: Colors.red,
                       ),
@@ -131,7 +131,7 @@ class FinancePage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '\$${invoice.amount.toStringAsFixed(0)}',
+                        'IQD ${invoice.amount.toStringAsFixed(0)}',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),

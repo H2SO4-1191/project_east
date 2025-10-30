@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'config/theme.dart';
 import 'providers/theme_provider.dart';
@@ -14,11 +15,37 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
+        // Set system UI overlay style based on theme
+        SystemChrome.setSystemUIOverlayStyle(
+          SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: themeProvider.isDark ? Brightness.light : Brightness.dark,
+            systemNavigationBarColor: themeProvider.isDark 
+                ? AppTheme.navy900 
+                : Colors.white,
+            systemNavigationBarIconBrightness: themeProvider.isDark ? Brightness.light : Brightness.dark,
+          ),
+        );
+
         return MaterialApp(
           title: 'Project East',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
+          theme: AppTheme.lightTheme.copyWith(
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+                TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+              },
+            ),
+          ),
+          darkTheme: AppTheme.darkTheme.copyWith(
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+                TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+              },
+            ),
+          ),
           themeMode: themeProvider.isDark ? ThemeMode.dark : ThemeMode.light,
           initialRoute: '/',
           routes: {

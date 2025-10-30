@@ -41,7 +41,7 @@ class OverviewPage extends StatelessWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
-                childAspectRatio: isWide ? 1.5 : 1.3,
+                childAspectRatio: isWide ? 1.5 : 1.8,
                 children: [
                   _StatCard(
                     title: 'Total Students',
@@ -66,7 +66,7 @@ class OverviewPage extends StatelessWidget {
                     value: 38000,
                     icon: Icons.attach_money,
                     color: AppTheme.gold600,
-                    prefix: '\$',
+                    prefix: 'IQD ',
                   ),
                 ],
               );
@@ -193,57 +193,79 @@ class _StatCard extends StatelessWidget {
     final theme = Theme.of(context);
     
     return CardWidget(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      child: ClipRect(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      title,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            title,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                    ClipRect(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (prefix != null)
+                              Text(
+                                prefix!,
+                                style: theme.textTheme.displaySmall?.copyWith(
+                                  color: color,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 24,
+                                ),
+                              ),
+                            AnimatedCounter(
+                              value: value,
+                              textStyle: theme.textTheme.displaySmall?.copyWith(
+                                color: color,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 24,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        if (prefix != null)
-                          Text(
-                            prefix!,
-                            style: theme.textTheme.displaySmall?.copyWith(
-                              color: color,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        AnimatedCounter(
-                          value: value,
-                          textStyle: theme.textTheme.displaySmall?.copyWith(
-                            color: color,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(icon, color: color, size: 22),
                     ),
                   ],
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 28),
-              ),
-            ],
-          ),
-        ],
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -404,7 +426,7 @@ class _RevenueChart extends StatelessWidget {
                       reservedSize: 50,
                       getTitlesWidget: (value, meta) {
                         return Text(
-                          '\$${(value / 1000).toInt()}K',
+                          'IQD ${(value / 1000).toInt()}K',
                           style: theme.textTheme.bodySmall,
                         );
                       },

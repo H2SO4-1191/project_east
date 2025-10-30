@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/animated_background.dart';
-import '../widgets/animated_button.dart';
-import '../widgets/card_widget.dart';
+import '../widgets/enhanced_button.dart';
+import '../widgets/glass_card.dart';
 import '../config/theme.dart';
+import '../utils/page_transitions.dart';
+import 'otp_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -35,16 +37,29 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Verification code sent to your email!'),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text('Verification code sent to your email!'),
+                ),
+              ],
+            ),
             backgroundColor: AppTheme.teal500,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 3),
           ),
         );
 
-        Navigator.pushNamed(
-          context,
-          '/otp',
-          arguments: _emailController.text,
+        Navigator.of(context).push(
+          SmoothPageRoute(
+            page: OTPScreen(email: _emailController.text),
+          ),
         );
       }
     }
@@ -171,20 +186,24 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 48),
 
-                        // Login Form Card
-                        TweenAnimationBuilder(
-                          tween: Tween<double>(begin: 0, end: 1),
-                          duration: const Duration(milliseconds: 800),
-                          builder: (context, value, child) {
-                            return Opacity(
-                              opacity: value,
-                              child: Transform.translate(
-                                offset: Offset(0, 20 * (1 - value)),
-                                child: child,
-                              ),
-                            );
-                          },
-                          child: CardWidget(
+          // Login Form Card
+          TweenAnimationBuilder(
+            tween: Tween<double>(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 800),
+            builder: (context, value, child) {
+              return Opacity(
+                opacity: value,
+                child: Transform.translate(
+                  offset: Offset(0, 30 * (1 - value)),
+                  child: Transform.scale(
+                    scale: 0.9 + (0.1 * value),
+                    child: child,
+                  ),
+                ),
+              );
+            },
+            child: GlassCard(
+              borderRadius: 20,
                             child: Form(
                               key: _formKey,
                               child: Column(
@@ -267,8 +286,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   
                                   SizedBox(
                                     width: double.infinity,
-                                    child: AnimatedButton(
+                                    child: EnhancedButton(
                                       text: _isLoading ? 'Sending Code...' : 'Continue',
+                                      icon: Icons.arrow_forward,
                                       onPressed: _handleSubmit,
                                       isLoading: _isLoading,
                                     ),

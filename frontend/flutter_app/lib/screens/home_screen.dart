@@ -3,9 +3,11 @@ import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/institute_provider.dart';
 import '../widgets/animated_background.dart';
-import '../widgets/animated_button.dart';
-import '../widgets/card_widget.dart';
+import '../widgets/enhanced_button.dart';
+import '../widgets/glass_card.dart';
 import '../config/theme.dart';
+import '../utils/page_transitions.dart';
+import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -62,31 +64,6 @@ class _HomeScreenState extends State<HomeScreen> {
         child: SafeArea(
           child: Stack(
             children: [
-              // Theme Toggle Button
-              Positioned(
-                top: 24,
-                right: 24,
-                child: Material(
-                  color: isDark
-                      ? AppTheme.navy800.withOpacity(0.8)
-                      : Colors.white.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(50),
-                  elevation: 4,
-                  child: InkWell(
-                    onTap: () => themeProvider.toggleTheme(),
-                    borderRadius: BorderRadius.circular(50),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Icon(
-                        isDark ? Icons.wb_sunny : Icons.nightlight_round,
-                        color: isDark ? AppTheme.gold500 : AppTheme.navy700,
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              
               // Main Content
               Center(
                 child: SingleChildScrollView(
@@ -166,23 +143,27 @@ class _HomeScreenState extends State<HomeScreen> {
                         
                         const SizedBox(height: 48),
                         
-                        // Main Content Card
-                        TweenAnimationBuilder(
-                          tween: Tween<double>(begin: 0, end: 1),
-                          duration: const Duration(milliseconds: 800),
-                          builder: (context, value, child) {
-                            return Opacity(
-                              opacity: value,
-                              child: Transform.translate(
-                                offset: Offset(0, 20 * (1 - value)),
-                                child: child,
-                              ),
-                            );
-                          },
-                          child: CardWidget(
-                            child: _buildContent(theme, isDark),
-                          ),
-                        ),
+          // Main Content Card
+          TweenAnimationBuilder(
+            tween: Tween<double>(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 800),
+            builder: (context, value, child) {
+              return Opacity(
+                opacity: value,
+                child: Transform.translate(
+                  offset: Offset(0, 30 * (1 - value)),
+                  child: Transform.scale(
+                    scale: 0.9 + (0.1 * value),
+                    child: child,
+                  ),
+                ),
+              );
+            },
+            child: GlassCard(
+              borderRadius: 20,
+              child: _buildContent(theme, isDark),
+            ),
+          ),
                         
                         const SizedBox(height: 24),
                         
@@ -191,6 +172,31 @@ class _HomeScreenState extends State<HomeScreen> {
                           style: theme.textTheme.bodySmall,
                         ),
                       ],
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Theme Toggle Button (on top)
+              Positioned(
+                top: 24,
+                right: 24,
+                child: Material(
+                  color: isDark
+                      ? AppTheme.navy800.withOpacity(0.8)
+                      : Colors.white.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(50),
+                  elevation: 8,
+                  child: InkWell(
+                    onTap: () => themeProvider.toggleTheme(),
+                    borderRadius: BorderRadius.circular(50),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Icon(
+                        isDark ? Icons.wb_sunny : Icons.nightlight_round,
+                        color: isDark ? AppTheme.gold500 : AppTheme.navy700,
+                        size: 24,
+                      ),
                     ),
                   ),
                 ),
@@ -221,24 +227,56 @@ class _HomeScreenState extends State<HomeScreen> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 32),
-        SizedBox(
-          width: double.infinity,
-          child: AnimatedButton(
-            text: 'Login',
-            onPressed: () => Navigator.pushNamed(context, '/login'),
+        TweenAnimationBuilder(
+          tween: Tween<double>(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 600),
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: Offset(0, 20 * (1 - value)),
+                child: child,
+              ),
+            );
+          },
+          child: SizedBox(
+            width: double.infinity,
+            child: EnhancedButton(
+              text: 'Login',
+              icon: Icons.login,
+              onPressed: () {
+                Navigator.of(context).push(
+                  SmoothPageRoute(page: const LoginScreen()),
+                );
+              },
+            ),
           ),
         ),
         const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: AnimatedButton(
-            text: 'Sign In',
-            isPrimary: false,
-            onPressed: () {
-              setState(() {
-                _showSignInOptions = true;
-              });
-            },
+        TweenAnimationBuilder(
+          tween: Tween<double>(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 700),
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: Offset(0, 20 * (1 - value)),
+                child: child,
+              ),
+            );
+          },
+          child: SizedBox(
+            width: double.infinity,
+            child: EnhancedButton(
+              text: 'Sign In',
+              icon: Icons.person_add,
+              isPrimary: false,
+              onPressed: () {
+                setState(() {
+                  _showSignInOptions = true;
+                });
+              },
+            ),
           ),
         ),
       ],
@@ -489,8 +527,9 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
-            child: AnimatedButton(
+            child: EnhancedButton(
               text: 'Continue to Payment',
+              icon: Icons.arrow_forward,
               onPressed: _handleRegistrationSubmit,
             ),
           ),
