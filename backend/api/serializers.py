@@ -6,7 +6,7 @@ from datetime import timedelta
 class SignupSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'phone_number', 'user_type']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'user_type']
     def create(self, validated_data):
         user = User.objects.create(**validated_data)
         user.set_unusable_password()

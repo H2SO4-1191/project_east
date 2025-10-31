@@ -19,10 +19,17 @@ keywords_validator = RegexValidator(
 )
 
 def upload_path(instance, file_name):
-    return f"media/{instance.email}/{file_name}"
+    return f"media/{instance.username}/{file_name}"
 
 def upload_course_path(instance, file_name):
-    return f"media/{instance.lecturer.email}/courses/{file_name}"
+    return f"media/{instance.institution.username}/courses/{file_name}"
+
+def upload_staff_path(instance, file_name):
+    first = instance.first_name.replace(" ", "_").lower()
+    last = instance.last_name.replace(" ", "_").lower()
+    staff_folder = f"{first}_{last}"
+    return f"media/{instance.institution.user.username}/staff/{staff_folder}/{file_name}"
+
 
 class User(AbstractUser):
     USER_TYPES = (
@@ -30,7 +37,10 @@ class User(AbstractUser):
         ('lecturer', 'Lecturer'),
         ('student', 'Student'),
     )
-    user_type = models.CharField(max_length=20, choices=USER_TYPES)
+    first_name = models.CharField(max_length=100, blank=False, null=False)
+    last_name = models.CharField(max_length=100, blank=False, null=False)
+    email = models.EmailField(max_length=250, unique=True, null=False, blank=False)
+    user_type = models.CharField(max_length=20, choices=USER_TYPES, null=False, blank=False)
     phone_number = models.CharField(max_length=15, blank=True, null=True, validators=[phone_validator])
     about = models.CharField(max_length=1000, blank=True, null=True)
     profile_image = models.ImageField(upload_to=upload_path, blank=True, null=True)
@@ -45,6 +55,7 @@ class User(AbstractUser):
     is_verified = models.BooleanField(default=False)
     otp_code = models.CharField(max_length=6, blank=True, null=True)
     otp_generated = models.DateTimeField(blank=True, null=True)
+    REQUIRED_FIELDS=['first_name', 'last_name', 'email', 'user_type']
     def save(self, *args, **kwargs):
         if not self.password:
             self.set_unusable_password()
@@ -98,5 +109,17 @@ class Student(models.Model):
     def __str__(self):
         return self.user.username
     
+class Staff(models.Model):
+    first_name = models.CharField(max_length=100, blank=False, null=False)
+    last_name = models.CharField(max_length=100, blank=False, null=False)
+    phone_number = models.CharField(max_length=100, blank=False, null=False, validators=[phone_validator])
+    personal_image = models.ImageField(upload_to=upload_staff_path)
+    idcard_back = models.ImageField(upload_to=upload_staff_path, blank=True, null=True)
+    idcard_front = models.ImageField(upload_to=upload_staff_path, blank=True, null=True)
+    residence_front = models.ImageField(upload_to=upload_staff_path, blank=True, null=True)
+    residence_back = models.ImageField(upload_to=upload_staff_path, blank=True, null=True)
+    duty = models.CharField(max_length=255, blank=False, null=False)
+    salary = models.PositiveIntegerField(blank=False, null=False, default=0)
 
-    
+
+
