@@ -2,6 +2,8 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.db.models import JSONField
 from django.core.validators import RegexValidator
+from django.contrib.postgres.fields import ArrayField
+from datetime import time
 
 phone_validator = RegexValidator(
     regex=r'^\+?\d{9,15}$',
@@ -72,7 +74,9 @@ class Lecturer(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     institutions = models.ManyToManyField(Institution, related_name='lecturers')
     academic_achievement = models.CharField(max_length=255)
-    experience = models.CharField(max_length=1000, blank=True, null=True)
+    specialty = models.CharField(max_length=255, default='')
+    skills = models.CharField(max_length=1000, blank=True, null=True)
+    experience = models.PositiveIntegerField(blank=True, null=True)
     free_time = models.CharField(max_length=20, blank=True, null=True, validators=[timerange_validator])
     def __str__(self):
         return self.user.username
@@ -83,11 +87,23 @@ class Course(models.Model):
     course_image = models.ImageField(upload_to=upload_course_path, blank=True, null=True)
     starting_date = models.DateField()
     ending_date = models.DateField()
-    schedule = JSONField(default=dict)
+
+    DAYS = [
+        ('monday', 'Monday'),
+        ('tuesday', 'Tuesday'),
+        ('wednesday', 'Wednesday'),
+        ('thursday', 'Thursday'),
+        ('friday', 'Friday'),
+        ('saturday', 'Saturday'),
+        ('sunday', 'Sunday'),
+    ]
+
+    days = ArrayField(models.CharField(max_length=10, choices=DAYS), default=[])
+    start_time = models.TimeField(default=time(9, 0))
+    end_time = models.TimeField(default=time(10, 0))
+
     institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='courses')
     lecturer = models.ForeignKey(Lecturer, on_delete=models.CASCADE, related_name='courses')
-    def __str__(self):
-        return self.title
 
 class Student(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -120,6 +136,12 @@ class Staff(models.Model):
     residence_back = models.ImageField(upload_to=upload_staff_path, blank=True, null=True)
     duty = models.CharField(max_length=255, blank=False, null=False)
     salary = models.PositiveIntegerField(blank=False, null=False, default=0)
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name="staff", null=True, blank=True) # nullable for dev only!
+    is_active = models.BooleanField(default=True)
+
+
+
+
 
 
 

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User
+from .models import *
 from django.utils import timezone
 from datetime import timedelta
 
@@ -34,3 +34,57 @@ class OTPSerializer(serializers.Serializer):
             raise serializers.ValidationError({"otp_code": "OTP code expired."})
         data['user'] = user
         return data
+
+class StudentListSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(source="user.first_name")
+    last_name = serializers.CharField(source="user.last_name")
+    email = serializers.EmailField(source="user.email")
+    profile_image = serializers.ImageField(source="user.profile_image")
+
+    class Meta:
+        model = Student
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "email",
+            "profile_image",
+            "studying_level",
+            "responsible_phone",
+        ]
+
+class LecturerListSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(source="user.first_name")
+    last_name = serializers.CharField(source="user.last_name")
+    email = serializers.EmailField(source="user.email")
+    profile_image = serializers.ImageField(source="user.profile_image")
+    phone_number = serializers.CharField(source="user.phone_number")
+
+    class Meta:
+        model = Lecturer
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "email",
+            "profile_image",
+            "specialty",
+            "experience",
+            "phone_number"
+        ]
+
+class StaffListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Staff
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "personal_image",
+            "duty",
+            "phone_number",
+            "salary",
+            "is_active"
+        ]
+
+
