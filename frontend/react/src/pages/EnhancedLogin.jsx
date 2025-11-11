@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FaMoon, FaSun, FaArrowLeft } from 'react-icons/fa';
 import { useTheme } from '../context/ThemeContext';
@@ -7,17 +7,32 @@ import AnimatedBackground from '../components/AnimatedBackground';
 import AnimatedButton from '../components/AnimatedButton';
 import Card from '../components/Card';
 import toast from 'react-hot-toast';
+import { authService } from '../services/authService';
 
 const EnhancedLogin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isDark, toggleTheme } = useTheme();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [signupPrompt, setSignupPrompt] = useState(false);
+
+  const buttonLabel = useMemo(
+    () => (isLoading ? 'Sending Code...' : 'Continue'),
+    [isLoading]
+  );
+
+  useEffect(() => {
+    if (location.state?.email) {
+      setEmail(location.state.email);
+    }
+  }, [location.state]);
 
   const handleInputChange = (e) => {
     setEmail(e.target.value);
     setError('');
+    setSignupPrompt(false);
   };
 
   const handleSubmit = async (e) => {
@@ -35,12 +50,27 @@ const EnhancedLogin = () => {
     
     setIsLoading(true);
     
-    // Simulate sending OTP
-    setTimeout(() => {
-      toast.success('Verification code sent to your email!');
-      // Pass email to OTP page via state
-      navigate('/verify-otp', { state: { email } });
-    }, 1000);
+    try {
+      const response = await authService.requestOtp(email.trim());
+
+      toast.success(response?.message || 'Verification code sent to your email!');
+      navigate('/verify-otp', { state: { email: email.trim() } });
+    } catch (err) {
+      console.error('Login error:', err);
+
+      if (err?.suggestSignup) {
+        setSignupPrompt(true);
+        setError('No account found for this email. Please sign up to continue.');
+      } else if (err?.message) {
+        setError(err.message);
+      } else {
+        setError('Unable to reach the server. Please check your connection and try again.');
+      }
+
+      toast.error('Login failed. Please review the message below.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -138,23 +168,29 @@ const EnhancedLogin = () => {
                 </motion.div>
               )}
 
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 px-4 py-3 rounded-lg text-sm"
-              >
-                <strong>Demo Login:</strong><br />
-                Email: demo@east.edu<br />
-                Verification Code: 200471
-              </motion.div>
+              {signupPrompt && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-4 py-3 rounded-lg text-sm"
+                >
+                  <span>Need an account? Start your institution signup.</span>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/signup')}
+                    className="self-start sm:self-auto px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-500 transition-colors text-sm font-semibold"
+                  >
+                    Go to Sign Up
+                  </button>
+                </motion.div>
+              )}
 
               <AnimatedButton 
                 type="submit" 
                 className="w-full text-lg py-4"
                 disabled={isLoading}
               >
-                {isLoading ? 'Sending Code...' : 'Continue'}
+                {buttonLabel}
               </AnimatedButton>
             </form>
           </Card>
@@ -167,7 +203,7 @@ const EnhancedLogin = () => {
           >
             Don't have an account?{' '}
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/signup')}
               className="text-primary-600 dark:text-teal-400 hover:text-primary-700 dark:hover:text-teal-300 font-semibold transition-colors"
             >
               Sign up here

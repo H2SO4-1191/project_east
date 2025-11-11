@@ -9,18 +9,49 @@ import AnimatedButton from '../components/AnimatedButton';
 import Card from '../components/Card';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
+import { authService } from '../services/authService';
+
+const decodeJwtPayload = (token) => {
+  if (!token) return null;
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
+    const json = atob(padded);
+    return JSON.parse(json);
+  } catch (error) {
+    console.error('Failed to decode JWT payload:', error);
+    return null;
+  }
+};
 
 const OTPVerification = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { updateInstituteData } = useInstitute();
+  const { instituteData, updateInstituteData } = useInstitute();
   const { isDark, toggleTheme } = useTheme();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const inputRefs = useRef([]);
 
   const email = location.state?.email || '';
+  const recentSignup = useRef(null);
+
+  useEffect(() => {
+    if (recentSignup.current === null) {
+      try {
+        const stored = localStorage.getItem('recentSignup');
+        recentSignup.current = stored ? JSON.parse(stored) : {};
+      } catch (error) {
+        console.error('Failed to parse recent signup info:', error);
+        recentSignup.current = {};
+      }
+    }
+  }, []);
 
   useEffect(() => {
     // If no email, redirect back to login
@@ -78,54 +109,118 @@ const OTPVerification = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     const otpCode = otp.join('');
-    
+
     if (otpCode.length !== 6) {
       setError('Please enter all 6 digits');
-      // Shake animation
       const inputs = document.querySelectorAll('.otp-input');
-      inputs.forEach(input => {
+      inputs.forEach((input) => {
         input.classList.add('shake');
         setTimeout(() => input.classList.remove('shake'), 500);
       });
       return;
     }
-    
+
     setIsLoading(true);
-    
-    // Simulate API verification
-    setTimeout(() => {
-      if (otpCode === '200471') {
-        // Success
-        updateInstituteData({
-          name: 'Al-Noor Educational Institute',
-          email: email,
-        });
-        
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-        });
-        
-        toast.success('Verification successful! Welcome back!');
-        navigate('/dashboard');
-      } else {
-        setError('Invalid verification code. Please try again.');
-        toast.error('Invalid code');
-        setOtp(['', '', '', '', '', '']);
-        inputRefs.current[0]?.focus();
-        setIsLoading(false);
+
+    try {
+      const result = await authService.verifyOtp({
+        email,
+        otp_code: otpCode,
+      });
+
+      const payload = decodeJwtPayload(result?.access);
+      const resolvedEmail = payload?.email || email;
+      const pendingProfile = recentSignup.current || {};
+      const usernameFromEmail = resolvedEmail ? resolvedEmail.split('@')[0] : '';
+      const firstName =
+        payload?.first_name ||
+        payload?.firstName ||
+        pendingProfile.firstName ||
+        instituteData.firstName ||
+        usernameFromEmail;
+      const lastName =
+        payload?.last_name ||
+        payload?.lastName ||
+        pendingProfile.lastName ||
+        instituteData.lastName;
+      const username =
+        payload?.username ||
+        pendingProfile.username ||
+        instituteData.username ||
+        usernameFromEmail;
+      const displayName =
+        payload?.full_name ||
+        payload?.name ||
+        [firstName, lastName].filter(Boolean).join(' ') ||
+        username ||
+        resolvedEmail ||
+        instituteData.name ||
+        email;
+
+      updateInstituteData({
+        name: displayName,
+        email: resolvedEmail,
+        username,
+        firstName,
+        lastName,
+        userId: result?.user_id ?? instituteData.userId,
+        userType: result?.user_type ?? pendingProfile.userType ?? instituteData.userType,
+        accessToken: result?.access,
+        refreshToken: result?.refresh,
+        isAuthenticated: true,
+      });
+
+      if (pendingProfile.email && pendingProfile.email === resolvedEmail) {
+        localStorage.removeItem('recentSignup');
       }
-    }, 1000);
+
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+      });
+
+      toast.success(result?.message || 'Verification successful! Welcome back!');
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      console.error('OTP verification error:', err);
+      const message =
+        err?.message || 'Invalid verification code. Please try again.';
+      setError(message);
+      toast.error(message);
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleResendCode = () => {
-    setOtp(['', '', '', '', '', '']);
+  const handleResendCode = async () => {
+    if (!email) {
+      toast.error('Missing email. Please go back and request a new code.');
+      navigate('/login');
+      return;
+    }
+
+    setIsResending(true);
     setError('');
-    toast.success('Verification code resent to your email!');
-    inputRefs.current[0]?.focus();
+
+    try {
+      const response = await authService.requestOtp(email);
+      toast.success(response?.message || 'Verification code resent to your email!');
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
+    } catch (err) {
+      console.error('Resend OTP error:', err);
+      const message =
+        err?.message ||
+        'Unable to resend the verification code. Please try again shortly.';
+      toast.error(message);
+    } finally {
+      setIsResending(false);
+    }
   };
 
   return (
@@ -241,15 +336,6 @@ const OTPVerification = () => {
                 </motion.div>
               )}
 
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 px-4 py-3 rounded-lg text-sm text-center"
-              >
-                <strong>Demo Code:</strong> 200471
-              </motion.div>
-
               <AnimatedButton 
                 type="submit" 
                 className="w-full text-lg py-4"
@@ -267,10 +353,11 @@ const OTPVerification = () => {
                   type="button"
                   onClick={handleResendCode}
                   className="text-primary-600 dark:text-teal-400 hover:text-primary-700 dark:hover:text-teal-300 font-semibold text-sm transition-colors"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: isResending ? 1 : 1.05 }}
+                  whileTap={{ scale: isResending ? 1 : 0.95 }}
+                  disabled={isResending}
                 >
-                  Resend Code
+                  {isResending ? 'Resending...' : 'Resend Code'}
                 </motion.button>
               </div>
             </form>
@@ -278,7 +365,7 @@ const OTPVerification = () => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
           25% { transform: translateX(-10px); }

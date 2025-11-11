@@ -1,15 +1,88 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaCalendarAlt, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import Card from '../../components/Card';
 import { scheduleData } from '../../data/enhancedDemoData';
+import { ScheduleSkeleton, ListEmptyState } from '../../components/Skeleton';
+import { useInstitute } from '../../context/InstituteContext';
+import { authService } from '../../services/authService';
+
+const FALLBACK_SCHEDULE = scheduleData.reduce((acc, item) => {
+  const dayKey = item.day?.toLowerCase() || 'monday';
+  if (!acc[dayKey]) acc[dayKey] = [];
+  acc[dayKey].push({
+    course_id: item.id,
+    course_title: item.subject,
+    lecturer: item.teacher,
+    start_time: item.time.split(' - ')[0] || '',
+    end_time: item.time.split(' - ')[1] || '',
+    room: item.room,
+  });
+  return acc;
+}, {});
 
 const Schedule = () => {
+  const navigate = useNavigate();
+  const { instituteData, updateInstituteData, clearInstituteData } = useInstitute();
   const [currentWeek, setCurrentWeek] = useState(0);
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const [schedule, setSchedule] = useState(FALLBACK_SCHEDULE);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const days = useMemo(
+    () => ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+    []
+  );
+
+  useEffect(() => {
+    const loadSchedule = async () => {
+      if (!instituteData.accessToken) return;
+
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const remoteSchedule = await authService.getSchedule(instituteData.accessToken, {
+          refreshToken: instituteData.refreshToken,
+          onTokenRefreshed: (tokens) =>
+            updateInstituteData({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh || instituteData.refreshToken,
+            }),
+          onSessionExpired: () => {
+            clearInstituteData();
+            navigate('/login', { replace: true });
+          },
+        });
+        setSchedule(remoteSchedule);
+      } catch (err) {
+        console.error('Failed to fetch schedule:', err);
+        setError(
+          err?.message ||
+            'Unable to load the schedule from the server. Showing demo data instead.'
+        );
+        setSchedule(FALLBACK_SCHEDULE);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSchedule();
+  }, [
+    instituteData.accessToken,
+    instituteData.refreshToken,
+    updateInstituteData,
+    clearInstituteData,
+    navigate,
+  ]);
 
   const getScheduleByDay = (day) => {
-    return scheduleData.filter(item => item.day === day);
+    const key = day.toLowerCase();
+    if (Array.isArray(schedule?.[key])) {
+      return schedule[key];
+    }
+    return [];
   };
 
   const handlePrevWeek = () => setCurrentWeek(prev => prev - 1);
@@ -56,60 +129,115 @@ const Schedule = () => {
       </motion.div>
 
       {/* Weekly Calendar View */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <AnimatePresence mode="wait">
-          {days.map((day, index) => (
-            <motion.div
-              key={`${day}-${currentWeek}`}
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -50 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <Card delay={0} className="h-full">
-                <div className="flex items-center gap-2 mb-4">
-                  <FaCalendarAlt className="text-primary-600 dark:text-teal-400" />
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-                    {day}
-                  </h3>
-                </div>
-                
-                <div className="space-y-3">
-                  {getScheduleByDay(day).map((schedule) => (
-                    <motion.div
-                      key={schedule.id}
-                      whileHover={{ scale: 1.02, y: -2 }}
-                      className="p-3 bg-gradient-to-r from-primary-50 to-teal-50 dark:from-primary-900/20 dark:to-teal-900/20 rounded-lg border-l-4 border-primary-500 dark:border-teal-400 cursor-pointer"
-                    >
-                      <p className="text-xs font-semibold text-primary-600 dark:text-teal-400 mb-1">
-                        {schedule.time}
-                      </p>
-                      <p className="text-sm font-bold text-gray-800 dark:text-white mb-1">
-                        {schedule.subject}
-                      </p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        {schedule.grade}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                        {schedule.teacher}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500">
-                        {schedule.room}
-                      </p>
-                    </motion.div>
-                  ))}
-                  
-                  {getScheduleByDay(day).length === 0 && (
-                    <div className="text-center py-8 text-gray-400 dark:text-gray-600">
-                      <p className="text-sm">No classes</p>
+      {error && (
+        <div className="text-sm text-amber-500 dark:text-amber-300">
+          {error}
+        </div>
+      )}
+
+      {isLoading ? (
+        <ScheduleSkeleton />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <AnimatePresence mode="wait">
+            {days.slice(0, 5).map((day, index) => {
+              const entries = getScheduleByDay(day);
+              return (
+                <motion.div
+                  key={`${day}-${currentWeek}`}
+                  initial={{ opacity: 0, x: 50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -50 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card delay={0} className="h-full">
+                    <div className="flex items-center gap-2 mb-4">
+                      <FaCalendarAlt className="text-primary-600 dark:text-teal-400" />
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-white capitalize">
+                        {day}
+                      </h3>
                     </div>
+
+                    <div className="space-y-3">
+                      {entries.map((item) => (
+                        <motion.div
+                          key={`${item.course_id}-${item.start_time}`}
+                          whileHover={{ scale: 1.02, y: -2 }}
+                          className="p-3 bg-gradient-to-r from-primary-50 to-teal-50 dark:from-primary-900/20 dark:to-teal-900/20 rounded-lg border-l-4 border-primary-500 dark:border-teal-400"
+                        >
+                          <p className="text-xs font-semibold text-primary-600 dark:text-teal-400 mb-1">
+                            {item.start_time} – {item.end_time}
+                          </p>
+                          <p className="text-sm font-bold text-gray-800 dark:text-white mb-1">
+                            {item.course_title}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {item.lecturer}
+                          </p>
+                          {item.room && (
+                            <p className="text-xs text-gray-500 dark:text-gray-500">
+                              Room {item.room}
+                            </p>
+                          )}
+                        </motion.div>
+                      ))}
+
+                      {entries.length === 0 && (
+                        <div className="text-center py-8 text-gray-400 dark:text-gray-600">
+                          <p className="text-sm">No classes</p>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {!isLoading && days.slice(5).some(day => getScheduleByDay(day).length > 0) && (
+        <Card delay={0.1}>
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Weekend</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {days.slice(5).map((day) => {
+              const entries = getScheduleByDay(day);
+              return (
+                <div key={day} className="space-y-3">
+                  <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    {day}
+                  </h4>
+                  {entries.length > 0 ? (
+                    entries.map((item) => (
+                      <div
+                        key={`${item.course_id}-${item.start_time}`}
+                        className="p-3 bg-gradient-to-r from-primary-50 to-teal-50 dark:from-primary-900/20 dark:to-teal-900/20 rounded-lg border-l-4 border-primary-500 dark:border-teal-400"
+                      >
+                        <p className="text-xs font-semibold text-primary-600 dark:text-teal-400 mb-1">
+                          {item.start_time} – {item.end_time}
+                        </p>
+                        <p className="text-sm font-bold text-gray-800 dark:text-white mb-1">
+                          {item.course_title}
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          {item.lecturer}
+                        </p>
+                        {item.room && (
+                          <p className="text-xs text-gray-500 dark:text-gray-500">
+                            Room {item.room}
+                          </p>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-sm text-gray-400 dark:text-gray-600">No classes</div>
                   )}
                 </div>
-              </Card>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
     </div>
   );
 };

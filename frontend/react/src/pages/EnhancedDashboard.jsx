@@ -46,9 +46,15 @@ const EnhancedDashboard = () => {
   };
 
   const handleLogout = () => {
-    localStorage.clear();
+    localStorage.removeItem('instituteData');
     navigate('/');
   };
+
+  const displayName = instituteData.name || instituteData.username || instituteData.email || 'Institution';
+  const displayEmail = instituteData.email || 'No email on file';
+  const avatarLetter = displayName.charAt(0)?.toUpperCase() || 'I';
+  const greetingName = instituteData.firstName || instituteData.name || instituteData.username || 'there';
+  const subscriptionLabel = instituteData.subscriptionLabel || instituteData.subscription || 'Active Plan';
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-navy-900 flex transition-colors duration-300">
@@ -222,17 +228,19 @@ const EnhancedDashboard = () => {
 
                 <div>
                   <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-                    {instituteData.name}
+                    {displayName}
                   </h1>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{instituteData.email}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{displayEmail}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-4">
                 <div className="hidden md:block text-right">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Welcome Admin</p>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Welcome {greetingName}
+                  </p>
                   <p className="text-xs text-gray-500 dark:text-gray-500">
-                    {instituteData.subscriptionLabel || 'Premium Plan'}
+                    {subscriptionLabel}
                   </p>
                 </div>
                 <motion.div
@@ -240,7 +248,7 @@ const EnhancedDashboard = () => {
                   className="w-12 h-12 bg-gradient-to-br from-primary-600 to-teal-500 rounded-full flex items-center justify-center shadow-lg cursor-pointer"
                 >
                   <span className="text-white font-bold text-lg">
-                    {instituteData.name.charAt(0)}
+                    {avatarLetter}
                   </span>
                 </motion.div>
               </div>

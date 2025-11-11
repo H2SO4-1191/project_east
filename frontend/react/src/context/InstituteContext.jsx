@@ -10,18 +10,36 @@ export const useInstitute = () => {
   return context;
 };
 
+const createDefaultInstituteData = () => ({
+  name: '',
+  email: '',
+  username: '',
+  firstName: '',
+  lastName: '',
+  userId: null,
+  userType: '',
+  accessToken: '',
+  refreshToken: '',
+  subscription: '',
+  subscriptionLabel: '',
+  paymentMethod: '',
+  paymentMethodLabel: '',
+  registrationDate: '',
+  isAuthenticated: false,
+});
+
 export const InstituteProvider = ({ children }) => {
   const [instituteData, setInstituteData] = useState(() => {
     const saved = localStorage.getItem('instituteData');
-    return saved ? JSON.parse(saved) : {
-      name: 'Al-Noor Educational Institute',
-      email: 'info@alnoor.edu',
-      subscription: '1year',
-      subscriptionLabel: '1 Year',
-      paymentMethod: 'credit',
-      paymentMethodLabel: 'Credit Card',
-      registrationDate: new Date().toISOString(),
-    };
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return { ...createDefaultInstituteData(), ...parsed };
+      } catch (error) {
+        console.error('Failed to parse stored institute data:', error);
+      }
+    }
+    return createDefaultInstituteData();
   });
 
   useEffect(() => {
@@ -32,8 +50,13 @@ export const InstituteProvider = ({ children }) => {
     setInstituteData(prev => ({ ...prev, ...newData }));
   };
 
+  const clearInstituteData = () => {
+    setInstituteData(createDefaultInstituteData());
+    localStorage.removeItem('instituteData');
+  };
+
   return (
-    <InstituteContext.Provider value={{ instituteData, setInstituteData, updateInstituteData }}>
+    <InstituteContext.Provider value={{ instituteData, setInstituteData, updateInstituteData, clearInstituteData }}>
       {children}
     </InstituteContext.Provider>
   );

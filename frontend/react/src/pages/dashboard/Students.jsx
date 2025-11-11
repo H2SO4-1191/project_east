@@ -1,29 +1,162 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaSearch, FaFilter, FaUserGraduate } from 'react-icons/fa';
+import {
+  FaSearch,
+  FaFilter,
+  FaUserGraduate,
+  FaSync,
+  FaExclamationTriangle,
+} from 'react-icons/fa';
 import Card from '../../components/Card';
 import { studentsData } from '../../data/enhancedDemoData';
-import { TableSkeleton } from '../../components/Skeleton';
+import { ListEmptyState, TableSkeleton } from '../../components/Skeleton';
+import { authService } from '../../services/authService';
+import { useInstitute } from '../../context/InstituteContext';
+
+const DEFAULT_PAGE_SIZE = 10;
+
+const parseApiStudent = (student) => ({
+  id: student.id,
+  firstName: student.first_name || '',
+  lastName: student.last_name || '',
+  email: student.email,
+  profileImage: student.profile_image || '',
+  studyingLevel: student.studying_level || '—',
+  responsiblePhone: student.responsible_phone || '—',
+  active: Boolean(student.active),
+});
 
 const Students = () => {
+  const navigate = useNavigate();
+  const { instituteData, updateInstituteData, clearInstituteData } = useInstitute();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterGrade, setFilterGrade] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
-
-  const filteredStudents = studentsData.filter((student) => {
-    const matchesSearch = 
-      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.email.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = filterStatus === 'all' || student.status === filterStatus;
-    const matchesGrade = filterGrade === 'all' || student.grade === filterGrade;
-    
-    return matchesSearch && matchesStatus && matchesGrade;
+  const [error, setError] = useState('');
+  const [isRemote, setIsRemote] = useState(false);
+  const [students, setStudents] = useState(studentsData.slice(0, DEFAULT_PAGE_SIZE));
+  const [pagination, setPagination] = useState({
+    count: studentsData.length,
+    next: null,
+    previous: null,
+    currentPage: 1,
   });
 
-  const grades = ['all', ...new Set(studentsData.map(s => s.grade))];
+  const grades = useMemo(
+    () => ['all', ...new Set(studentsData.map((s) => s.grade || '—'))],
+    []
+  );
+
+  const fetchStudents = useCallback(
+    async ({ page = 1, status = filterStatus, grade = filterGrade, search = searchTerm } = {}) => {
+      if (!instituteData.accessToken) {
+        return;
+      }
+
+      setIsLoading(true);
+      setError('');
+
+      const params = new URLSearchParams();
+      params.set('page', page);
+      if (status !== 'all') {
+        params.set('active', status === 'Active' ? 'true' : 'false');
+      }
+      if (grade !== 'all') {
+        params.set('studying_level', grade);
+      }
+      if (search.trim()) {
+        params.set('search', search.trim());
+      }
+
+      const endpoint = params.toString()
+        ? `/institution/students-list/?${params.toString()}`
+        : '/institution/students-list/';
+
+      try {
+        const data = await authService.getProtected(endpoint, instituteData.accessToken, {
+          refreshToken: instituteData.refreshToken,
+          onTokenRefreshed: (tokens) =>
+            updateInstituteData({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh || instituteData.refreshToken,
+            }),
+          onSessionExpired: () => {
+            clearInstituteData();
+            navigate('/login', { replace: true });
+          },
+        });
+        const parsed = Array.isArray(data?.results) ? data.results.map(parseApiStudent) : [];
+
+        setStudents(parsed);
+        setIsRemote(true);
+        setPagination({
+          count: typeof data?.count === 'number' ? data.count : parsed.length,
+          next: data?.next || null,
+          previous: data?.previous || null,
+          currentPage: page,
+        });
+      } catch (err) {
+        console.error('Failed to fetch students:', err);
+        setError(
+          err?.message ||
+            'Unable to load students from the server. Showing demo data instead.'
+        );
+        const fallback = studentsData
+          .filter((student) => {
+            const matchesStatus = status === 'all' || student.status === status;
+            const matchesGrade = grade === 'all' || student.grade === grade;
+            const matchesSearch =
+              student.name.toLowerCase().includes(search.toLowerCase()) ||
+              student.id.toLowerCase().includes(search.toLowerCase()) ||
+              student.email.toLowerCase().includes(search.toLowerCase());
+            return matchesStatus && matchesGrade && matchesSearch;
+          })
+          .slice(0, DEFAULT_PAGE_SIZE);
+        setStudents(fallback);
+        setIsRemote(false);
+        setPagination({
+          count: studentsData.length,
+          next: null,
+          previous: null,
+          currentPage: 1,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [filterGrade, filterStatus, instituteData.accessToken, instituteData.refreshToken, searchTerm, updateInstituteData, clearInstituteData, navigate]
+  );
+
+  useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      fetchStudents({ page: 1, search: searchTerm });
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [searchTerm, fetchStudents]);
+
+  const filteredStudents = useMemo(() => {
+    return students.filter((student) => {
+      const matchesSearch =
+        `${student.firstName || ''} ${student.lastName || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (student.id || '').toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (student.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesStatus =
+        filterStatus === 'all' ||
+        (filterStatus === 'Active' && student.active) ||
+        (filterStatus === 'Inactive' && !student.active);
+      const matchesGrade = filterGrade === 'all' || student.studyingLevel === filterGrade;
+
+      return matchesSearch && matchesStatus && matchesGrade;
+    });
+  }, [students, searchTerm, filterStatus, filterGrade]);
 
   return (
     <div className="space-y-6">
@@ -55,7 +188,11 @@ const Students = () => {
             <FaFilter className="text-gray-400" />
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(e) => {
+                const status = e.target.value;
+                setFilterStatus(status);
+                fetchStudents({ page: 1, status });
+              }}
               className="px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
             >
               <option value="all">All Status</option>
@@ -68,7 +205,11 @@ const Students = () => {
           <div>
             <select
               value={filterGrade}
-              onChange={(e) => setFilterGrade(e.target.value)}
+              onChange={(e) => {
+                const grade = e.target.value;
+                setFilterGrade(grade);
+                fetchStudents({ page: 1, grade });
+              }}
               className="px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
             >
               {grades.map((grade) => (
@@ -78,12 +219,36 @@ const Students = () => {
               ))}
             </select>
           </div>
+
+          <button
+            onClick={() => fetchStudents({ page: pagination.currentPage })}
+            className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors disabled:opacity-60"
+            disabled={isLoading}
+          >
+            <FaSync className={isLoading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
         </div>
 
         {/* Results count */}
         <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-          Showing <span className="font-semibold text-primary-600 dark:text-teal-400">{filteredStudents.length}</span> of {studentsData.length} students
+          Showing{' '}
+          <span className="font-semibold text-primary-600 dark:text-teal-400">
+            {filteredStudents.length}
+          </span>{' '}
+          of{' '}
+          <span className="font-semibold text-primary-600 dark:text-teal-400">
+            {pagination.count}
+          </span>{' '}
+          students {isRemote ? '(live)' : '(demo)'}
         </div>
+
+        {error && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-amber-500 dark:text-amber-300">
+            <FaExclamationTriangle />
+            <span>{error}</span>
+          </div>
+        )}
       </Card>
 
       {/* Students Table */}
@@ -95,19 +260,19 @@ const Students = () => {
             <table className="min-w-full">
               <thead className="bg-gradient-to-r from-primary-600 to-primary-700 dark:from-primary-700 dark:to-primary-800 text-white">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">ID</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">Name</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Grade</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Enrollment Date</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">GPA</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">Email</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">Level</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">Phone</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">ID</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-navy-700">
                 <AnimatePresence>
                   {filteredStudents.map((student, index) => (
                     <motion.tr
-                      key={student.id}
+                      key={`${student.id || 'local'}-${student.email}`}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
@@ -115,17 +280,23 @@ const Students = () => {
                       whileHover={{ backgroundColor: 'rgba(59, 130, 246, 0.05)' }}
                       className="hover:shadow-md transition-all cursor-pointer"
                     >
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
-                        {student.id}
-                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-teal-500 rounded-full flex items-center justify-center">
-                            <FaUserGraduate className="text-white" />
-                          </div>
+                          {student.profileImage ? (
+                            <img
+                              src={student.profileImage}
+                              alt={`${student.firstName} ${student.lastName}`}
+                              className="w-10 h-10 rounded-full object-cover border border-primary-200 dark:border-teal-400/40"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-teal-500 rounded-full flex items-center justify-center">
+                              <FaUserGraduate className="text-white" />
+                            </div>
+                          )}
                           <div>
                             <p className="text-sm font-medium text-gray-900 dark:text-white">
-                              {student.name}
+                              {`${student.firstName || ''} ${student.lastName || ''}`.trim() ||
+                                student.email}
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-400">
                               {student.email}
@@ -134,30 +305,27 @@ const Students = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                        {student.grade}
+                        {student.email}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                        {new Date(student.enrollmentDate).toLocaleDateString()}
+                        {student.studyingLevel}
                       </td>
-                      <td className="px-6 py-4 text-sm">
-                        <span className={`font-semibold ${
-                          student.gpa >= 3.8 ? 'text-green-600' :
-                          student.gpa >= 3.5 ? 'text-blue-600' :
-                          'text-gray-600'
-                        }`}>
-                          {student.gpa.toFixed(1)}
-                        </span>
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                        {student.responsiblePhone}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            student.status === 'Active'
+                            student.active
                               ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
                               : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
                           }`}
                         >
-                          {student.status}
+                          {student.active ? 'Active' : 'Inactive'}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                        {student.id || '—'}
                       </td>
                     </motion.tr>
                   ))}
@@ -166,18 +334,55 @@ const Students = () => {
             </table>
 
             {filteredStudents.length === 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center py-12"
-              >
-                <FaUserGraduate className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-500 dark:text-gray-400 text-lg">No students found</p>
-              </motion.div>
+              <ListEmptyState
+                icon={FaUserGraduate}
+                title="No students found"
+                message={
+                  isRemote
+                    ? 'Try adjusting your filters or search. The API returned no results.'
+                    : 'No matches in the demo dataset. Clear filters or refresh to hit the API again.'
+                }
+                actionLabel="Refresh"
+                onAction={() => fetchStudents({ page: 1 })}
+              />
             )}
           </div>
         )}
       </Card>
+
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm text-gray-600 dark:text-gray-400">
+        <div>{isRemote ? 'Live data from backend.' : 'Showing local demo data.'}</div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const prev = Math.max(pagination.currentPage - 1, 1);
+              setPagination((prevState) => ({ ...prevState, currentPage: prev }));
+              fetchStudents({ page: prev });
+            }}
+            disabled={!pagination.previous || isLoading || !isRemote}
+            className="px-4 py-2 border border-gray-300 dark:border-navy-600 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-50 transition-colors"
+          >
+            Previous
+          </button>
+          <span>
+            Page{' '}
+            <span className="font-semibold text-gray-800 dark:text-white">
+              {pagination.currentPage}
+            </span>
+          </span>
+          <button
+            onClick={() => {
+              const next = pagination.currentPage + 1;
+              setPagination((prevState) => ({ ...prevState, currentPage: next }));
+              fetchStudents({ page: next });
+            }}
+            disabled={!pagination.next || isLoading || !isRemote}
+            className="px-4 py-2 border border-gray-300 dark:border-navy-600 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-50 transition-colors"
+          >
+            Next
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

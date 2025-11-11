@@ -1,11 +1,15 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { FaUsers, FaChalkboardTeacher, FaBriefcase, FaDollarSign } from 'react-icons/fa';
+import { FaUsers, FaChalkboardTeacher, FaBriefcase } from 'react-icons/fa';
 import Card from '../../components/Card';
 import AnimatedCounter from '../../components/AnimatedCounter';
 import { studentsData, teachersData, employeesData, activityData, revenueData } from '../../data/enhancedDemoData';
+import { useInstitute } from '../../context/InstituteContext';
+import { authService } from '../../services/authService';
 
-const StatCard = ({ title, value, icon: Icon, color, delay }) => (
+const StatCard = ({ title, value, note, icon: Icon, color, delay }) => (
   <Card delay={delay} className="relative overflow-hidden">
     <div className="flex items-center justify-between">
       <div>
@@ -13,6 +17,11 @@ const StatCard = ({ title, value, icon: Icon, color, delay }) => (
         <p className={`text-4xl font-bold ${color}`}>
           <AnimatedCounter value={value} duration={2} />
         </p>
+        {note && (
+          <p className="text-xs text-amber-500 dark:text-amber-300 mt-2">
+            {note}
+          </p>
+        )}
       </div>
       <div className={`p-4 rounded-2xl bg-gradient-to-br ${color.replace('text-', 'from-')} ${color.replace('text-', 'to-')}-600 bg-opacity-10`}>
         <Icon className={`w-8 h-8 ${color}`} />
@@ -28,36 +37,155 @@ const StatCard = ({ title, value, icon: Icon, color, delay }) => (
 );
 
 const Overview = () => {
-  const stats = [
+  const navigate = useNavigate();
+  const { instituteData, updateInstituteData, clearInstituteData } = useInstitute();
+  const [statsState, setStatsState] = useState({
+    totalStudents: { value: studentsData.length },
+    totalLecturers: { value: teachersData.length },
+    totalStaff: { value: employeesData.length },
+    activeStudents: { value: studentsData.filter(s => s.status === 'Active').length },
+    activeLecturers: { value: teachersData.filter(t => t.status === 'Active').length },
+    activeStaff: { value: employeesData.filter(e => e.status === 'Active').length },
+    loading: false,
+    error: '',
+  });
+
+  const displayName =
+    instituteData.firstName ||
+    instituteData.name ||
+    instituteData.username ||
+    instituteData.email ||
+    'there';
+  const statCards = useMemo(() => ([
     {
       title: 'Total Students',
-      value: studentsData.length,
+      value: statsState.totalStudents.value,
+      note: statsState.totalStudents.error && 'Showing local totals (API unavailable).',
       icon: FaUsers,
       color: 'text-blue-600',
       delay: 0,
     },
     {
-      title: 'Active Teachers',
-      value: teachersData.filter(t => t.status === 'Active').length,
+      title: 'Active Students',
+      value: statsState.activeStudents.value,
+      note: statsState.activeStudents.error && 'Using fallback active count.',
+      icon: FaUsers,
+      color: 'text-indigo-600',
+      delay: 0.05,
+    },
+    {
+      title: 'Total Lecturers',
+      value: statsState.totalLecturers.value,
+      note: statsState.totalLecturers.error && 'Showing local totals (API unavailable).',
       icon: FaChalkboardTeacher,
       color: 'text-teal-600',
       delay: 0.1,
     },
     {
-      title: 'Total Employees',
-      value: employeesData.length,
+      title: 'Active Lecturers',
+      value: statsState.activeLecturers.value,
+      note: statsState.activeLecturers.error && 'Using fallback active count.',
+      icon: FaChalkboardTeacher,
+      color: 'text-emerald-600',
+      delay: 0.15,
+    },
+    {
+      title: 'Total Staff',
+      value: statsState.totalStaff.value,
+      note: statsState.totalStaff.error && 'Showing local totals (API unavailable).',
       icon: FaBriefcase,
       color: 'text-purple-600',
       delay: 0.2,
     },
     {
-      title: 'Monthly Revenue',
-      value: 38000,
-      icon: FaDollarSign,
-      color: 'text-gold-600',
-      delay: 0.3,
+      title: 'Active Staff',
+      value: statsState.activeStaff.value,
+      note: statsState.activeStaff.error && 'Using fallback active count.',
+      icon: FaBriefcase,
+      color: 'text-rose-600',
+      delay: 0.25,
     },
-  ];
+  ]), [
+    statsState.totalStudents.value,
+    statsState.activeStudents.value,
+    statsState.totalLecturers.value,
+    statsState.activeLecturers.value,
+    statsState.totalStaff.value,
+    statsState.activeStaff.value,
+  ]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchTotals = async () => {
+      if (!instituteData.accessToken) {
+        return;
+      }
+      setStatsState(prev => ({ ...prev, loading: true, error: '' }));
+
+      try {
+        const results = await authService.getDashboardStats(instituteData.accessToken, {
+          refreshToken: instituteData.refreshToken,
+          onTokenRefreshed: (tokens) =>
+            updateInstituteData({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh || instituteData.refreshToken,
+            }),
+          onSessionExpired: () => {
+            clearInstituteData();
+            navigate('/login', { replace: true });
+          },
+        });
+        if (!isMounted) return;
+
+        const safeNumber = (value, fallback) =>
+          typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+
+        setStatsState({
+          totalStudents: {
+            value: safeNumber(results.totalStudents?.total_students, studentsData.length),
+            error: results.totalStudents?.error || '',
+          },
+          totalLecturers: {
+            value: safeNumber(results.totalLecturers?.total_lecturers, teachersData.length),
+            error: results.totalLecturers?.error || '',
+          },
+          totalStaff: {
+            value: safeNumber(results.totalStaff?.total_staff, employeesData.length),
+            error: results.totalStaff?.error || '',
+          },
+          activeStudents: {
+            value: safeNumber(results.activeStudents?.active_students, studentsData.filter(s => s.status === 'Active').length),
+            error: results.activeStudents?.error || '',
+          },
+          activeLecturers: {
+            value: safeNumber(results.activeLecturers?.active_lecturers, teachersData.filter(t => t.status === 'Active').length),
+            error: results.activeLecturers?.error || '',
+          },
+          activeStaff: {
+            value: safeNumber(results.activeStaff?.active_staff, employeesData.filter(e => e.status === 'Active').length),
+            error: results.activeStaff?.error || '',
+          },
+          loading: false,
+          error: '',
+        });
+      } catch (error) {
+        console.error('Failed to fetch total students:', error);
+        if (!isMounted) return;
+        setStatsState(prev => ({
+          ...prev,
+          loading: false,
+          error: error?.message || 'Unable to load student totals.',
+        }));
+      }
+    };
+
+    fetchTotals();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [instituteData.accessToken, instituteData.refreshToken, updateInstituteData, clearInstituteData, navigate]);
 
   return (
     <div className="space-y-6">
@@ -66,15 +194,37 @@ const Overview = () => {
         animate={{ opacity: 1, y: 0 }}
       >
         <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Overview</h2>
-        <p className="text-gray-600 dark:text-gray-400">Welcome to your dashboard</p>
+        <p className="text-gray-600 dark:text-gray-400">
+          Welcome back, {displayName}
+        </p>
       </motion.div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {statCards.map((stat) => (
           <StatCard key={stat.title} {...stat} />
         ))}
       </div>
+
+      {statsState.loading && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-sm text-gray-600 dark:text-gray-400"
+        >
+          Syncing dashboard metrics with the server...
+        </motion.div>
+      )}
+
+      {statsState.error && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-sm text-red-500"
+        >
+          {statsState.error}
+        </motion.div>
+      )}
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
