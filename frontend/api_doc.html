@@ -222,6 +222,29 @@
     <h3>/institution/lecturers-list/</h3>
     <span class="method get">GET</span>
     <p><strong>Auth Required:</strong> Yes (Institution only)</p>
+
+    <h4 class="section-title">Available Query Params</h4>
+    <pre><code>?page=1</code></pre>
+
+    <h4 class="section-title">Success Response</h4>
+    <pre><code>{
+  "count": 8,
+  "next": "/institution/lecturers-list/?page=2",
+  "previous": null,
+  "results": [
+    {
+      "id": 14,
+      "first_name": "Sarah",
+      "last_name": "Khalid",
+      "email": "sarah@example.com",
+      "profile_image": "/media/sarah/profile.jpg",
+      "specialty": "Computer Science",
+      "experience": 5,
+      "active": true,
+      "phone_number": "+964770000000"
+    }
+  ]
+}</code></pre>
 </div>
 
 <h2>STAFF LIST</h2>
@@ -229,6 +252,28 @@
     <h3>/institution/staff-list/</h3>
     <span class="method get">GET</span>
     <p><strong>Auth Required:</strong> Yes (Institution only)</p>
+
+    <h4 class="section-title">Available Query Params</h4>
+    <pre><code>?page=1</code></pre>
+
+    <h4 class="section-title">Success Response</h4>
+    <pre><code>{
+  "count": 12,
+  "next": "/institution/staff-list/?page=2",
+  "previous": null,
+  "results": [
+    {
+      "id": 9,
+      "first_name": "Omar",
+      "last_name": "Saleh",
+      "personal_image": "/media/omar/staff/photo.jpg",
+      "duty": "Administrator",
+      "phone_number": "+964770111111",
+      "salary": 800,
+      "is_active": true
+    }
+  ]
+}</code></pre>
 </div>
 
 <h2>SCHEDULE</h2>
