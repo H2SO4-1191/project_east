@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Institution API Documentation</title>
+<title>Project East API Documentation</title>
 <style>
     body {
         background: #0f0f0f;
@@ -48,10 +48,10 @@
 </style>
 </head>
 <body>
-<h1>Institution Backend API Documentation</h1>
-<p>BASE URL: https://projecteastapi.ddns.net/</p>
+<h1>Project East API Documentation</h1>
+<p>BASE URL - https://projecteastapi.ddns.net/</p>
 
-<h2>AUTHENTICATION</h2>
+<h2>REGISTRATION</h2>
 <div class="endpoint">
     <h3>/registration/signup/</h3>
     <span class="method post">POST</span>
@@ -134,8 +134,26 @@
 }</code></pre>
 </div>
 
+<div class="endpoint">
+    <h3>/institution/is-verified/</h3>
+    <span class="method get">GET</span>
+    <p><strong>Auth Required:</strong> Yes (Institution only)</p>
 
-<h2>INSTITUTION DASHBOARD STATS</h2>
+    <h4 class="section-title">Success Response</h4>
+    <pre><code>{
+  "success": true,
+  "is_verified": true
+}</code></pre>
+
+    <h4 class="section-title">Example When Not Verified</h4>
+    <pre><code>{
+  "success": true,
+  "is_verified": false
+}</code></pre>
+</div>
+
+
+<h2>INSTITUTION ENDPOINTS</h2>
 
 <div class="endpoint">
     <h3>/institution/total-students/</h3>
@@ -304,6 +322,88 @@
   }
 }</code></pre>
 </div>
+
+<div class="endpoint">
+    <h3>/institution/institution-verify/</h3>
+    <span class="method put">PUT</span>
+    <p><strong>Auth Required:</strong> Yes (Institution only, must NOT be verified yet)</p>
+
+    <h4 class="section-title">Request Body</h4>
+    <pre><code>{
+  "title": "Modern Science Institute",
+  "location": "Baghdad",
+  "phone_number": "+9647700000000",
+  "about": "Leading educational center.",
+  "profile_image": "(file)",
+  "idcard_back": "(file)",
+  "idcard_front": "(file)",
+  "residence_front": "(file)",
+  "residence_back": "(file)"
+}</code></pre>
+
+    <h4 class="section-title">Success Response</h4>
+    <pre><code>{
+  "success": true,
+  "message": "Institution account verified successfully.",
+  "is_verified": true
+}</code></pre>
+
+    <h4 class="section-title">Failure Response</h4>
+    <pre><code>{
+  "success": false,
+  "errors": {
+    "phone_number": ["This field is required."]
+  }
+}</code></pre>
+</div>
+
+<div class="endpoint">
+    <h3>/institution/edit-profile/</h3>
+    <span class="method put">PUT</span>
+    <p><strong>Auth Required:</strong> Yes (Institution only, must be verified)</p>
+
+    <h4 class="section-title">Notes</h4>
+    <ul>
+        <li>Email cannot be changed.</li>
+        <li>Username can be changed but must be unique.</li>
+        <li>All institution & user fields except email are editable.</li>
+    </ul>
+
+    <h4 class="section-title">Request Body</h4>
+    <pre><code>{
+  "username": "new_institution123",
+  "title": "Updated Institution Title",
+  "location": "Updated Location",
+  "phone_number": "+9647701111111",
+  "about": "Updated institution description.",
+  "profile_image": "(file)",
+  "idcard_back": "(file)",
+  "idcard_front": "(file)",
+  "residence_front": "(file)",
+  "residence_back": "(file)"
+}</code></pre>
+
+    <h4 class="section-title">Success Response</h4>
+    <pre><code>{
+  "success": true,
+  "message": "Institution profile updated successfully."
+}</code></pre>
+
+    <h4 class="section-title">Failure Response</h4>
+    <pre><code>{
+  "success": false,
+  "errors": {
+    "phone_number": ["This field is required."],
+    "about": ["This field is required."],
+    "profile_image": ["This field is required."],
+    "idcard_back": ["This field is required."],
+    "idcard_front": ["This field is required."],
+    "residence_front": ["This field is required."],
+    "residence_back": ["This field is required."]
+  }
+}</code></pre>
+</div>
+
 
 </body>
 </html>

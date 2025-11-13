@@ -69,7 +69,16 @@ class OTPView(APIView):
                 "user_type": user.user_type
             })
         return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-    
+
+class IsVerifiedView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({
+            "success": True,
+            "is_verified": request.user.is_verified
+        })
+
 class InstitutionTotalStudentsView(APIView):
     permission_classes = [IsInstitution]
 
@@ -269,5 +278,54 @@ class InstitutionWeeklyScheduleView(APIView):
             "success": True,
             "schedule": week
         })
+
+class InstitutionVerificationView(APIView):
+    permission_classes = [IsInstitution]
+
+    def put(self, request):
+        user = request.user
+
+        serializer = InstitutionVerificationSerializer(
+            user, 
+            data=request.data, 
+            partial=False,
+            context={"request": request}
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "success": True,
+                "message": "Institution account verified successfully.",
+                "is_verified": True
+            })
+
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+class InstitutionEditProfileView(APIView):
+    permission_classes = [IsInstitution, IsVerified]
+
+    def put(self, request):
+        user = request.user
+
+        serializer = InstitutionEditProfileSerializer(
+            user,
+            data=request.data,
+            partial=True,
+            context={"request": request}
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "success": True,
+                "message": "Institution profile updated successfully."
+            })
+
+        return Response({"success": False, "errors": serializer.errors},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+
+
 
 

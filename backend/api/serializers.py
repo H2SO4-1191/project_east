@@ -87,4 +87,95 @@ class StaffListSerializer(serializers.ModelSerializer):
             "is_active"
         ]
 
+class InstitutionVerificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            'title',
+            'location',
+            'phone_number',
+            'about',
+            'profile_image',
+            'idcard_back',
+            'idcard_front',
+            'residence_front',
+            'residence_back',
+        ]
+
+    title = serializers.CharField(required=True)
+    location = serializers.CharField(required=True)
+
+    def validate(self, data):
+        required = [
+            'phone_number',
+            'about',
+            'profile_image',
+            'idcard_back',
+            'idcard_front',
+            'residence_front',
+            'residence_back',
+        ]
+
+        for field in required:
+            if field not in data or not data[field]:
+                raise serializers.ValidationError({field: "This field is required."})
+
+        return data
+
+    def update(self, instance, validated_data):
+        institution = instance.institution
+        institution.title = validated_data.pop('title')
+        institution.location = validated_data.pop('location')
+        institution.save()
+
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+
+        instance.is_verified = True
+        instance.save()
+
+        return instance
+
+class InstitutionEditProfileSerializer(serializers.ModelSerializer):
+    title = serializers.CharField(required=True)
+    location = serializers.CharField(required=True)
+    username = serializers.CharField(required=False)
+
+    class Meta:
+        model = User
+        fields = [
+            'username',
+            'first_name',
+            'last_name',
+            'phone_number',
+            'about',
+            'profile_image',
+            'idcard_back',
+            'idcard_front',
+            'residence_front',
+            'residence_back',
+            'title',
+            'location',
+        ]
+
+    def validate_username(self, value):
+        user = self.instance
+        if value != user.username and User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("This username is already taken.")
+        return value
+
+    def update(self, instance, validated_data):
+        inst = instance.institution
+        inst.title = validated_data.pop('title', inst.title)
+        inst.location = validated_data.pop('location', inst.location)
+        inst.save()
+
+        for key, val in validated_data.items():
+            setattr(instance, key, val)
+
+        instance.save()
+        return instance
+
+
+
 

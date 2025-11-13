@@ -98,7 +98,7 @@ class Course(models.Model):
         ('sunday', 'Sunday'),
     ]
 
-    days = ArrayField(models.CharField(max_length=10, choices=DAYS), default=[])
+    days = ArrayField(models.CharField(max_length=10, choices=DAYS), default=list())
     start_time = models.TimeField(default=time(9, 0))
     end_time = models.TimeField(default=time(10, 0))
 

@@ -6,6 +6,7 @@ urlpatterns = [
     path('registration/signup/', SignupView.as_view(), name='signup'),
     path('registration/login/', LoginView.as_view(), name='login'),
     path('registration/otp/', OTPView.as_view(), name='otp'),
+    path('registration/is-verified/', IsVerifiedView.as_view(), name='isverified'),
     path('registration/refresh/', TokenRefreshView.as_view(), name='refresh'),
     path('institution/total-students/', InstitutionTotalStudentsView.as_view(), name='totalstudents'),
     path('institution/total-lecturers/', InstitutionTotalLecturersView.as_view(), name='totallecturers'),
@@ -17,6 +18,10 @@ urlpatterns = [
     path('institution/lecturers-list/', InstitutionLecturersListView.as_view(), name='lecturerslist'),
     path('institution/staff-list/', InstitutionStaffListView.as_view(), name='stafflist'),
     path('institution/schedule/', InstitutionWeeklyScheduleView.as_view(), name='institutionschedule'),
+    path('institution/institution-verify/', InstitutionVerificationView.as_view(), name='institutionverify'),
+    path('institution/institution-edit/', InstitutionEditProfileView.as_view(), name='institutionedit'),
+
+
 
 
 ]
