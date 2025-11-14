@@ -1,0 +1,1 @@
+The code, scripts, and models used in project east for AI services such as document and personal image recognition. 
