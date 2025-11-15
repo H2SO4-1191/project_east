@@ -10,6 +10,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.generics import ListAPIView
+from ai.predict_doc import classify_document
 
 class SignupView(APIView):
     def post(self, request, *args, **kwargs):
@@ -77,6 +78,21 @@ class IsVerifiedView(APIView):
         return Response({
             "success": True,
             "is_verified": request.user.is_verified
+        })
+
+class DocumentCheckView(APIView):
+    def post(self, request):
+        if "file" not in request.FILES:
+            return Response({"error": "No file uploaded"}, status=400)
+
+        file = request.FILES["file"]
+
+        doc_score, nondoc_score = classify_document(file)
+
+        return Response({
+            "document_percentage": round(doc_score * 100, 2),
+            "nondocument_percentage": round(nondoc_score * 100, 2),
+            "is_document": doc_score >= 0.70
         })
 
 class InstitutionTotalStudentsView(APIView):

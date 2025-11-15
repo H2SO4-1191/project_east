@@ -8,6 +8,7 @@ urlpatterns = [
     path('registration/otp/', OTPView.as_view(), name='otp'),
     path('registration/is-verified/', IsVerifiedView.as_view(), name='isverified'),
     path('registration/refresh/', TokenRefreshView.as_view(), name='refresh'),
+    path('ai/doc/', DocumentCheckView.as_view(), name='aidoc'),
     path('institution/total-students/', InstitutionTotalStudentsView.as_view(), name='totalstudents'),
     path('institution/total-lecturers/', InstitutionTotalLecturersView.as_view(), name='totallecturers'),
     path('institution/total-staff/', InstitutionTotalStaffView.as_view(), name='totalstaff'),

@@ -135,9 +135,9 @@
 </div>
 
 <div class="endpoint">
-    <h3>/institution/is-verified/</h3>
+    <h3>/registration/is-verified/</h3>
     <span class="method get">GET</span>
-    <p><strong>Auth Required:</strong> Yes (Institution only)</p>
+    <p><strong>Auth Required:</strong>No</p>
 
     <h4 class="section-title">Success Response</h4>
     <pre><code>{
@@ -149,6 +149,34 @@
     <pre><code>{
   "success": true,
   "is_verified": false
+}</code></pre>
+</div>
+
+<h2>AI ENDPOINTS</h2>
+
+<div class="endpoint">
+    <h3>/ai/doc/</h3>
+    <span class="method post">POST</span>
+    <p><strong>Auth Required:</strong> No</p>
+
+    <h4 class="section-title">Request Body</h4>
+    <pre><code>file: (image file)</code></pre>
+
+    <h4 class="section-title">Success Response</h4>
+    <pre><code>{
+  "success": true,
+  "document": 0.91,
+  "non_document": 0.08
+}</code></pre>
+
+    <h4 class="section-title">Failure Response (No File)</h4>
+    <pre><code>{
+  "error": "No file uploaded"
+}</code></pre>
+
+    <h4 class="section-title">Failure Response (Invalid File)</h4>
+    <pre><code>{
+  "error": "Invalid file type"
 }</code></pre>
 </div>
 
