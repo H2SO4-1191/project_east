@@ -81,6 +81,8 @@ class IsVerifiedView(APIView):
         })
 
 class DocumentCheckView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         if "file" not in request.FILES:
             return Response({"error": "No file uploaded"}, status=400)
