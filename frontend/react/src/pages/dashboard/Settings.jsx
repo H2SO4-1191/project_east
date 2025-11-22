@@ -1,44 +1,386 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FaUniversity, FaCreditCard, FaCheck, FaTimes } from 'react-icons/fa';
+import { FaUniversity, FaCheckCircle, FaExclamationTriangle, FaUpload, FaSpinner } from 'react-icons/fa';
 import Card from '../../components/Card';
 import AnimatedButton from '../../components/AnimatedButton';
 import Modal from '../../components/Modal';
 import { useInstitute } from '../../context/InstituteContext';
+import { authService } from '../../services/authService';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
 
 const Settings = () => {
   const { instituteData, updateInstituteData } = useInstitute();
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  
+  // Verification form state
+  const [verificationForm, setVerificationForm] = useState({
+    title: '',
+    location: '',
+    phone_number: '',
+    about: '',
+    profile_image: null,
+    idcard_back: null,
+    idcard_front: null,
+    residence_front: null,
+    residence_back: null,
+  });
 
-  const subscriptionPlans = [
-    { value: '1month', label: '1 Month', price: 99 },
-    { value: '3months', label: '3 Months', price: 249, save: '15%' },
-    { value: '6months', label: '6 Months', price: 449, save: '25%' },
-    { value: '1year', label: '1 Year', price: 799, save: '35%' },
-  ];
+  // Edit profile form state
+  const [editForm, setEditForm] = useState({
+    username: '',
+    title: '',
+    location: '',
+    phone_number: '',
+    about: '',
+    profile_image: null,
+    idcard_back: null,
+    idcard_front: null,
+    residence_front: null,
+    residence_back: null,
+  });
 
-  const currentPlan = subscriptionPlans.find(p => p.value === instituteData.subscription);
+  const [fileValidation, setFileValidation] = useState({
+    profile_image: null,
+    idcard_back: null,
+    idcard_front: null,
+    residence_front: null,
+    residence_back: null,
+  });
 
-  const handleUpgrade = (newPlan) => {
-    updateInstituteData({
-      subscription: newPlan.value,
-      subscriptionLabel: newPlan.label,
-    });
-    setShowUpgradeModal(false);
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 },
-    });
-    toast.success('Subscription upgraded successfully!');
+  const [editFileValidation, setEditFileValidation] = useState({
+    profile_image: null,
+    idcard_back: null,
+    idcard_front: null,
+    residence_front: null,
+    residence_back: null,
+  });
+
+  const [isValidating, setIsValidating] = useState({});
+  const [isEditValidating, setIsEditValidating] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [verificationErrors, setVerificationErrors] = useState({});
+  const [editErrors, setEditErrors] = useState({});
+
+
+  const handleFileChange = async (fieldName, file) => {
+    if (!file) return;
+
+    // Check file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Please upload a valid image file (JPEG, PNG, or WebP)');
+      return;
+    }
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    setVerificationForm(prev => ({ ...prev, [fieldName]: file }));
+
+    // Skip AI validation for profile_image
+    if (fieldName === 'profile_image') {
+      setFileValidation(prev => ({
+        ...prev,
+        [fieldName]: {
+          isValid: true,
+          message: 'Profile image uploaded successfully',
+        },
+      }));
+      return;
+    }
+
+    setIsValidating(prev => ({ ...prev, [fieldName]: true }));
+    setFileValidation(prev => ({ ...prev, [fieldName]: null }));
+
+    try {
+      const result = await authService.validateDocumentWithAI(file);
+      
+      console.log('AI validation response:', result);
+      
+      // Handle the actual API response format
+      let confidence;
+      let isValid;
+      
+      if (result.document_percentage !== undefined) {
+        // API returns percentage (0-100)
+        confidence = result.document_percentage / 100; // Convert to 0-1 scale
+        isValid = result.is_document === true || confidence >= 0.7;
+      } else if (result.document !== undefined) {
+        // Fallback to documented format
+        confidence = result.document;
+        isValid = confidence >= 0.7;
+      } else {
+        console.error('Invalid AI response structure:', result);
+        throw new Error('Invalid AI response format');
+      }
+      
+      setFileValidation(prev => ({
+        ...prev,
+        [fieldName]: {
+          isValid,
+          confidence,
+          message: isValid
+            ? `Document verified (${(confidence * 100).toFixed(0)}% confidence)`
+            : `This doesn't appear to be a valid document (${(confidence * 100).toFixed(0)}% confidence)`,
+        },
+      }));
+
+      if (!isValid) {
+        toast.error('AI validation failed. Please upload a clear document image.');
+      }
+    } catch (err) {
+      console.error('AI validation error:', err);
+      
+      setFileValidation(prev => ({
+        ...prev,
+        [fieldName]: {
+          isValid: false,
+          message: err?.message || 'Failed to validate document. Please try again.',
+        },
+      }));
+      toast.error(err?.message || 'Failed to validate document');
+    } finally {
+      setIsValidating(prev => ({ ...prev, [fieldName]: false }));
+    }
   };
 
-  const handleCancelSubscription = () => {
-    toast.success('Subscription cancelled (Demo only)');
-    setShowCancelModal(false);
+  const handleVerificationSubmit = async (e) => {
+    e.preventDefault();
+    setVerificationErrors({});
+
+    // Check if all required files are uploaded and validated
+    const requiredFiles = ['profile_image', 'idcard_back', 'idcard_front', 'residence_front', 'residence_back'];
+    const missingFiles = requiredFiles.filter(field => !verificationForm[field]);
+    
+    if (missingFiles.length > 0) {
+      toast.error('Please upload all required documents');
+      return;
+    }
+
+    // Check if all files passed AI validation
+    const invalidFiles = requiredFiles.filter(
+      field => fileValidation[field] && !fileValidation[field].isValid
+    );
+
+    if (invalidFiles.length > 0) {
+      toast.error('Some documents failed AI validation. Please upload clear images.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const result = await authService.verifyInstitution(
+        instituteData.accessToken,
+        verificationForm,
+        {
+          refreshToken: instituteData.refreshToken,
+          onTokenRefreshed: (tokens) =>
+            updateInstituteData({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh || instituteData.refreshToken,
+            }),
+        }
+      );
+
+      updateInstituteData({ isVerified: result.is_verified || true });
+      
+      confetti({
+        particleCount: 150,
+        spread: 80,
+        origin: { y: 0.6 },
+      });
+
+      toast.success(result.message || 'Institution verified successfully!');
+      setShowVerificationModal(false);
+      
+      // Reset form
+      setVerificationForm({
+        title: '',
+        location: '',
+        phone_number: '',
+        about: '',
+        profile_image: null,
+        idcard_back: null,
+        idcard_front: null,
+        residence_front: null,
+        residence_back: null,
+      });
+      setFileValidation({});
+    } catch (err) {
+      console.error('Verification error:', err);
+      
+      if (err?.errors) {
+        setVerificationErrors(err.errors);
+      }
+      
+      toast.error(err?.message || 'Failed to verify institution. Please check your information.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditFileChange = async (fieldName, file) => {
+    if (!file) return;
+
+    // Check file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Please upload a valid image file (JPEG, PNG, or WebP)');
+      return;
+    }
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    setEditForm(prev => ({ ...prev, [fieldName]: file }));
+
+    // Skip AI validation for profile_image
+    if (fieldName === 'profile_image') {
+      setEditFileValidation(prev => ({
+        ...prev,
+        [fieldName]: {
+          isValid: true,
+          message: 'Profile image uploaded successfully',
+        },
+      }));
+      return;
+    }
+
+    setIsEditValidating(prev => ({ ...prev, [fieldName]: true }));
+    setEditFileValidation(prev => ({ ...prev, [fieldName]: null }));
+
+    try {
+      const result = await authService.validateDocumentWithAI(file);
+      
+      console.log('AI validation response (edit):', result);
+      
+      // Handle the actual API response format
+      let confidence;
+      let isValid;
+      
+      if (result.document_percentage !== undefined) {
+        // API returns percentage (0-100)
+        confidence = result.document_percentage / 100; // Convert to 0-1 scale
+        isValid = result.is_document === true || confidence >= 0.7;
+      } else if (result.document !== undefined) {
+        // Fallback to documented format
+        confidence = result.document;
+        isValid = confidence >= 0.7;
+      } else {
+        console.error('Invalid AI response structure:', result);
+        throw new Error('Invalid AI response format');
+      }
+      
+      setEditFileValidation(prev => ({
+        ...prev,
+        [fieldName]: {
+          isValid,
+          confidence,
+          message: isValid
+            ? `Document verified (${(confidence * 100).toFixed(0)}% confidence)`
+            : `This doesn't appear to be a valid document (${(confidence * 100).toFixed(0)}% confidence)`,
+        },
+      }));
+
+      if (!isValid) {
+        toast.error('AI validation failed. Please upload a clear document image.');
+      }
+    } catch (err) {
+      console.error('AI validation error (edit):', err);
+      
+      setEditFileValidation(prev => ({
+        ...prev,
+        [fieldName]: {
+          isValid: false,
+          message: err?.message || 'Failed to validate document. Please try again.',
+        },
+      }));
+      toast.error(err?.message || 'Failed to validate document');
+    } finally {
+      setIsEditValidating(prev => ({ ...prev, [fieldName]: false }));
+    }
+  };
+
+  const handleEditProfileSubmit = async (e) => {
+    e.preventDefault();
+    setEditErrors({});
+
+    // Check if any files that were uploaded passed AI validation
+    const fileFields = ['profile_image', 'idcard_back', 'idcard_front', 'residence_front', 'residence_back'];
+    const uploadedFiles = fileFields.filter(field => editForm[field]);
+    const invalidFiles = uploadedFiles.filter(
+      field => editFileValidation[field] && !editFileValidation[field].isValid
+    );
+
+    if (invalidFiles.length > 0) {
+      toast.error('Some documents failed AI validation. Please upload clear images.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const result = await authService.editInstitutionProfile(
+        instituteData.accessToken,
+        editForm,
+        {
+          refreshToken: instituteData.refreshToken,
+          onTokenRefreshed: (tokens) =>
+            updateInstituteData({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh || instituteData.refreshToken,
+            }),
+        }
+      );
+
+      // Update username in context if it was changed
+      if (editForm.username && editForm.username !== instituteData.username) {
+        updateInstituteData({ username: editForm.username });
+      }
+
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+      });
+
+      toast.success(result.message || 'Profile updated successfully!');
+      setShowEditProfileModal(false);
+      
+      // Reset form
+      setEditForm({
+        username: '',
+        title: '',
+        location: '',
+        phone_number: '',
+        about: '',
+        profile_image: null,
+        idcard_back: null,
+        idcard_front: null,
+        residence_front: null,
+        residence_back: null,
+      });
+      setEditFileValidation({});
+    } catch (err) {
+      console.error('Profile edit error:', err);
+      
+      if (err?.errors) {
+        setEditErrors(err.errors);
+      }
+      
+      toast.error(err?.message || 'Failed to update profile. Please check your information.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -50,6 +392,53 @@ const Settings = () => {
         <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Settings</h2>
         <p className="text-gray-600 dark:text-gray-400">Manage your institute profile and subscription</p>
       </motion.div>
+
+      {/* Verification Status Banner */}
+      {!instituteData.isVerified && (
+        <Card delay={0.05}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center">
+                <FaExclamationTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <h4 className="text-lg font-semibold text-gray-800 dark:text-white">
+                  Account Not Verified
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Complete verification to unlock all features
+                </p>
+              </div>
+            </div>
+            <AnimatedButton onClick={() => setShowVerificationModal(true)} variant="teal">
+              Verify Now
+            </AnimatedButton>
+          </div>
+        </Card>
+      )}
+
+      {instituteData.isVerified && (
+        <Card delay={0.05}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
+                <FaCheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <h4 className="text-lg font-semibold text-gray-800 dark:text-white">
+                  Account Verified
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Your institution has been verified successfully
+                </p>
+              </div>
+            </div>
+            <AnimatedButton onClick={() => setShowEditProfileModal(true)} variant="secondary">
+              Edit Profile
+            </AnimatedButton>
+          </div>
+        </Card>
+      )}
 
       {/* Institute Profile */}
       <Card delay={0.1}>
@@ -73,8 +462,8 @@ const Settings = () => {
             <input
               type="text"
               value={instituteData.name}
-              onChange={(e) => updateInstituteData({ name: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+              readOnly
+              className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg bg-gray-50 dark:bg-navy-800 text-gray-900 dark:text-white cursor-not-allowed"
             />
           </div>
 
@@ -85,170 +474,365 @@ const Settings = () => {
             <input
               type="email"
               value={instituteData.email}
-              onChange={(e) => updateInstituteData({ email: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+              readOnly
+              className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg bg-gray-50 dark:bg-navy-800 text-gray-900 dark:text-white cursor-not-allowed"
             />
           </div>
         </div>
-
-        <div className="mt-6">
-          <AnimatedButton onClick={() => toast.success('Profile updated!')}>
-            Save Changes
-          </AnimatedButton>
-        </div>
       </Card>
 
-      {/* Subscription Info */}
-      <Card delay={0.2}>
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-gold-500 to-gold-600 rounded-2xl flex items-center justify-center">
-              <FaCreditCard className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
-                Subscription
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Current Plan: <span className="font-semibold text-primary-600 dark:text-teal-400">
-                  {instituteData.subscriptionLabel || '1 Year'}
-                </span>
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-3xl font-bold text-gray-800 dark:text-white">
-              ${currentPlan?.price || 799}
-            </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">per period</p>
-          </div>
-        </div>
-
-        <div className="space-y-4 mb-6">
-          <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
-            <FaCheck className="text-green-600" />
-            <span>Unlimited Students & Teachers</span>
-          </div>
-          <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
-            <FaCheck className="text-green-600" />
-            <span>Advanced Analytics & Reports</span>
-          </div>
-          <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
-            <FaCheck className="text-green-600" />
-            <span>Priority Support</span>
-          </div>
-          <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
-            <FaCheck className="text-green-600" />
-            <span>Custom Branding</span>
-          </div>
-        </div>
-
-        <div className="flex gap-4">
-          <AnimatedButton
-            onClick={() => setShowUpgradeModal(true)}
-            variant="teal"
-          >
-            Upgrade Plan
-          </AnimatedButton>
-          <AnimatedButton
-            onClick={() => setShowCancelModal(true)}
-            variant="danger"
-          >
-            Cancel Subscription
-          </AnimatedButton>
-        </div>
-      </Card>
-
-      {/* Payment Method */}
-      <Card delay={0.3}>
-        <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-          Payment Method
-        </h3>
-        <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-navy-900 rounded-lg">
-          <FaCreditCard className="w-8 h-8 text-primary-600 dark:text-teal-400" />
-          <div>
-            <p className="font-semibold text-gray-800 dark:text-white">
-              {instituteData.paymentMethodLabel || 'Credit Card'}
-            </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Last updated: {new Date(instituteData.registrationDate).toLocaleDateString()}
-            </p>
-          </div>
-        </div>
-      </Card>
-
-      {/* Upgrade Modal */}
+      {/* Verification Modal */}
       <Modal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        title="Upgrade Subscription"
+        isOpen={showVerificationModal}
+        onClose={() => !isSubmitting && setShowVerificationModal(false)}
+        title="Verify Your Institution"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {subscriptionPlans.map((plan) => (
-            <motion.div
-              key={plan.value}
-              whileHover={{ scale: 1.02 }}
-              onClick={() => handleUpgrade(plan)}
-              className={`
-                relative p-6 rounded-xl border-2 cursor-pointer transition-all
-                ${plan.value === instituteData.subscription
-                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 opacity-50 cursor-not-allowed'
-                  : 'border-gray-200 dark:border-navy-700 hover:border-primary-400'
-                }
-              `}
+        <form onSubmit={handleVerificationSubmit} className="space-y-6">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Complete all fields and upload required documents. All images will be validated by AI before submission.
+          </p>
+
+          {/* Text Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                Institution Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={verificationForm.title}
+                onChange={(e) => setVerificationForm(prev => ({ ...prev, title: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                required
+              />
+              {verificationErrors.title && (
+                <p className="text-red-500 text-xs mt-1">{verificationErrors.title[0]}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                Location <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={verificationForm.location}
+                onChange={(e) => setVerificationForm(prev => ({ ...prev, location: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                required
+              />
+              {verificationErrors.location && (
+                <p className="text-red-500 text-xs mt-1">{verificationErrors.location[0]}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                Phone Number <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="tel"
+                value={verificationForm.phone_number}
+                onChange={(e) => setVerificationForm(prev => ({ ...prev, phone_number: e.target.value }))}
+                placeholder="+9647700000000"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                required
+              />
+              {verificationErrors.phone_number && (
+                <p className="text-red-500 text-xs mt-1">{verificationErrors.phone_number[0]}</p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+              About Institution <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={verificationForm.about}
+              onChange={(e) => setVerificationForm(prev => ({ ...prev, about: e.target.value }))}
+              rows={3}
+              className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+              required
+            />
+            {verificationErrors.about && (
+              <p className="text-red-500 text-xs mt-1">{verificationErrors.about[0]}</p>
+            )}
+          </div>
+
+          {/* File Upload Fields */}
+          <div className="space-y-4">
+            <h4 className="font-semibold text-gray-800 dark:text-white">Required Documents</h4>
+            
+            {[
+              { field: 'profile_image', label: 'Profile Image' },
+              { field: 'idcard_front', label: 'ID Card (Front)' },
+              { field: 'idcard_back', label: 'ID Card (Back)' },
+              { field: 'residence_front', label: 'Residence Document (Front)' },
+              { field: 'residence_back', label: 'Residence Document (Back)' },
+            ].map(({ field, label }) => (
+              <div key={field} className="border border-gray-300 dark:border-navy-600 rounded-lg p-4">
+                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                  {label} <span className="text-red-500">*</span>
+                </label>
+                
+                <div className="flex items-center gap-3">
+                  <label className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-navy-700 rounded-lg hover:bg-gray-200 dark:hover:bg-navy-600 transition-colors">
+                      <FaUpload className="text-gray-600 dark:text-gray-400" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        {verificationForm[field] ? verificationForm[field].name : 'Choose file...'}
+                      </span>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      onChange={(e) => handleFileChange(field, e.target.files[0])}
+                      className="hidden"
+                      disabled={isValidating[field]}
+                    />
+                  </label>
+
+                  {isValidating[field] && (
+                    <FaSpinner className="animate-spin text-primary-600" />
+                  )}
+
+                  {fileValidation[field] && !isValidating[field] && (
+                    <div className="flex items-center gap-2">
+                      {fileValidation[field].isValid ? (
+                        <FaCheckCircle className="text-green-600" />
+                      ) : (
+                        <FaExclamationTriangle className="text-red-600" />
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {fileValidation[field] && (
+                  <p className={`text-xs mt-2 ${fileValidation[field].isValid ? 'text-green-600' : 'text-red-600'}`}>
+                    {fileValidation[field].message}
+                  </p>
+                )}
+
+                {verificationErrors[field] && (
+                  <p className="text-red-500 text-xs mt-1">{verificationErrors[field][0]}</p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-4 justify-end pt-4">
+            <AnimatedButton
+              type="button"
+              onClick={() => setShowVerificationModal(false)}
+              variant="secondary"
+              disabled={isSubmitting}
             >
-              {plan.value === instituteData.subscription && (
-                <div className="absolute top-2 right-2 px-2 py-1 bg-primary-500 text-white text-xs rounded-full">
-                  Current
-                </div>
+              Cancel
+            </AnimatedButton>
+            <AnimatedButton
+              type="submit"
+              variant="teal"
+              disabled={isSubmitting || Object.values(isValidating).some(v => v)}
+            >
+              {isSubmitting ? (
+                <>
+                  <FaSpinner className="animate-spin mr-2" />
+                  Submitting...
+                </>
+              ) : (
+                'Submit for Verification'
               )}
-              <div className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                {plan.label}
-              </div>
-              <div className="text-3xl font-bold text-primary-600 dark:text-primary-400 mb-2">
-                ${plan.price}
-              </div>
-              {plan.save && (
-                <div className="inline-block px-2 py-1 bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300 text-sm font-semibold rounded">
-                  Save {plan.save}
-                </div>
-              )}
-            </motion.div>
-          ))}
-        </div>
+            </AnimatedButton>
+          </div>
+        </form>
       </Modal>
 
-      {/* Cancel Modal */}
+      {/* Edit Profile Modal */}
       <Modal
-        isOpen={showCancelModal}
-        onClose={() => setShowCancelModal(false)}
-        title="Cancel Subscription"
+        isOpen={showEditProfileModal}
+        onClose={() => !isSubmitting && setShowEditProfileModal(false)}
+        title="Edit Institution Profile"
       >
-        <div className="text-center py-6">
-          <div className="w-20 h-20 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-6">
-            <FaTimes className="w-10 h-10 text-red-600 dark:text-red-400" />
-          </div>
-          <h4 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
-            Are you sure?
-          </h4>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            This action will cancel your subscription. You'll lose access to all premium features.
+        <form onSubmit={handleEditProfileSubmit} className="space-y-6">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Update your institution information. Email cannot be changed. Files are optional - only upload if you want to update them.
           </p>
-          <div className="flex gap-4 justify-center">
+
+          {/* Text Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                Username
+              </label>
+              <input
+                type="text"
+                value={editForm.username}
+                onChange={(e) => setEditForm(prev => ({ ...prev, username: e.target.value }))}
+                placeholder={instituteData.username || 'Enter new username'}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+              />
+              {editErrors.username && (
+                <p className="text-red-500 text-xs mt-1">{editErrors.username[0]}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                Institution Title
+              </label>
+              <input
+                type="text"
+                value={editForm.title}
+                onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Enter institution title"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+              />
+              {editErrors.title && (
+                <p className="text-red-500 text-xs mt-1">{editErrors.title[0]}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                Location
+              </label>
+              <input
+                type="text"
+                value={editForm.location}
+                onChange={(e) => setEditForm(prev => ({ ...prev, location: e.target.value }))}
+                placeholder="Enter location"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+              />
+              {editErrors.location && (
+                <p className="text-red-500 text-xs mt-1">{editErrors.location[0]}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                value={editForm.phone_number}
+                onChange={(e) => setEditForm(prev => ({ ...prev, phone_number: e.target.value }))}
+                placeholder="+9647700000000"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+              />
+              {editErrors.phone_number && (
+                <p className="text-red-500 text-xs mt-1">{editErrors.phone_number[0]}</p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+              About Institution
+            </label>
+            <textarea
+              value={editForm.about}
+              onChange={(e) => setEditForm(prev => ({ ...prev, about: e.target.value }))}
+              rows={3}
+              placeholder="Enter institution description"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+            />
+            {editErrors.about && (
+              <p className="text-red-500 text-xs mt-1">{editErrors.about[0]}</p>
+            )}
+          </div>
+
+          {/* File Upload Fields (Optional) */}
+          <div className="space-y-4">
+            <h4 className="font-semibold text-gray-800 dark:text-white">
+              Update Documents (Optional)
+            </h4>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Only upload files you want to update. Leave blank to keep existing files.
+            </p>
+            
+            {[
+              { field: 'profile_image', label: 'Profile Image' },
+              { field: 'idcard_front', label: 'ID Card (Front)' },
+              { field: 'idcard_back', label: 'ID Card (Back)' },
+              { field: 'residence_front', label: 'Residence Document (Front)' },
+              { field: 'residence_back', label: 'Residence Document (Back)' },
+            ].map(({ field, label }) => (
+              <div key={field} className="border border-gray-300 dark:border-navy-600 rounded-lg p-4">
+                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                  {label}
+                </label>
+                
+                <div className="flex items-center gap-3">
+                  <label className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-navy-700 rounded-lg hover:bg-gray-200 dark:hover:bg-navy-600 transition-colors">
+                      <FaUpload className="text-gray-600 dark:text-gray-400" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        {editForm[field] ? editForm[field].name : 'Choose file to update...'}
+                      </span>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      onChange={(e) => handleEditFileChange(field, e.target.files[0])}
+                      className="hidden"
+                      disabled={isEditValidating[field]}
+                    />
+                  </label>
+
+                  {isEditValidating[field] && (
+                    <FaSpinner className="animate-spin text-primary-600" />
+                  )}
+
+                  {editFileValidation[field] && !isEditValidating[field] && (
+                    <div className="flex items-center gap-2">
+                      {editFileValidation[field].isValid ? (
+                        <FaCheckCircle className="text-green-600" />
+                      ) : (
+                        <FaExclamationTriangle className="text-red-600" />
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {editFileValidation[field] && (
+                  <p className={`text-xs mt-2 ${editFileValidation[field].isValid ? 'text-green-600' : 'text-red-600'}`}>
+                    {editFileValidation[field].message}
+                  </p>
+                )}
+
+                {editErrors[field] && (
+                  <p className="text-red-500 text-xs mt-1">{editErrors[field][0]}</p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-4 justify-end pt-4">
             <AnimatedButton
-              onClick={() => setShowCancelModal(false)}
+              type="button"
+              onClick={() => setShowEditProfileModal(false)}
               variant="secondary"
+              disabled={isSubmitting}
             >
-              Keep Subscription
+              Cancel
             </AnimatedButton>
             <AnimatedButton
-              onClick={handleCancelSubscription}
-              variant="danger"
+              type="submit"
+              variant="teal"
+              disabled={isSubmitting || Object.values(isEditValidating).some(v => v)}
             >
-              Confirm Cancellation
+              {isSubmitting ? (
+                <>
+                  <FaSpinner className="animate-spin mr-2" />
+                  Updating...
+                </>
+              ) : (
+                'Update Profile'
+              )}
             </AnimatedButton>
           </div>
-        </div>
+        </form>
       </Modal>
     </div>
   );

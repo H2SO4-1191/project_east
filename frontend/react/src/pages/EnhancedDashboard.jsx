@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaHome, FaUsers, FaChalkboardTeacher, FaBriefcase, 
   FaCalendarAlt, FaDollarSign, FaCog, FaBars, FaTimes,
-  FaMoon, FaSun, FaSignOutAlt 
+  FaMoon, FaSun, FaSignOutAlt, FaGlobe
 } from 'react-icons/fa';
 import { useInstitute } from '../context/InstituteContext';
 import { useTheme } from '../context/ThemeContext';
@@ -26,8 +26,8 @@ const EnhancedDashboard = () => {
   const menuItems = [
     { id: 'overview', path: '/dashboard', label: 'Overview', icon: FaHome, color: 'from-blue-500 to-blue-600' },
     { id: 'students', path: '/dashboard/students', label: 'Students', icon: FaUsers, color: 'from-blue-500 to-blue-600' },
-    { id: 'teachers', path: '/dashboard/teachers', label: 'Teachers', icon: FaChalkboardTeacher, color: 'from-teal-500 to-teal-600' },
-    { id: 'employees', path: '/dashboard/employees', label: 'Employees', icon: FaBriefcase, color: 'from-purple-500 to-purple-600' },
+    { id: 'lecturers', path: '/dashboard/lecturers', label: 'Lecturers', icon: FaChalkboardTeacher, color: 'from-teal-500 to-teal-600' },
+    { id: 'staff', path: '/dashboard/staff', label: 'Staff', icon: FaBriefcase, color: 'from-purple-500 to-purple-600' },
     { id: 'schedule', path: '/dashboard/schedule', label: 'Schedule', icon: FaCalendarAlt, color: 'from-pink-500 to-pink-600' },
     { id: 'finance', path: '/dashboard/finance', label: 'Finance', icon: FaDollarSign, color: 'from-gold-500 to-gold-600' },
     { id: 'settings', path: '/dashboard/settings', label: 'Settings', icon: FaCog, color: 'from-gray-500 to-gray-600' },
@@ -104,6 +104,16 @@ const EnhancedDashboard = () => {
 
         {/* Theme Toggle & Logout */}
         <div className="p-4 border-t border-gray-200 dark:border-navy-700 space-y-2">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigate('/')}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 transition-all"
+          >
+            <FaGlobe className="w-5 h-5" />
+            <span className="font-medium">Home Feed</span>
+          </motion.button>
+
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -189,6 +199,14 @@ const EnhancedDashboard = () => {
               {/* Theme Toggle & Logout */}
               <div className="p-4 border-t border-gray-200 dark:border-navy-700 space-y-2">
                 <button
+                  onClick={() => navigate('/')}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 transition-all"
+                >
+                  <FaGlobe className="w-5 h-5" />
+                  <span className="font-medium">Home Feed</span>
+                </button>
+
+                <button
                   onClick={toggleTheme}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 transition-all"
                 >
@@ -239,9 +257,22 @@ const EnhancedDashboard = () => {
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Welcome {greetingName}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-500">
-                    {subscriptionLabel}
-                  </p>
+                  <div className="flex items-center gap-2 justify-end">
+                    <p className="text-xs text-gray-500 dark:text-gray-500">
+                      {subscriptionLabel}
+                    </p>
+                    {instituteData.isVerified !== undefined && (
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          instituteData.isVerified
+                            ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+                            : 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300'
+                        }`}
+                      >
+                        {instituteData.isVerified ? 'Verified' : 'Unverified'}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}
@@ -267,8 +298,8 @@ const EnhancedDashboard = () => {
             <Routes>
               <Route path="/" element={<Overview />} />
               <Route path="/students" element={<Students />} />
-              <Route path="/teachers" element={<Teachers />} />
-              <Route path="/employees" element={<Employees />} />
+              <Route path="/lecturers" element={<Teachers />} />
+              <Route path="/staff" element={<Employees />} />
               <Route path="/schedule" element={<Schedule />} />
               <Route path="/finance" element={<Finance />} />
               <Route path="/settings" element={<Settings />} />

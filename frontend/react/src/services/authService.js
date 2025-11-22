@@ -199,6 +199,172 @@ export const authService = {
     }
     return data.schedule;
   },
+
+  async checkVerificationStatus(email) {
+    const response = await fetch(`${BASE_URL}/registration/is-verified/`, {
+      method: 'GET',
+      headers: defaultHeaders,
+    });
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  async validateDocumentWithAI(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${BASE_URL}/ai/doc/`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  async verifyInstitution(accessToken, payload, { refreshToken, onTokenRefreshed } = {}) {
+    const formData = new FormData();
+
+    // Append text fields
+    if (payload.title) formData.append('title', payload.title);
+    if (payload.location) formData.append('location', payload.location);
+    if (payload.phone_number) formData.append('phone_number', payload.phone_number);
+    if (payload.about) formData.append('about', payload.about);
+
+    // Append file fields
+    if (payload.profile_image) formData.append('profile_image', payload.profile_image);
+    if (payload.idcard_back) formData.append('idcard_back', payload.idcard_back);
+    if (payload.idcard_front) formData.append('idcard_front', payload.idcard_front);
+    if (payload.residence_front) formData.append('residence_front', payload.residence_front);
+    if (payload.residence_back) formData.append('residence_back', payload.residence_back);
+
+    const response = await fetch(`${BASE_URL}/institution/institution-verify/`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: formData,
+    });
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const tokens = await this.refreshAccessToken(refreshToken);
+        if (typeof onTokenRefreshed === 'function') {
+          onTokenRefreshed(tokens);
+        }
+
+        // Retry the request with new token
+        const retryResponse = await fetch(`${BASE_URL}/institution/institution-verify/`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${tokens.access}`,
+          },
+          body: formData,
+        });
+
+        const retryData = await parseResponse(retryResponse);
+
+        if (!retryResponse.ok) {
+          throw buildError(retryResponse.status, retryData);
+        }
+
+        return retryData;
+      } catch (refreshError) {
+        console.error('Token refresh failed during verification:', refreshError);
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  async editInstitutionProfile(accessToken, payload, { refreshToken, onTokenRefreshed } = {}) {
+    const formData = new FormData();
+
+    // Append text fields
+    if (payload.username) formData.append('username', payload.username);
+    if (payload.title) formData.append('title', payload.title);
+    if (payload.location) formData.append('location', payload.location);
+    if (payload.phone_number) formData.append('phone_number', payload.phone_number);
+    if (payload.about) formData.append('about', payload.about);
+
+    // Append file fields (only if provided)
+    if (payload.profile_image) formData.append('profile_image', payload.profile_image);
+    if (payload.idcard_back) formData.append('idcard_back', payload.idcard_back);
+    if (payload.idcard_front) formData.append('idcard_front', payload.idcard_front);
+    if (payload.residence_front) formData.append('residence_front', payload.residence_front);
+    if (payload.residence_back) formData.append('residence_back', payload.residence_back);
+
+    const response = await fetch(`${BASE_URL}/institution/edit-profile/`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: formData,
+    });
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const tokens = await this.refreshAccessToken(refreshToken);
+        if (typeof onTokenRefreshed === 'function') {
+          onTokenRefreshed(tokens);
+        }
+
+        // Retry the request with new token
+        const retryResponse = await fetch(`${BASE_URL}/institution/edit-profile/`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${tokens.access}`,
+          },
+          body: formData,
+        });
+
+        const retryData = await parseResponse(retryResponse);
+
+        if (!retryResponse.ok) {
+          throw buildError(retryResponse.status, retryData);
+        }
+
+        return retryData;
+      } catch (refreshError) {
+        console.error('Token refresh failed during profile edit:', refreshError);
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
 };
 
 

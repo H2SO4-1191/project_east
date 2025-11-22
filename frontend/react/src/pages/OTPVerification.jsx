@@ -159,6 +159,15 @@ const OTPVerification = () => {
         instituteData.name ||
         email;
 
+      // Check verification status
+      let isVerified = false;
+      try {
+        const verificationStatus = await authService.checkVerificationStatus(resolvedEmail);
+        isVerified = verificationStatus?.is_verified || false;
+      } catch (verifyErr) {
+        console.warn('Failed to check verification status:', verifyErr);
+      }
+
       updateInstituteData({
         name: displayName,
         email: resolvedEmail,
@@ -170,6 +179,7 @@ const OTPVerification = () => {
         accessToken: result?.access,
         refreshToken: result?.refresh,
         isAuthenticated: true,
+        isVerified,
       });
 
       if (pendingProfile.email && pendingProfile.email === resolvedEmail) {

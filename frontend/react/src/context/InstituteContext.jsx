@@ -26,6 +26,7 @@ const createDefaultInstituteData = () => ({
   paymentMethodLabel: '',
   registrationDate: '',
   isAuthenticated: false,
+  isVerified: false,
 });
 
 export const InstituteProvider = ({ children }) => {

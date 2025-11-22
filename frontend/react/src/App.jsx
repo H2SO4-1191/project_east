@@ -3,6 +3,8 @@ import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { InstituteProvider } from './context/InstituteContext';
 import { ThemeProvider } from './context/ThemeContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Feed from './pages/Feed';
 import EnhancedHome from './pages/EnhancedHome';
 import EnhancedLogin from './pages/EnhancedLogin';
 import OTPVerification from './pages/OTPVerification';
@@ -15,11 +17,19 @@ function AnimatedRoutes() {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<EnhancedHome />} />
+        <Route path="/" element={<Feed />} />
+        <Route path="/home" element={<EnhancedHome />} />
         <Route path="/login" element={<EnhancedLogin />} />
         <Route path="/signup" element={<EnhancedSignup />} />
         <Route path="/verify-otp" element={<OTPVerification />} />
-        <Route path="/dashboard/*" element={<EnhancedDashboard />} />
+        <Route 
+          path="/dashboard/*" 
+          element={
+            <ProtectedRoute>
+              <EnhancedDashboard />
+            </ProtectedRoute>
+          } 
+        />
       </Routes>
     </AnimatePresence>
   );
