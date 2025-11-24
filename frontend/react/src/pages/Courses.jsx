@@ -20,10 +20,13 @@ import {
 } from 'react-icons/fa';
 import { useTheme } from '../context/ThemeContext';
 import Modal from '../components/Modal';
+import { useTranslation } from 'react-i18next';
 
 const Courses = () => {
   const navigate = useNavigate();
   const { isDark } = useTheme();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLevel, setSelectedLevel] = useState('all');
   const [selectedInstitution, setSelectedInstitution] = useState('all');
@@ -365,7 +368,7 @@ const Courses = () => {
           <h2 className={`text-xl font-bold text-gray-800 dark:text-white mb-6 transition-opacity duration-300 ${
             isSidebarExpanded ? 'opacity-100' : 'opacity-0'
           }`}>
-            Explore
+            {t('coursesPage.explore')}
           </h2>
           
           {/* Sidebar Navigation Buttons */}
@@ -373,10 +376,10 @@ const Courses = () => {
             <button
               onClick={() => navigate('/')}
               className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
-              title="Back to Feed"
+              title={t('coursesPage.backToFeed')}
             >
               <FaArrowLeft className="w-5 h-5 flex-shrink-0" />
-              {isSidebarExpanded && <span className="font-medium">Back to Feed</span>}
+              {isSidebarExpanded && <span className="font-medium">{t('coursesPage.backToFeed')}</span>}
             </button>
             
             <button
@@ -386,10 +389,10 @@ const Courses = () => {
                   ? 'bg-primary-600 text-white'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700'
               }`}
-              title="Students"
+              title={t('coursesPage.students')}
             >
               <FaUserGraduate className="w-5 h-5 flex-shrink-0" />
-              {isSidebarExpanded && <span className="font-medium">Students</span>}
+              {isSidebarExpanded && <span className="font-medium">{t('coursesPage.students')}</span>}
             </button>
             
             <button
@@ -399,10 +402,10 @@ const Courses = () => {
                   ? 'bg-primary-600 text-white'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700'
               }`}
-              title="Lecturers"
+              title={t('coursesPage.lecturers')}
             >
               <FaChalkboardTeacher className="w-5 h-5 flex-shrink-0" />
-              {isSidebarExpanded && <span className="font-medium">Lecturers</span>}
+              {isSidebarExpanded && <span className="font-medium">{t('coursesPage.lecturers')}</span>}
             </button>
             
             <button
@@ -412,19 +415,19 @@ const Courses = () => {
                   ? 'bg-primary-600 text-white'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700'
               }`}
-              title="Explore Courses"
+              title={t('coursesPage.exploreCourses')}
             >
               <FaCompass className="w-5 h-5 flex-shrink-0" />
-              {isSidebarExpanded && <span className="font-medium">Explore Courses</span>}
+              {isSidebarExpanded && <span className="font-medium">{t('coursesPage.exploreCourses')}</span>}
             </button>
             
             <button
               onClick={() => navigate('/about')}
               className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
-              title="About Us"
+              title={t('coursesPage.aboutUs')}
             >
               <FaInfoCircle className="w-5 h-5 flex-shrink-0" />
-              {isSidebarExpanded && <span className="font-medium">About Us</span>}
+              {isSidebarExpanded && <span className="font-medium">{t('coursesPage.aboutUs')}</span>}
             </button>
           </div>
 
@@ -554,7 +557,7 @@ const Courses = () => {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-gray-800 dark:text-white">
-                    Explore
+                    {t('coursesPage.explore')}
                   </h2>
                   <motion.button
                     whileHover={{ rotate: 90 }}
@@ -575,7 +578,7 @@ const Courses = () => {
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
                   >
                     <FaArrowLeft className="w-5 h-5 flex-shrink-0" />
-                    <span className="font-medium">Back to Feed</span>
+                    <span className="font-medium">{t('coursesPage.backToFeed')}</span>
                   </button>
                   
                   <button
@@ -590,7 +593,7 @@ const Courses = () => {
                     }`}
                   >
                     <FaUserGraduate className="w-5 h-5 flex-shrink-0" />
-                    <span className="font-medium">Students</span>
+                    <span className="font-medium">{t('coursesPage.students')}</span>
                   </button>
                   
                   <button
@@ -605,7 +608,7 @@ const Courses = () => {
                     }`}
                   >
                     <FaChalkboardTeacher className="w-5 h-5 flex-shrink-0" />
-                    <span className="font-medium">Lecturers</span>
+                    <span className="font-medium">{t('coursesPage.lecturers')}</span>
                   </button>
                   
                   <button
@@ -620,7 +623,7 @@ const Courses = () => {
                     }`}
                   >
                     <FaCompass className="w-5 h-5 flex-shrink-0" />
-                    <span className="font-medium">Explore Courses</span>
+                    <span className="font-medium">{t('coursesPage.exploreCourses')}</span>
                   </button>
                   
                   <button
@@ -631,7 +634,7 @@ const Courses = () => {
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
                   >
                     <FaInfoCircle className="w-5 h-5 flex-shrink-0" />
-                    <span className="font-medium">About Us</span>
+                    <span className="font-medium">{t('coursesPage.aboutUs')}</span>
                   </button>
                 </div>
 
@@ -770,7 +773,7 @@ const Courses = () => {
                   <FaUniversity className="text-white text-xl" />
                 </div>
                 <span className="text-xl font-bold text-gray-800 dark:text-white">
-                  Project East
+                  {t('coursesPage.title')}
                 </span>
               </motion.div>
             </div>
@@ -785,7 +788,7 @@ const Courses = () => {
             animate={{ opacity: 1, y: 0 }}
             className="text-4xl md:text-5xl font-bold mb-4"
           >
-            Explore Courses
+            {t('coursesPage.heroTitle')}
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -793,7 +796,7 @@ const Courses = () => {
             transition={{ delay: 0.1 }}
             className="text-xl text-white/90 max-w-2xl mx-auto"
           >
-            Discover a wide range of courses from leading institutions
+            {t('coursesPage.heroSubtitle')}
           </motion.p>
         </div>
       </div>
@@ -804,27 +807,27 @@ const Courses = () => {
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search */}
             <div className="flex-1 relative">
-              <FaSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <FaSearch className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 transform -translate-y-1/2 text-gray-400`} />
               <input
                 type="text"
-                placeholder="Search courses, instructors, or categories..."
+                placeholder={t('coursesPage.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white`}
               />
             </div>
 
             {/* Level Filter */}
             <div className="relative">
-              <FaFilter className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <FaFilter className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 transform -translate-y-1/2 text-gray-400`} />
               <select
                 value={selectedLevel}
                 onChange={(e) => setSelectedLevel(e.target.value)}
-                className="pl-12 pr-10 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white appearance-none cursor-pointer"
+                className={`${isRTL ? 'pr-12 pl-10' : 'pl-12 pr-10'} py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white appearance-none cursor-pointer`}
               >
                 {levels.map(level => (
                   <option key={level} value={level}>
-                    {level === 'all' ? 'All Levels' : level}
+                    {level === 'all' ? t('coursesPage.allLevels') : t(`coursesPage.${level.toLowerCase()}`)}
                   </option>
                 ))}
               </select>
@@ -832,13 +835,13 @@ const Courses = () => {
 
             {/* Institution Filter */}
             <div className="relative">
-              <FaUniversity className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <FaUniversity className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 transform -translate-y-1/2 text-gray-400`} />
               <select
                 value={selectedInstitution}
                 onChange={(e) => setSelectedInstitution(e.target.value)}
-                className="pl-12 pr-10 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white appearance-none cursor-pointer"
+                className={`${isRTL ? 'pr-12 pl-10' : 'pl-12 pr-10'} py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white appearance-none cursor-pointer`}
               >
-                <option value="all">All Institutions</option>
+                <option value="all">{t('coursesPage.allInstitutions')}</option>
                 {institutions.map(inst => (
                   <option key={inst} value={inst}>{inst}</option>
                 ))}
@@ -870,7 +873,7 @@ const Courses = () => {
                     course.level === 'Intermediate' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' :
                     'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
                   }`}>
-                    {course.level}
+                    {t(`coursesPage.${course.level.toLowerCase()}`)}
                   </span>
                 </div>
                 <div className="absolute bottom-4 left-4">
@@ -899,7 +902,7 @@ const Courses = () => {
                     </span>
                   </div>
                   <span className="text-sm text-gray-500 dark:text-gray-500">
-                    ({course.reviews} reviews)
+                    ({course.reviews} {t('coursesPage.reviews')})
                   </span>
                 </div>
 
@@ -922,7 +925,7 @@ const Courses = () => {
                   <div className="flex items-center gap-4 text-sm">
                     <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
                       <FaUsers className="w-4 h-4" />
-                      <span>{course.students} students</span>
+                      <span>{course.students} {t('coursesPage.studentsLabel')}</span>
                     </div>
                     <div className="flex items-center gap-1 text-primary-600 dark:text-teal-400 font-bold">
                       <FaDollarSign className="w-4 h-4" />
@@ -936,7 +939,7 @@ const Courses = () => {
                   whileTap={{ scale: 0.98 }}
                   className="w-full mt-4 px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-semibold transition-colors"
                 >
-                  Enroll Now
+                  {t('coursesPage.enrollNow')}
                 </motion.button>
               </div>
             </motion.div>
@@ -947,10 +950,10 @@ const Courses = () => {
           <div className="text-center py-16">
             <FaGraduationCap className="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
             <p className="text-xl font-semibold text-gray-600 dark:text-gray-400 mb-2">
-              No courses found
+              {t('coursesPage.noCoursesFound')}
             </p>
             <p className="text-gray-500 dark:text-gray-500">
-              Try adjusting your search or filters
+              {t('coursesPage.tryAdjustingFilters')}
             </p>
           </div>
         )}
@@ -991,11 +994,11 @@ const Courses = () => {
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
-                      Verified
+                      {t('coursesPage.verified')}
                     </span>
                   ) : (
                     <span className="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full text-xs font-semibold">
-                      Not Verified
+                      {t('coursesPage.notVerified')}
                     </span>
                   )}
                 </div>
@@ -1003,7 +1006,7 @@ const Courses = () => {
                   {profileType === 'student' ? selectedProfile.major : selectedProfile.specialty}
                 </p>
                 <p className="text-gray-600 dark:text-gray-400">
-                  {profileType === 'student' ? `${selectedProfile.year} • ${selectedProfile.university}` : `${selectedProfile.experience} Experience • ${selectedProfile.university}`}
+                  {profileType === 'student' ? `${selectedProfile.year} • ${selectedProfile.university}` : `${selectedProfile.experience} ${t('coursesPage.experience')} • ${selectedProfile.university}`}
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
                   {selectedProfile.bio}
@@ -1013,18 +1016,18 @@ const Courses = () => {
 
             {/* Contact Information */}
             <div className="bg-gray-50 dark:bg-navy-900 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-800 dark:text-white mb-3">Contact Information</h3>
+              <h3 className="font-semibold text-gray-800 dark:text-white mb-3">{t('coursesPage.contactInformation')}</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">📧 Email:</span>
+                  <span className="text-gray-600 dark:text-gray-400">📧 {t('coursesPage.email')}:</span>
                   <span className="text-gray-800 dark:text-white">{selectedProfile.email}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">📱 Phone:</span>
+                  <span className="text-gray-600 dark:text-gray-400">📱 {t('coursesPage.phone')}:</span>
                   <span className="text-gray-800 dark:text-white">{selectedProfile.phone}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">📍 Location:</span>
+                  <span className="text-gray-600 dark:text-gray-400">📍 {t('coursesPage.location')}:</span>
                   <span className="text-gray-800 dark:text-white">{selectedProfile.location}</span>
                 </div>
               </div>
@@ -1032,7 +1035,7 @@ const Courses = () => {
 
             {/* About */}
             <div>
-              <h3 className="font-semibold text-gray-800 dark:text-white mb-2">About</h3>
+              <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('coursesPage.about')}</h3>
               <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
                 {selectedProfile.about}
               </p>
@@ -1042,14 +1045,14 @@ const Courses = () => {
             {profileType === 'student' && (
               <>
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Academic Performance</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('coursesPage.academicPerformance')}</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-semibold">GPA:</span> {selectedProfile.gpa}
+                    <span className="font-semibold">{t('coursesPage.gpa')}:</span> {selectedProfile.gpa}
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Skills</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('coursesPage.skills')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {selectedProfile.skills.map((skill, index) => (
                       <span
@@ -1063,7 +1066,7 @@ const Courses = () => {
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Interests</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('coursesPage.interests')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {selectedProfile.interests.map((interest, index) => (
                       <span
@@ -1077,7 +1080,7 @@ const Courses = () => {
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Achievements</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('coursesPage.achievements')}</h3>
                   <ul className="space-y-2">
                     {selectedProfile.achievements.map((achievement, index) => (
                       <li key={index} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
@@ -1094,14 +1097,14 @@ const Courses = () => {
             {profileType === 'lecturer' && (
               <>
                 <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Education</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('coursesPage.education')}</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {selectedProfile.education}
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Courses Taught</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('coursesPage.coursesTaught')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {selectedProfile.courses.map((course, index) => (
                       <span
@@ -1115,7 +1118,7 @@ const Courses = () => {
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Research Interests</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('coursesPage.researchInterests')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {selectedProfile.research.map((topic, index) => (
                       <span
@@ -1129,14 +1132,14 @@ const Courses = () => {
                 </div>
 
                 <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Publications</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('coursesPage.publications')}</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {selectedProfile.publications}
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Achievements & Awards</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('coursesPage.achievementsAwards')}</h3>
                   <ul className="space-y-2">
                     {selectedProfile.achievements.map((achievement, index) => (
                       <li key={index} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">

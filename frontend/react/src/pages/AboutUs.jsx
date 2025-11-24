@@ -26,9 +26,9 @@ const AboutUs = () => {
   const developers = [
     {
       name: 'Mohammed Salah',
-      role: t('aboutUs.frontendDeveloper'),
+      role: 'Frontend Developer',
       bio: t('aboutUs.mohammedBio'),
-      skills: ['React', 'Node.js', 'Python', 'AWS'],
+      skills: ['React', 'Node.js', 'Python', 'AWS', 'Java', 'C++', 'VB', 'PHP', 'SQL'],
       github: 'https://github.com/fuden4',
       instagram: 'https://www.instagram.com/pzx0z/',
       email: 'mohammed.salah@example.com',
@@ -36,9 +36,9 @@ const AboutUs = () => {
     },
     {
       name: 'Mustafa Mohammed',
-      role: t('aboutUs.backendDeveloper'),
+      role: 'Backend Developer',
       bio: t('aboutUs.mustafaBio'),
-      skills: ['React', 'Django', 'PostgreSQL', 'Docker'],
+      skills: ['Django', 'PostgreSQL', 'Python', 'Java', 'SQL', 'AI Engineering', 'Kotlin', 'Android Developer'],
       github: 'https://github.com/H2SO4-1191',
       instagram: 'https://www.instagram.com/h2so4.1191/',
       email: 'mustafa.mohammed@example.com',
