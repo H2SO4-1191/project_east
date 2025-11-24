@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { FaArrowLeft, FaChalkboardTeacher, FaMoon, FaSun } from 'react-icons/fa';
 import AnimatedBackground from '../components/AnimatedBackground';
 import AnimatedButton from '../components/AnimatedButton';
 import Card from '../components/Card';
 import { useTheme } from '../context/ThemeContext';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import toast from 'react-hot-toast';
 import { authService } from '../services/authService';
 
@@ -19,6 +21,7 @@ const initialState = {
 const LecturerSignup = () => {
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [formValues, setFormValues] = useState(initialState);
   const [errors, setErrors] = useState({});
@@ -26,8 +29,8 @@ const LecturerSignup = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const buttonLabel = useMemo(
-    () => (isLoading ? 'Creating Account...' : 'Create Lecturer Account'),
-    [isLoading]
+    () => (isLoading ? t('signup.creatingAccount') : t('signup.createLecturerAccount')),
+    [isLoading, t]
   );
 
   const handleChange = (event) => {
@@ -41,21 +44,21 @@ const LecturerSignup = () => {
     const nextErrors = {};
 
     if (!formValues.username.trim()) {
-      nextErrors.username = 'Username is required';
+      nextErrors.username = t('signup.usernameRequired');
     }
 
     if (!formValues.email.trim()) {
-      nextErrors.email = 'Email is required';
+      nextErrors.email = t('signup.emailRequired');
     } else if (!/\S+@\S+\.\S+/.test(formValues.email.trim())) {
-      nextErrors.email = 'Please enter a valid email address';
+      nextErrors.email = t('signup.emailInvalid');
     }
 
     if (!formValues.first_name.trim()) {
-      nextErrors.first_name = 'First name is required';
+      nextErrors.first_name = t('signup.firstNameRequired');
     }
 
     if (!formValues.last_name.trim()) {
-      nextErrors.last_name = 'Last name is required';
+      nextErrors.last_name = t('signup.lastNameRequired');
     }
 
     setErrors(nextErrors);
@@ -136,10 +139,9 @@ const LecturerSignup = () => {
         setFormError(err.message);
         toast.error(err.message);
       } else {
-        const message =
-          'Unable to create the account right now. Please check your connection and try again.';
-        setFormError(message);
-        toast.error(message);
+      const message = t('signup.createError');
+      setFormError(message);
+      toast.error(message);
       }
     } finally {
       setIsLoading(false);
@@ -150,11 +152,17 @@ const LecturerSignup = () => {
     <AnimatedBackground>
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="w-full max-w-2xl">
+          {/* Language Switcher */}
+          <div className="fixed top-6 right-6 rtl:left-6 rtl:right-auto z-50">
+            <LanguageSwitcher />
+          </div>
+
+          {/* Theme Toggle */}
           <motion.button
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             onClick={toggleTheme}
-            className="fixed top-6 right-6 p-3 bg-white/80 dark:bg-navy-800/80 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-all z-50"
+            className="fixed top-6 right-20 rtl:left-20 rtl:right-auto p-3 bg-white/80 dark:bg-navy-800/80 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-all z-50"
             whileHover={{ scale: 1.1, rotate: 180 }}
             whileTap={{ scale: 0.9 }}
           >
@@ -173,7 +181,7 @@ const LecturerSignup = () => {
             whileHover={{ x: -5 }}
           >
             <FaArrowLeft />
-            Back
+            {t('common.back')}
           </motion.button>
 
           <motion.div
@@ -197,7 +205,7 @@ const LecturerSignup = () => {
               transition={{ delay: 0.2 }}
               className="text-4xl font-bold text-gray-800 dark:text-white mb-2"
             >
-              Lecturer Sign Up
+              {t('signup.lecturerTitle')}
             </motion.h1>
             <motion.p
               initial={{ opacity: 0 }}
@@ -205,7 +213,7 @@ const LecturerSignup = () => {
               transition={{ delay: 0.3 }}
               className="text-gray-600 dark:text-gray-300 max-w-xl mx-auto"
             >
-              Create your lecturer account to connect with institutions and manage your teaching opportunities.
+              {t('signup.lecturerSubtitle')}
             </motion.p>
           </motion.div>
 
@@ -214,7 +222,7 @@ const LecturerSignup = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                    First Name
+                    {t('signup.firstName')}
                   </label>
                   <motion.input
                     whileFocus={{ scale: 1.01 }}
@@ -223,7 +231,7 @@ const LecturerSignup = () => {
                     value={formValues.first_name}
                     onChange={handleChange}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                    placeholder="Your first name"
+                    placeholder={t('signup.firstNamePlaceholder')}
                     autoComplete="given-name"
                   />
                   {errors.first_name && (
@@ -233,7 +241,7 @@ const LecturerSignup = () => {
 
                 <div>
                   <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                    Last Name
+                    {t('signup.lastName')}
                   </label>
                   <motion.input
                     whileFocus={{ scale: 1.01 }}
@@ -242,7 +250,7 @@ const LecturerSignup = () => {
                     value={formValues.last_name}
                     onChange={handleChange}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                    placeholder="Your last name"
+                    placeholder={t('signup.lastNamePlaceholder')}
                     autoComplete="family-name"
                   />
                   {errors.last_name && (
@@ -253,7 +261,7 @@ const LecturerSignup = () => {
 
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Username
+                  {t('signup.username')}
                 </label>
                 <motion.input
                   whileFocus={{ scale: 1.01 }}
@@ -262,7 +270,7 @@ const LecturerSignup = () => {
                   value={formValues.username}
                   onChange={handleChange}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                  placeholder="e.g. dr_sarah_khan"
+                  placeholder={t('signup.usernamePlaceholder')}
                   autoComplete="username"
                 />
                 {errors.username && (
@@ -272,7 +280,7 @@ const LecturerSignup = () => {
 
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Email Address
+                  {t('login.emailLabel')}
                 </label>
                 <motion.input
                   whileFocus={{ scale: 1.01 }}
@@ -281,14 +289,14 @@ const LecturerSignup = () => {
                   value={formValues.email}
                   onChange={handleChange}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                  placeholder="your.email@example.com"
+                  placeholder={t('signup.emailPlaceholder')}
                   autoComplete="email"
                 />
                 {errors.email && <p className="mt-2 text-sm text-red-500">{errors.email}</p>}
               </div>
 
               <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-400 px-4 py-3 rounded-lg text-sm">
-                <strong>Account type:</strong> Lecturer (auto-selected)
+                <strong>{t('signup.accountType')}</strong> {t('home.lecturer')} ({t('signup.accountTypeInstitution').split('(')[1] || 'auto-selected'})
               </div>
 
               {formError && (
@@ -306,13 +314,13 @@ const LecturerSignup = () => {
               </AnimatedButton>
 
               <p className="text-center text-gray-600 dark:text-gray-400 text-sm">
-                Already have an account?{' '}
+                {t('signup.alreadyHaveAccount')}{' '}
                 <button
                   type="button"
                   onClick={() => navigate('/login')}
                   className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-semibold transition-colors"
                 >
-                  Go to Login
+                  {t('signup.goToLogin')}
                 </button>
               </p>
             </form>

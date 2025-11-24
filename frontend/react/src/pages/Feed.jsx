@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   FaUniversity, 
   FaUser, 
@@ -29,12 +30,15 @@ import { useInstitute } from '../context/InstituteContext';
 import { useTheme } from '../context/ThemeContext';
 import { authService } from '../services/authService';
 import Modal from '../components/Modal';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import toast from 'react-hot-toast';
 
 const Feed = () => {
   const navigate = useNavigate();
   const { instituteData, updateInstituteData } = useInstitute();
   const { isDark, toggleTheme } = useTheme();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [feedItems, setFeedItems] = useState([]);
   const [sidebarView, setSidebarView] = useState('students'); // 'students', 'lecturers', 'courses'
@@ -548,7 +552,7 @@ const Feed = () => {
     });
     
     setShowUserMenu(false);
-    toast.success('Logged out successfully');
+    toast.success(t('feed.loggedOutSuccess'));
     
     // Force page reload to ensure clean state
     window.location.reload();
@@ -556,11 +560,11 @@ const Feed = () => {
 
   const handleSubscribe = (institutionName) => {
     if (!instituteData.isAuthenticated) {
-      toast.error('Please login or sign up to subscribe');
+      toast.error(t('feed.loginToSubscribe'));
       navigate('/home'); // Navigate to account type selection page
       return;
     }
-    toast.success(`Subscribed to ${institutionName}!`);
+    toast.success(`${t('feed.subscribedSuccess')} ${institutionName}!`);
   };
 
   const handleViewProfile = (profile, type) => {
@@ -589,7 +593,7 @@ const Feed = () => {
           <h2 className={`text-xl font-bold text-gray-800 dark:text-white mb-6 transition-opacity duration-300 ${
             isSidebarExpanded ? 'opacity-100' : 'opacity-0'
           }`}>
-            Explore
+            {t('feed.explore')}
           </h2>
           
           {/* Sidebar Navigation Buttons */}
@@ -601,10 +605,10 @@ const Feed = () => {
                   ? 'bg-primary-600 text-white'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700'
               }`}
-              title="Students"
+              title={t('feed.students')}
             >
               <FaUserGraduate className="w-5 h-5 flex-shrink-0" />
-              {isSidebarExpanded && <span className="font-medium">Students</span>}
+              {isSidebarExpanded && <span className="font-medium">{t('feed.students')}</span>}
             </button>
             
             <button
@@ -614,10 +618,10 @@ const Feed = () => {
                   ? 'bg-primary-600 text-white'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700'
               }`}
-              title="Lecturers"
+              title={t('feed.lecturers')}
             >
               <FaChalkboardTeacher className="w-5 h-5 flex-shrink-0" />
-              {isSidebarExpanded && <span className="font-medium">Lecturers</span>}
+              {isSidebarExpanded && <span className="font-medium">{t('feed.lecturers')}</span>}
             </button>
             
             <button
@@ -627,19 +631,19 @@ const Feed = () => {
                   ? 'bg-primary-600 text-white'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700'
               }`}
-              title="Explore Courses"
+              title={t('feed.exploreCourses')}
             >
               <FaCompass className="w-5 h-5 flex-shrink-0" />
-              {isSidebarExpanded && <span className="font-medium">Explore Courses</span>}
+              {isSidebarExpanded && <span className="font-medium">{t('feed.exploreCourses')}</span>}
             </button>
             
             <button
               onClick={() => navigate('/about')}
               className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
-              title="About Us"
+              title={t('feed.aboutUs')}
             >
               <FaInfoCircle className="w-5 h-5 flex-shrink-0" />
-              {isSidebarExpanded && <span className="font-medium">About Us</span>}
+              {isSidebarExpanded && <span className="font-medium">{t('feed.aboutUs')}</span>}
             </button>
           </div>
 
@@ -720,7 +724,7 @@ const Feed = () => {
                   className="w-full px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-semibold text-sm transition-colors flex items-center justify-center gap-2 mb-4"
                 >
                   <FaBook className="w-4 h-4" />
-                  View All Courses
+                  {t('feed.viewAllCourses')}
                 </motion.button>
                 {courses.map((course) => (
                   <motion.div
@@ -790,7 +794,7 @@ const Feed = () => {
                 {/* Mobile Sidebar Header */}
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-gray-800 dark:text-white">
-                    Explore
+                    {t('feed.explore')}
                   </h2>
                   <motion.button
                     whileHover={{ rotate: 90 }}
@@ -816,7 +820,7 @@ const Feed = () => {
                     }`}
                   >
                     <FaUserGraduate className="w-5 h-5 flex-shrink-0" />
-                    <span className="font-medium">Students</span>
+                    <span className="font-medium">{t('feed.students')}</span>
                   </button>
                   
                   <button
@@ -831,7 +835,7 @@ const Feed = () => {
                     }`}
                   >
                     <FaChalkboardTeacher className="w-5 h-5 flex-shrink-0" />
-                    <span className="font-medium">Lecturers</span>
+                    <span className="font-medium">{t('feed.lecturers')}</span>
                   </button>
                   
                   <button
@@ -846,7 +850,7 @@ const Feed = () => {
                     }`}
                   >
                     <FaCompass className="w-5 h-5 flex-shrink-0" />
-                    <span className="font-medium">Explore Courses</span>
+                    <span className="font-medium">{t('feed.exploreCourses')}</span>
                   </button>
                   
                   <button
@@ -857,7 +861,7 @@ const Feed = () => {
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
                   >
                     <FaInfoCircle className="w-5 h-5 flex-shrink-0" />
-                    <span className="font-medium">About Us</span>
+                    <span className="font-medium">{t('feed.aboutUs')}</span>
                   </button>
                 </div>
 
@@ -939,7 +943,7 @@ const Feed = () => {
                         className="w-full px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-semibold text-sm transition-colors flex items-center justify-center gap-2 mb-4"
                       >
                         <FaBook className="w-4 h-4" />
-                        View All Courses
+                        {t('feed.viewAllCourses')}
                       </motion.button>
                       {courses.map((course) => (
                         <motion.div
@@ -994,7 +998,7 @@ const Feed = () => {
         {/* Navigation Bar */}
         <nav className="bg-white dark:bg-navy-800 shadow-lg sticky top-0 z-50 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className={`flex ${isRTL ? 'flex-row-reverse' : 'flex-row'} justify-between items-center h-16 ${isRTL ? 'gap-4' : 'gap-4'}`}>
             {/* Logo - Clickable on Mobile to Open Sidebar */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
@@ -1018,14 +1022,14 @@ const Feed = () => {
             </motion.div>
 
             {/* Right Side */}
-            <div className="flex items-center gap-4">
+            <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
               {/* Search Bar */}
-              <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-navy-700 rounded-lg border border-gray-300 dark:border-navy-600 transition-colors">
-                <FaSearch className="text-gray-400 dark:text-gray-500" />
+              <div className={`hidden md:flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-navy-700 rounded-lg border border-gray-300 dark:border-navy-600 transition-colors ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <FaSearch className={`text-gray-400 dark:text-gray-500 ${isRTL ? 'order-2' : ''}`} />
                 <input
                   type="text"
-                  placeholder="Search institutions..."
-                  className="bg-transparent outline-none text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 w-48 lg:w-64"
+                  placeholder={t('feed.searchInstitutions')}
+                  className={`bg-transparent outline-none text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 w-48 lg:w-64 ${isRTL ? 'text-right' : 'text-left'}`}
                   readOnly
                 />
               </div>
@@ -1038,6 +1042,9 @@ const Feed = () => {
               >
                 <FaSearch className="text-gray-600 dark:text-gray-400 text-xl" />
               </motion.button>
+
+              {/* Language Switcher */}
+              <LanguageSwitcher />
 
               {/* Theme Toggle */}
               <motion.button
@@ -1079,18 +1086,18 @@ const Feed = () => {
                           initial={{ opacity: 0, y: -10, scale: 0.95 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                          className="absolute right-0 mt-2 w-80 bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-700 overflow-hidden z-50"
+                          className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-80 bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-700 overflow-hidden z-50`}
                         >
-                          <div className="p-4 border-b border-gray-200 dark:border-navy-700 flex items-center justify-between">
-                            <h3 className="font-bold text-gray-800 dark:text-white">Notifications</h3>
+                          <div className={`p-4 border-b border-gray-200 dark:border-navy-700 flex items-center ${isRTL ? 'flex-row-reverse' : ''} justify-between`}>
+                            <h3 className="font-bold text-gray-800 dark:text-white">{t('nav.notifications')}</h3>
                             <span className="text-sm text-gray-500 dark:text-gray-400">
-                              {notifications.filter(n => !n.read).length} new
+                              {notifications.filter(n => !n.read).length} {t('feed.new')}
                             </span>
                           </div>
                           <div className="max-h-96 overflow-y-auto">
                             {notifications.length === 0 ? (
-                              <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                                No notifications
+                              <div className={`p-8 ${isRTL ? 'text-right' : 'text-center'} text-gray-500 dark:text-gray-400`}>
+                                {t('nav.noNotifications')}
                               </div>
                             ) : (
                               notifications.map((notification) => (
@@ -1103,11 +1110,11 @@ const Feed = () => {
                                   }`}
                                   onClick={() => setShowNotifications(false)}
                                 >
-                                  <div className="flex items-start gap-3">
+                                  <div className={`flex items-start gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
                                     <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
                                       !notification.read ? 'bg-primary-600' : 'bg-transparent'
                                     }`} />
-                                    <div className="flex-1 min-w-0">
+                                    <div className={`flex-1 min-w-0 ${isRTL ? 'text-right' : 'text-left'}`}>
                                       <h4 className="font-semibold text-sm text-gray-800 dark:text-white mb-1">
                                         {notification.title}
                                       </h4>
@@ -1125,7 +1132,7 @@ const Feed = () => {
                           </div>
                           <div className="p-3 border-t border-gray-200 dark:border-navy-700 text-center">
                             <button className="text-sm text-primary-600 dark:text-teal-400 hover:underline font-medium">
-                              View All Notifications
+                              {t('nav.viewAllNotifications')}
                             </button>
                           </div>
                         </motion.div>
@@ -1139,22 +1146,22 @@ const Feed = () => {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => navigate('/student/schedule')}
-                        className="hidden sm:flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+                        className={`hidden sm:flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors`}
                       >
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
                         </svg>
-                        <span>Schedule</span>
+                        <span>{t('nav.schedule')}</span>
                       </motion.button>
 
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => navigate('/student/courses')}
-                        className="hidden sm:flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg transition-colors"
+                        className={`hidden sm:flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg transition-colors`}
                       >
                         <FaBook className="w-5 h-5" />
-                        <span>Current Courses</span>
+                        <span>{t('nav.currentCourses')}</span>
                       </motion.button>
                     </>
                   )}
@@ -1165,22 +1172,22 @@ const Feed = () => {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => navigate('/lecturer/schedule')}
-                        className="hidden sm:flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors"
+                        className={`hidden sm:flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors`}
                       >
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
                         </svg>
-                        <span>Schedule</span>
+                        <span>{t('nav.schedule')}</span>
                       </motion.button>
 
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => navigate('/lecturer/courses')}
-                        className="hidden sm:flex items-center gap-2 px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-lg transition-colors"
+                        className={`hidden sm:flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-lg transition-colors`}
                       >
                         <FaBook className="w-5 h-5" />
-                        <span>Current Courses</span>
+                        <span>{t('nav.currentCourses')}</span>
                       </motion.button>
                     </>
                   )}
@@ -1213,18 +1220,18 @@ const Feed = () => {
                           initial={{ opacity: 0, y: -10, scale: 0.95 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                          className="absolute right-0 mt-2 w-80 bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-700 overflow-hidden z-50"
+                          className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-80 bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-700 overflow-hidden z-50`}
                         >
-                          <div className="p-4 border-b border-gray-200 dark:border-navy-700 flex items-center justify-between">
-                            <h3 className="font-bold text-gray-800 dark:text-white">Notifications</h3>
+                          <div className={`p-4 border-b border-gray-200 dark:border-navy-700 flex items-center ${isRTL ? 'flex-row-reverse' : ''} justify-between`}>
+                            <h3 className="font-bold text-gray-800 dark:text-white">{t('nav.notifications')}</h3>
                             <span className="text-sm text-gray-500 dark:text-gray-400">
-                              {notifications.filter(n => !n.read).length} new
+                              {notifications.filter(n => !n.read).length} {t('feed.new')}
                             </span>
                           </div>
                           <div className="max-h-96 overflow-y-auto">
                             {notifications.length === 0 ? (
-                              <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                                No notifications
+                              <div className={`p-8 ${isRTL ? 'text-right' : 'text-center'} text-gray-500 dark:text-gray-400`}>
+                                {t('nav.noNotifications')}
                               </div>
                             ) : (
                               notifications.map((notification) => (
@@ -1237,11 +1244,11 @@ const Feed = () => {
                                   }`}
                                   onClick={() => setShowNotifications(false)}
                                 >
-                                  <div className="flex items-start gap-3">
+                                  <div className={`flex items-start gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
                                     <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
                                       !notification.read ? 'bg-primary-600' : 'bg-transparent'
                                     }`} />
-                                    <div className="flex-1 min-w-0">
+                                    <div className={`flex-1 min-w-0 ${isRTL ? 'text-right' : 'text-left'}`}>
                                       <h4 className="font-semibold text-sm text-gray-800 dark:text-white mb-1">
                                         {notification.title}
                                       </h4>
@@ -1259,7 +1266,7 @@ const Feed = () => {
                           </div>
                           <div className="p-3 border-t border-gray-200 dark:border-navy-700 text-center">
                             <button className="text-sm text-primary-600 dark:text-teal-400 hover:underline font-medium">
-                              View All Notifications
+                              {t('nav.viewAllNotifications')}
                             </button>
                           </div>
                         </motion.div>
@@ -1271,10 +1278,10 @@ const Feed = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => navigate('/dashboard')}
-                    className="hidden sm:flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors"
+                    className={`hidden sm:flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors`}
                   >
                     <FaTachometerAlt />
-                    <span>Dashboard</span>
+                    <span>{t('nav.dashboard')}</span>
                   </motion.button>
                 </>
               )}
@@ -1286,7 +1293,7 @@ const Feed = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors"
+                    className={`flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors`}
                   >
                     <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-teal-500 rounded-full flex items-center justify-center">
                       <span className="text-white font-bold text-sm">
@@ -1304,9 +1311,9 @@ const Feed = () => {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="absolute right-0 mt-2 w-48 bg-white dark:bg-navy-800 rounded-lg shadow-xl border border-gray-200 dark:border-navy-700 overflow-hidden"
+                        className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-48 bg-white dark:bg-navy-800 rounded-lg shadow-xl border border-gray-200 dark:border-navy-700 overflow-hidden`}
                       >
-                        <div className="p-3 border-b border-gray-200 dark:border-navy-700">
+                        <div className={`p-3 border-b border-gray-200 dark:border-navy-700 ${isRTL ? 'text-right' : 'text-left'}`}>
                           <p className="text-sm font-semibold text-gray-800 dark:text-white">
                             {instituteData.name || instituteData.username}
                           </p>
@@ -1316,9 +1323,9 @@ const Feed = () => {
                           {instituteData.userType === 'lecturer' && (
                             <div className="mt-2 pt-2 border-t border-gray-200 dark:border-navy-700">
                               <p className="text-xs text-gray-500 dark:text-gray-500">Institution</p>
-                              <p className="text-sm font-medium text-primary-600 dark:text-teal-400 flex items-center gap-1">
+                              <p className={`text-sm font-medium text-primary-600 dark:text-teal-400 flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-1`}>
                                 <FaUniversity className="w-3 h-3" />
-                                {instituteData.institution || 'Baghdad International Academy'}
+                                {instituteData.institution || t('feed.institution')}
                               </p>
                             </div>
                           )}
@@ -1330,10 +1337,10 @@ const Feed = () => {
                               navigate('/dashboard');
                               setShowUserMenu(false);
                             }}
-                            className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center gap-2 transition-colors sm:hidden"
+                            className={`w-full px-4 py-2 ${isRTL ? 'text-right' : 'text-left'} text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 transition-colors sm:hidden`}
                           >
                             <FaTachometerAlt />
-                            Dashboard
+                            {t('nav.dashboard')}
                           </button>
                         )}
 
@@ -1344,22 +1351,22 @@ const Feed = () => {
                                 navigate('/student/schedule');
                                 setShowUserMenu(false);
                               }}
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center gap-2 transition-colors sm:hidden"
+                              className={`w-full px-4 py-2 ${isRTL ? 'text-right' : 'text-left'} text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 transition-colors sm:hidden`}
                             >
                               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
                               </svg>
-                              Schedule
+                              {t('nav.schedule')}
                             </button>
                             <button
                               onClick={() => {
                                 navigate('/student/courses');
                                 setShowUserMenu(false);
                               }}
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center gap-2 transition-colors sm:hidden"
+                              className={`w-full px-4 py-2 ${isRTL ? 'text-right' : 'text-left'} text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 transition-colors sm:hidden`}
                             >
                               <FaBook className="w-4 h-4" />
-                              Current Courses
+                              {t('nav.currentCourses')}
                             </button>
                           </>
                         )}
@@ -1371,32 +1378,32 @@ const Feed = () => {
                                 navigate('/lecturer/schedule');
                                 setShowUserMenu(false);
                               }}
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center gap-2 transition-colors sm:hidden"
+                              className={`w-full px-4 py-2 ${isRTL ? 'text-right' : 'text-left'} text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 transition-colors sm:hidden`}
                             >
                               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
                               </svg>
-                              Schedule
+                              {t('nav.schedule')}
                             </button>
                             <button
                               onClick={() => {
                                 navigate('/lecturer/courses');
                                 setShowUserMenu(false);
                               }}
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center gap-2 transition-colors sm:hidden"
+                              className={`w-full px-4 py-2 ${isRTL ? 'text-right' : 'text-left'} text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 transition-colors sm:hidden`}
                             >
                               <FaBook className="w-4 h-4" />
-                              Current Courses
+                              {t('nav.currentCourses')}
                             </button>
                           </>
                         )}
 
                         <button
                           onClick={handleLogout}
-                          className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center gap-2 transition-colors"
+                          className={`w-full px-4 py-2 ${isRTL ? 'text-right' : 'text-left'} text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 transition-colors`}
                         >
                           <FaSignOutAlt />
-                          Logout
+                          {t('nav.logout')}
                         </button>
                       </motion.div>
                     )}
@@ -1411,7 +1418,7 @@ const Feed = () => {
                     className="flex items-center gap-2 px-4 py-2 border border-primary-600 text-primary-600 dark:border-teal-400 dark:text-teal-400 rounded-lg hover:bg-primary-50 dark:hover:bg-navy-700 transition-colors"
                   >
                     <FaSignInAlt />
-                    <span>Login</span>
+                    <span>{t('nav.login')}</span>
                   </motion.button>
                   
                   <motion.button
@@ -1421,7 +1428,7 @@ const Feed = () => {
                     className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors"
                   >
                     <FaUser />
-                    <span>Sign Up</span>
+                    <span>{t('nav.signUp')}</span>
                   </motion.button>
                 </div>
               )}
@@ -1600,8 +1607,8 @@ const Feed = () => {
             className="text-4xl md:text-5xl font-bold mb-4"
           >
             {instituteData.isAuthenticated 
-              ? `Welcome back, ${instituteData.firstName || instituteData.name || instituteData.username || 'User'}!`
-              : 'Discover Educational Excellence'
+              ? `${t('feed.welcomeBack')}, ${instituteData.firstName || instituteData.name || instituteData.username || 'User'}!`
+              : t('feed.discoverExcellence')
             }
           </motion.h1>
           <motion.p
@@ -1612,9 +1619,9 @@ const Feed = () => {
           >
             {instituteData.isAuthenticated
               ? isInstitution
-                ? 'Manage your institution and explore other educational centers'
-                : 'Explore leading institutions and find the perfect place to advance your education'
-              : 'Explore leading institutions and find the perfect place to advance your education'
+                ? t('feed.manageInstitution')
+                : t('feed.exploreInstitutions')
+              : t('feed.exploreInstitutions')
             }
           </motion.p>
         </div>
@@ -1670,11 +1677,11 @@ const Feed = () => {
                     <div className="flex items-center gap-6 mb-4 text-base text-gray-600 dark:text-gray-400">
                       <div className="flex items-center gap-2">
                         <FaUsers className="text-primary-600 dark:text-teal-400 text-lg" />
-                        <span>{item.students} Students</span>
+                        <span>{item.students} {t('feed.students')}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <FaChalkboardTeacher className="text-primary-600 dark:text-teal-400 text-lg" />
-                        <span>{item.lecturers} Lecturers</span>
+                        <span>{item.lecturers} {t('feed.lecturers')}</span>
                       </div>
                     </div>
 
@@ -1685,7 +1692,7 @@ const Feed = () => {
                         whileTap={{ scale: 0.95 }}
                         className="flex-1 px-4 py-2 border-2 border-primary-600 dark:border-teal-400 text-primary-600 dark:text-teal-400 rounded-lg hover:bg-primary-50 dark:hover:bg-navy-700 transition-colors font-semibold"
                       >
-                        Learn More
+                        {t('feed.learnMore')}
                       </motion.button>
                       
                       {!isInstitution && (
@@ -1695,7 +1702,7 @@ const Feed = () => {
                           onClick={() => handleSubscribe(item.title)}
                           className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold"
                         >
-                          Subscribe
+                          {t('feed.subscribe')}
                         </motion.button>
                       )}
                     </div>
@@ -1720,7 +1727,7 @@ const Feed = () => {
                             {item.lecturerName}
                           </h3>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {item.specialty} • {item.experience} Experience
+                            {item.specialty} • {item.experience} {t('feed.experience')}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
                             <FaMapMarkerAlt className="inline mr-1" />
@@ -1735,11 +1742,11 @@ const Feed = () => {
                   <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
                     <div className="flex items-center gap-2 mb-2">
                       <FaBriefcase className="text-blue-600 dark:text-blue-400" />
-                      <span className="font-semibold text-blue-800 dark:text-blue-300">Looking for Job</span>
+                      <span className="font-semibold text-blue-800 dark:text-blue-300">{t('feed.lookingForJob')}</span>
                     </div>
                     <p className="text-gray-700 dark:text-gray-300">{item.message}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                      Contact: <span className="font-medium">{item.contact}</span>
+                      {t('feed.contact')}: <span className="font-medium">{item.contact}</span>
                     </p>
                   </div>
 
@@ -1751,7 +1758,7 @@ const Feed = () => {
                       onClick={() => window.location.href = `mailto:${item.contact}`}
                       className="w-full px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold"
                     >
-                      Contact Lecturer
+                      {t('feed.contactLecturer')}
                     </motion.button>
                   )}
                 </div>
@@ -1804,10 +1811,10 @@ const Feed = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="text-center text-gray-600 dark:text-gray-400">
               <p className="text-sm">
-                © 2025 Project East. All rights reserved.
+                {t('feed.copyright')}
               </p>
               <p className="text-sm mt-2 text-gray-500 dark:text-gray-500">
-                Developed by <span className="font-semibold text-primary-600 dark:text-teal-400">Mohammed Salah</span> and <span className="font-semibold text-primary-600 dark:text-teal-400">Mustafa Mohammed</span>
+                {t('feed.developedBy')} <span className="font-semibold text-primary-600 dark:text-teal-400">Mohammed Salah</span> {t('feed.and')} <span className="font-semibold text-primary-600 dark:text-teal-400">Mustafa Mohammed</span>
               </p>
             </div>
           </div>
@@ -1850,11 +1857,11 @@ const Feed = () => {
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
-                      Verified
+                      {t('feed.verified')}
                     </span>
                   ) : (
                     <span className="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full text-xs font-semibold">
-                      Not Verified
+                      {t('feed.notVerified')}
                     </span>
                   )}
                 </div>
@@ -1872,18 +1879,18 @@ const Feed = () => {
 
             {/* Contact Information */}
             <div className="bg-gray-50 dark:bg-navy-900 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-800 dark:text-white mb-3">Contact Information</h3>
+              <h3 className="font-semibold text-gray-800 dark:text-white mb-3">{t('feed.contactInformation')}</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">📧 Email:</span>
+                  <span className="text-gray-600 dark:text-gray-400">📧 {t('feed.email')}:</span>
                   <span className="text-gray-800 dark:text-white">{selectedProfile.email}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">📱 Phone:</span>
+                  <span className="text-gray-600 dark:text-gray-400">📱 {t('feed.phone')}:</span>
                   <span className="text-gray-800 dark:text-white">{selectedProfile.phone}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">📍 Location:</span>
+                  <span className="text-gray-600 dark:text-gray-400">📍 {t('feed.location')}:</span>
                   <span className="text-gray-800 dark:text-white">{selectedProfile.location}</span>
                 </div>
               </div>
@@ -1891,7 +1898,7 @@ const Feed = () => {
 
             {/* About */}
             <div>
-              <h3 className="font-semibold text-gray-800 dark:text-white mb-2">About</h3>
+              <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.about')}</h3>
               <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
                 {selectedProfile.about}
               </p>
@@ -1901,14 +1908,14 @@ const Feed = () => {
             {profileType === 'student' && (
               <>
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Academic Performance</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.academicPerformance')}</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-semibold">GPA:</span> {selectedProfile.gpa}
+                    <span className="font-semibold">{t('feed.gpa')}:</span> {selectedProfile.gpa}
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Skills</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.skills')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {selectedProfile.skills.map((skill, index) => (
                       <span
@@ -1922,7 +1929,7 @@ const Feed = () => {
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Interests</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.interests')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {selectedProfile.interests.map((interest, index) => (
                       <span
@@ -1936,7 +1943,7 @@ const Feed = () => {
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Achievements</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.achievements')}</h3>
                   <ul className="space-y-2">
                     {selectedProfile.achievements.map((achievement, index) => (
                       <li key={index} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
@@ -1953,14 +1960,14 @@ const Feed = () => {
             {profileType === 'lecturer' && (
               <>
                 <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Education</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.education')}</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {selectedProfile.education}
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Courses Taught</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.coursesTaught')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {selectedProfile.courses.map((course, index) => (
                       <span
@@ -1974,7 +1981,7 @@ const Feed = () => {
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Research Interests</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.researchInterests')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {selectedProfile.research.map((topic, index) => (
                       <span
@@ -1988,14 +1995,14 @@ const Feed = () => {
                 </div>
 
                 <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Publications</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.publications')}</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {selectedProfile.publications}
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Achievements & Awards</h3>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.achievementsAwards')}</h3>
                   <ul className="space-y-2">
                     {selectedProfile.achievements.map((achievement, index) => (
                       <li key={index} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">

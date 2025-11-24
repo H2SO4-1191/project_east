@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaDollarSign, FaFileInvoiceDollar, FaCreditCard, FaPlus, FaEdit, FaTimes, FaBook, FaClock, FaUsers } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 import Card from '../../components/Card';
 import AnimatedCounter from '../../components/AnimatedCounter';
 import AnimatedButton from '../../components/AnimatedButton';
@@ -8,6 +9,7 @@ import Modal from '../../components/Modal';
 import toast from 'react-hot-toast';
 
 const Finance = () => {
+  const { t } = useTranslation();
   const [showCreateCourseModal, setShowCreateCourseModal] = useState(false);
   const [showEditCoursesModal, setShowEditCoursesModal] = useState(false);
   const [courses, setCourses] = useState([]);
@@ -50,7 +52,7 @@ const Finance = () => {
     
     // Validate form
     if (!createForm.title || !createForm.code || !createForm.price) {
-      toast.error('Please fill in all required fields');
+      toast.error(t('dashboard.financePage.fillAllRequired'));
       return;
     }
 
@@ -61,7 +63,7 @@ const Finance = () => {
     };
 
     setCourses(prev => [...prev, newCourse]);
-    toast.success('Course created successfully!');
+    toast.success(t('dashboard.financePage.courseCreatedSuccess'));
     setShowCreateCourseModal(false);
     setCreateForm({
       title: '',
@@ -86,7 +88,7 @@ const Finance = () => {
       c.id === selectedCourse.id ? { ...c, ...editForm } : c
     ));
     
-    toast.success('Course updated successfully!');
+    toast.success(t('dashboard.financePage.courseUpdatedSuccess'));
     setSelectedCourse(null);
     setEditForm({
       title: '',
@@ -100,9 +102,9 @@ const Finance = () => {
   };
 
   const handleDeleteCourse = (courseId) => {
-    if (window.confirm('Are you sure you want to delete this course?')) {
+    if (window.confirm(t('dashboard.financePage.deleteCourseConfirm'))) {
       setCourses(prev => prev.filter(c => c.id !== courseId));
-      toast.success('Course deleted successfully!');
+      toast.success(t('dashboard.financePage.courseDeletedSuccess'));
       setSelectedCourse(null);
     }
   };
@@ -113,8 +115,8 @@ const Finance = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Finance</h2>
-        <p className="text-gray-600 dark:text-gray-400">Financial overview and course management</p>
+        <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">{t('dashboard.financePage.title')}</h2>
+        <p className="text-gray-600 dark:text-gray-400">{t('dashboard.financePage.subtitle')}</p>
       </motion.div>
 
       {/* Stats - All Zero */}
@@ -122,7 +124,7 @@ const Finance = () => {
         <Card delay={0.1} className="relative overflow-hidden">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-2">Total Revenue</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-2">{t('dashboard.financePage.totalRevenue')}</p>
               <p className="text-4xl font-bold text-green-600">
                 $<AnimatedCounter value={0} duration={2} />
               </p>
@@ -136,7 +138,7 @@ const Finance = () => {
         <Card delay={0.2} className="relative overflow-hidden">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-2">Pending Payments</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-2">{t('dashboard.financePage.pendingPayments')}</p>
               <p className="text-4xl font-bold text-orange-600">
                 $<AnimatedCounter value={0} duration={2} />
               </p>
@@ -150,7 +152,7 @@ const Finance = () => {
         <Card delay={0.3} className="relative overflow-hidden">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-2">Total Invoices</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-2">{t('dashboard.financePage.totalInvoices')}</p>
               <p className="text-4xl font-bold text-blue-600">
                 <AnimatedCounter value={0} duration={2} />
               </p>
@@ -193,7 +195,7 @@ const Finance = () => {
             transition={{ delay: 0.7 }}
             className="text-2xl font-bold text-gray-800 dark:text-white mb-3"
           >
-            No Funds Available
+            {t('dashboard.financePage.noFundsAvailable')}
           </motion.h3>
           
           <motion.p
@@ -202,7 +204,7 @@ const Finance = () => {
             transition={{ delay: 0.9 }}
             className="text-gray-600 dark:text-gray-400 text-lg max-w-md mx-auto"
           >
-            You currently have a balance of <span className="font-bold text-gray-800 dark:text-white">zero</span> or no funds available!
+            {t('dashboard.financePage.zeroBalanceMessage')}
           </motion.p>
 
           <motion.p
@@ -211,7 +213,7 @@ const Finance = () => {
             transition={{ delay: 1.1 }}
             className="text-gray-500 dark:text-gray-500 text-sm mt-4"
           >
-            Start creating courses to generate revenue
+            {t('dashboard.financePage.startCreatingCourses')}
           </motion.p>
         </motion.div>
       </Card>
@@ -220,7 +222,7 @@ const Finance = () => {
       {courses.length > 0 && (
         <Card delay={0.5}>
           <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-            Your Courses
+            {t('dashboard.financePage.yourCourses')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {courses.map((course, index) => (
@@ -246,7 +248,7 @@ const Finance = () => {
                   {course.credits && (
                     <div className="flex items-center gap-2">
                       <FaBook className="text-primary-600 dark:text-teal-400" />
-                      <span>{course.credits} Credits</span>
+                      <span>{course.credits} {t('dashboard.financePage.credits')}</span>
                     </div>
                   )}
                   {course.duration && (
@@ -258,7 +260,7 @@ const Finance = () => {
                   {course.capacity && (
                     <div className="flex items-center gap-2">
                       <FaUsers className="text-primary-600 dark:text-teal-400" />
-                      <span>Max {course.capacity} students</span>
+                      <span>{t('dashboard.financePage.maxStudents')} {course.capacity}</span>
                     </div>
                   )}
                 </div>
@@ -272,13 +274,13 @@ const Finance = () => {
       <Modal
         isOpen={showCreateCourseModal}
         onClose={() => setShowCreateCourseModal(false)}
-        title="Create New Course"
+        title={t('dashboard.financePage.createNewCourse')}
       >
         <form onSubmit={handleCreateCourse} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Course Title *
+                {t('dashboard.financePage.courseTitle')}
               </label>
               <input
                 type="text"
@@ -286,14 +288,14 @@ const Finance = () => {
                 value={createForm.title}
                 onChange={handleCreateChange}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                placeholder="e.g. Introduction to Computer Science"
+                placeholder={t('dashboard.financePage.courseTitlePlaceholder')}
                 required
               />
             </div>
 
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Course Code *
+                {t('dashboard.financePage.courseCode')}
               </label>
               <input
                 type="text"
@@ -301,14 +303,14 @@ const Finance = () => {
                 value={createForm.code}
                 onChange={handleCreateChange}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                placeholder="e.g. CS101"
+                placeholder={t('dashboard.financePage.courseCodePlaceholder')}
                 required
               />
             </div>
 
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Credits
+                {t('dashboard.financePage.credits')}
               </label>
               <input
                 type="number"
@@ -316,13 +318,13 @@ const Finance = () => {
                 value={createForm.credits}
                 onChange={handleCreateChange}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                placeholder="e.g. 3"
+                placeholder={t('dashboard.financePage.creditsPlaceholder')}
               />
             </div>
 
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Duration
+                {t('dashboard.financePage.duration')}
               </label>
               <input
                 type="text"
@@ -330,13 +332,13 @@ const Finance = () => {
                 value={createForm.duration}
                 onChange={handleCreateChange}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                placeholder="e.g. 12 weeks"
+                placeholder={t('dashboard.financePage.durationPlaceholder')}
               />
             </div>
 
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Capacity
+                {t('dashboard.financePage.capacity')}
               </label>
               <input
                 type="number"
@@ -344,13 +346,13 @@ const Finance = () => {
                 value={createForm.capacity}
                 onChange={handleCreateChange}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                placeholder="e.g. 30"
+                placeholder={t('dashboard.financePage.capacityPlaceholder')}
               />
             </div>
 
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Price ($) *
+                {t('dashboard.financePage.price')}
               </label>
               <input
                 type="number"
@@ -358,7 +360,7 @@ const Finance = () => {
                 value={createForm.price}
                 onChange={handleCreateChange}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                placeholder="e.g. 500"
+                placeholder={t('dashboard.financePage.pricePlaceholder')}
                 required
               />
             </div>
@@ -366,7 +368,7 @@ const Finance = () => {
 
           <div>
             <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-              Description
+              {t('dashboard.financePage.description')}
             </label>
             <textarea
               name="description"
@@ -374,13 +376,13 @@ const Finance = () => {
               onChange={handleCreateChange}
               rows="4"
               className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white resize-none"
-              placeholder="Course description..."
+              placeholder={t('dashboard.financePage.descriptionPlaceholder')}
             />
           </div>
 
           <div className="flex gap-3 pt-4">
             <AnimatedButton type="submit" className="flex-1">
-              Create Course
+              {t('dashboard.financePage.createCourse')}
             </AnimatedButton>
             <AnimatedButton
               type="button"
@@ -388,7 +390,7 @@ const Finance = () => {
               onClick={() => setShowCreateCourseModal(false)}
               className="flex-1"
             >
-              Cancel
+              {t('dashboard.financePage.cancel')}
             </AnimatedButton>
           </div>
         </form>
@@ -401,14 +403,14 @@ const Finance = () => {
           setShowEditCoursesModal(false);
           setSelectedCourse(null);
         }}
-        title={selectedCourse ? "Edit Course" : "Manage Courses"}
+        title={selectedCourse ? t('dashboard.financePage.editCourse') : t('dashboard.financePage.manageCourses')}
       >
         {!selectedCourse ? (
           <div className="space-y-3">
             {courses.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-gray-500 dark:text-gray-400">
-                  No courses available. Create your first course!
+                  {t('dashboard.financePage.noCoursesAvailable')}
                 </p>
               </div>
             ) : (
@@ -437,7 +439,7 @@ const Finance = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Course Title *
+                  {t('dashboard.financePage.courseTitle')}
                 </label>
                 <input
                   type="text"
@@ -451,7 +453,7 @@ const Finance = () => {
 
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Course Code *
+                  {t('dashboard.financePage.courseCode')}
                 </label>
                 <input
                   type="text"
@@ -465,7 +467,7 @@ const Finance = () => {
 
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Credits
+                  {t('dashboard.financePage.credits')}
                 </label>
                 <input
                   type="number"
@@ -478,7 +480,7 @@ const Finance = () => {
 
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Duration
+                  {t('dashboard.financePage.duration')}
                 </label>
                 <input
                   type="text"
@@ -491,7 +493,7 @@ const Finance = () => {
 
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Capacity
+                  {t('dashboard.financePage.capacity')}
                 </label>
                 <input
                   type="number"
@@ -504,7 +506,7 @@ const Finance = () => {
 
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Price ($) *
+                  {t('dashboard.financePage.price')}
                 </label>
                 <input
                   type="number"
@@ -519,7 +521,7 @@ const Finance = () => {
 
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Description
+                {t('dashboard.financePage.description')}
               </label>
               <textarea
                 name="description"
@@ -532,7 +534,7 @@ const Finance = () => {
 
             <div className="flex gap-3 pt-4">
               <AnimatedButton type="submit" className="flex-1">
-                Update Course
+                {t('dashboard.financePage.updateCourse')}
               </AnimatedButton>
               <AnimatedButton
                 type="button"
@@ -540,7 +542,7 @@ const Finance = () => {
                 onClick={() => handleDeleteCourse(selectedCourse.id)}
                 className="flex-1 bg-red-600 hover:bg-red-500"
               >
-                Delete Course
+                {t('dashboard.financePage.deleteCourse')}
               </AnimatedButton>
               <AnimatedButton
                 type="button"
@@ -548,7 +550,7 @@ const Finance = () => {
                 onClick={() => setSelectedCourse(null)}
                 className="flex-1"
               >
-                Back
+                {t('common.back')}
               </AnimatedButton>
             </div>
           </form>

@@ -8,6 +8,7 @@ import {
   FaSync,
   FaExclamationTriangle,
 } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 import Card from '../../components/Card';
 import { studentsData } from '../../data/enhancedDemoData';
 import { ListEmptyState, TableSkeleton } from '../../components/Skeleton';
@@ -30,6 +31,7 @@ const parseApiStudent = (student) => ({
 const Students = () => {
   const navigate = useNavigate();
   const { instituteData, updateInstituteData, clearInstituteData } = useInstitute();
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterGrade, setFilterGrade] = useState('all');
@@ -101,7 +103,7 @@ const Students = () => {
         console.error('Failed to fetch students:', err);
         setError(
           err?.message ||
-            'Unable to load students from the server. Showing demo data instead.'
+            t('dashboard.studentsPage.unableToLoadStudents')
         );
         const fallback = studentsData
           .filter((student) => {
@@ -164,8 +166,8 @@ const Students = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Students</h2>
-        <p className="text-gray-600 dark:text-gray-400">Manage and view all student information</p>
+        <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">{t('dashboard.studentsPage.title')}</h2>
+        <p className="text-gray-600 dark:text-gray-400">{t('dashboard.studentsPage.subtitle')}</p>
       </motion.div>
 
       {/* Filters and Search */}
@@ -176,7 +178,7 @@ const Students = () => {
             <FaSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by name, ID, or email..."
+              placeholder={t('dashboard.studentsPage.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-12 pr-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
@@ -195,9 +197,9 @@ const Students = () => {
               }}
               className="px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
             >
-              <option value="all">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
+              <option value="all">{t('dashboard.studentsPage.allStatus')}</option>
+              <option value="Active">{t('dashboard.studentsPage.active')}</option>
+              <option value="Inactive">{t('dashboard.studentsPage.inactive')}</option>
             </select>
           </div>
 
@@ -214,7 +216,7 @@ const Students = () => {
             >
               {grades.map((grade) => (
                 <option key={grade} value={grade}>
-                  {grade === 'all' ? 'All Grades' : grade}
+                  {grade === 'all' ? t('dashboard.studentsPage.allGrades') : grade}
                 </option>
               ))}
             </select>
@@ -226,21 +228,21 @@ const Students = () => {
             disabled={isLoading}
           >
             <FaSync className={isLoading ? 'animate-spin' : ''} />
-            Refresh
+            {t('dashboard.studentsPage.refresh')}
           </button>
         </div>
 
         {/* Results count */}
         <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-          Showing{' '}
+          {t('dashboard.studentsPage.showing')}{' '}
           <span className="font-semibold text-primary-600 dark:text-teal-400">
             {filteredStudents.length}
           </span>{' '}
-          of{' '}
+          {t('dashboard.studentsPage.of')}{' '}
           <span className="font-semibold text-primary-600 dark:text-teal-400">
             {pagination.count}
           </span>{' '}
-          students {isRemote ? '(live)' : '(demo)'}
+          {t('dashboard.studentsPage.students')} {isRemote ? t('dashboard.studentsPage.live') : t('dashboard.studentsPage.demo')}
         </div>
 
         {error && (
@@ -260,12 +262,12 @@ const Students = () => {
             <table className="min-w-full">
               <thead className="bg-gradient-to-r from-primary-600 to-primary-700 dark:from-primary-700 dark:to-primary-800 text-white">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Name</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Email</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Level</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Phone</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">ID</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.studentsPage.name')}</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.studentsPage.email')}</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.studentsPage.level')}</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.studentsPage.phone')}</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.studentsPage.status')}</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.studentsPage.id')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-navy-700">
@@ -321,7 +323,7 @@ const Students = () => {
                               : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
                           }`}
                         >
-                          {student.active ? 'Active' : 'Inactive'}
+                          {student.active ? t('dashboard.studentsPage.active') : t('dashboard.studentsPage.inactive')}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
@@ -336,13 +338,13 @@ const Students = () => {
             {filteredStudents.length === 0 && (
               <ListEmptyState
                 icon={FaUserGraduate}
-                title="No students found"
+                title={t('dashboard.studentsPage.noStudentsFound')}
                 message={
                   isRemote
-                    ? 'Try adjusting your filters or search. The API returned no results.'
-                    : 'No matches in the demo dataset. Clear filters or refresh to hit the API again.'
+                    ? t('dashboard.studentsPage.tryAdjustingFilters')
+                    : t('dashboard.studentsPage.noMatchesDemo')
                 }
-                actionLabel="Refresh"
+                actionLabel={t('dashboard.studentsPage.refresh')}
                 onAction={() => fetchStudents({ page: 1 })}
               />
             )}
@@ -351,7 +353,7 @@ const Students = () => {
       </Card>
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm text-gray-600 dark:text-gray-400">
-        <div>{isRemote ? 'Live data from backend.' : 'Showing local demo data.'}</div>
+        <div>{isRemote ? t('dashboard.studentsPage.liveDataFromBackend') : t('dashboard.studentsPage.showingLocalDemoData')}</div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
@@ -362,10 +364,10 @@ const Students = () => {
             disabled={!pagination.previous || isLoading || !isRemote}
             className="px-4 py-2 border border-gray-300 dark:border-navy-600 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-50 transition-colors"
           >
-            Previous
+            {t('dashboard.studentsPage.previous')}
           </button>
           <span>
-            Page{' '}
+            {t('dashboard.studentsPage.page')}{' '}
             <span className="font-semibold text-gray-800 dark:text-white">
               {pagination.currentPage}
             </span>
@@ -379,7 +381,7 @@ const Students = () => {
             disabled={!pagination.next || isLoading || !isRemote}
             className="px-4 py-2 border border-gray-300 dark:border-navy-600 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-50 transition-colors"
           >
-            Next
+            {t('dashboard.studentsPage.next')}
           </button>
         </div>
       </div>

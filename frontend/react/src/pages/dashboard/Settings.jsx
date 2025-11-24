@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FaUniversity, FaCheckCircle, FaExclamationTriangle, FaUpload, FaSpinner } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 import Card from '../../components/Card';
 import AnimatedButton from '../../components/AnimatedButton';
 import Modal from '../../components/Modal';
@@ -11,6 +12,7 @@ import confetti from 'canvas-confetti';
 
 const Settings = () => {
   const { instituteData, updateInstituteData } = useInstitute();
+  const { t } = useTranslation();
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   
@@ -70,13 +72,13 @@ const Settings = () => {
     // Check file type
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!validTypes.includes(file.type)) {
-      toast.error('Please upload a valid image file (JPEG, PNG, or WebP)');
+      toast.error(t('dashboard.settingsPage.validImageFile'));
       return;
     }
 
     // Check file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size must be less than 5MB');
+      toast.error(t('dashboard.settingsPage.fileSizeLimit'));
       return;
     }
 
@@ -88,7 +90,7 @@ const Settings = () => {
         ...prev,
         [fieldName]: {
           isValid: true,
-          message: 'Profile image uploaded successfully',
+          message: t('dashboard.settingsPage.profileImageUploaded'),
         },
       }));
       return;
@@ -125,13 +127,13 @@ const Settings = () => {
           isValid,
           confidence,
           message: isValid
-            ? `Document verified (${(confidence * 100).toFixed(0)}% confidence)`
-            : `This doesn't appear to be a valid document (${(confidence * 100).toFixed(0)}% confidence)`,
+            ? `${t('dashboard.settingsPage.documentVerified')} (${(confidence * 100).toFixed(0)}% ${t('dashboard.settingsPage.confidence')})`
+            : `${t('dashboard.settingsPage.invalidDocument')} (${(confidence * 100).toFixed(0)}% ${t('dashboard.settingsPage.confidence')})`,
         },
       }));
 
       if (!isValid) {
-        toast.error('AI validation failed. Please upload a clear document image.');
+        toast.error(t('dashboard.settingsPage.aiValidationFailed'));
       }
     } catch (err) {
       console.error('AI validation error:', err);
@@ -140,10 +142,10 @@ const Settings = () => {
         ...prev,
         [fieldName]: {
           isValid: false,
-          message: err?.message || 'Failed to validate document. Please try again.',
+          message: err?.message || t('dashboard.settingsPage.failedToValidate'),
         },
       }));
-      toast.error(err?.message || 'Failed to validate document');
+      toast.error(err?.message || t('dashboard.settingsPage.failedToValidate'));
     } finally {
       setIsValidating(prev => ({ ...prev, [fieldName]: false }));
     }
@@ -158,7 +160,7 @@ const Settings = () => {
     const missingFiles = requiredFiles.filter(field => !verificationForm[field]);
     
     if (missingFiles.length > 0) {
-      toast.error('Please upload all required documents');
+      toast.error(t('dashboard.settingsPage.uploadAllRequired'));
       return;
     }
 
@@ -168,7 +170,7 @@ const Settings = () => {
     );
 
     if (invalidFiles.length > 0) {
-      toast.error('Some documents failed AI validation. Please upload clear images.');
+      toast.error(t('dashboard.settingsPage.someDocumentsFailed'));
       return;
     }
 
@@ -196,7 +198,7 @@ const Settings = () => {
         origin: { y: 0.6 },
       });
 
-      toast.success(result.message || 'Institution verified successfully!');
+      toast.success(result.message || t('dashboard.settingsPage.institutionVerifiedSuccess'));
       setShowVerificationModal(false);
       
       // Reset form
@@ -219,7 +221,7 @@ const Settings = () => {
         setVerificationErrors(err.errors);
       }
       
-      toast.error(err?.message || 'Failed to verify institution. Please check your information.');
+      toast.error(err?.message || t('dashboard.settingsPage.failedToVerify'));
     } finally {
       setIsSubmitting(false);
     }
@@ -231,13 +233,13 @@ const Settings = () => {
     // Check file type
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!validTypes.includes(file.type)) {
-      toast.error('Please upload a valid image file (JPEG, PNG, or WebP)');
+      toast.error(t('dashboard.settingsPage.validImageFile'));
       return;
     }
 
     // Check file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size must be less than 5MB');
+      toast.error(t('dashboard.settingsPage.fileSizeLimit'));
       return;
     }
 
@@ -249,7 +251,7 @@ const Settings = () => {
         ...prev,
         [fieldName]: {
           isValid: true,
-          message: 'Profile image uploaded successfully',
+          message: t('dashboard.settingsPage.profileImageUploaded'),
         },
       }));
       return;
@@ -286,13 +288,13 @@ const Settings = () => {
           isValid,
           confidence,
           message: isValid
-            ? `Document verified (${(confidence * 100).toFixed(0)}% confidence)`
-            : `This doesn't appear to be a valid document (${(confidence * 100).toFixed(0)}% confidence)`,
+            ? `${t('dashboard.settingsPage.documentVerified')} (${(confidence * 100).toFixed(0)}% ${t('dashboard.settingsPage.confidence')})`
+            : `${t('dashboard.settingsPage.invalidDocument')} (${(confidence * 100).toFixed(0)}% ${t('dashboard.settingsPage.confidence')})`,
         },
       }));
 
       if (!isValid) {
-        toast.error('AI validation failed. Please upload a clear document image.');
+        toast.error(t('dashboard.settingsPage.aiValidationFailed'));
       }
     } catch (err) {
       console.error('AI validation error (edit):', err);
@@ -301,10 +303,10 @@ const Settings = () => {
         ...prev,
         [fieldName]: {
           isValid: false,
-          message: err?.message || 'Failed to validate document. Please try again.',
+          message: err?.message || t('dashboard.settingsPage.failedToValidate'),
         },
       }));
-      toast.error(err?.message || 'Failed to validate document');
+      toast.error(err?.message || t('dashboard.settingsPage.failedToValidate'));
     } finally {
       setIsEditValidating(prev => ({ ...prev, [fieldName]: false }));
     }
@@ -322,7 +324,7 @@ const Settings = () => {
     );
 
     if (invalidFiles.length > 0) {
-      toast.error('Some documents failed AI validation. Please upload clear images.');
+      toast.error(t('dashboard.settingsPage.someDocumentsFailed'));
       return;
     }
 
@@ -353,7 +355,7 @@ const Settings = () => {
         origin: { y: 0.6 },
       });
 
-      toast.success(result.message || 'Profile updated successfully!');
+      toast.success(result.message || t('dashboard.settingsPage.profileUpdatedSuccess'));
       setShowEditProfileModal(false);
       
       // Reset form
@@ -377,7 +379,7 @@ const Settings = () => {
         setEditErrors(err.errors);
       }
       
-      toast.error(err?.message || 'Failed to update profile. Please check your information.');
+      toast.error(err?.message || t('dashboard.settingsPage.failedToUpdate'));
     } finally {
       setIsSubmitting(false);
     }
@@ -389,8 +391,8 @@ const Settings = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Settings</h2>
-        <p className="text-gray-600 dark:text-gray-400">Manage your institute profile and subscription</p>
+        <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">{t('dashboard.settingsPage.title')}</h2>
+        <p className="text-gray-600 dark:text-gray-400">{t('dashboard.settingsPage.subtitle')}</p>
       </motion.div>
 
       {/* Verification Status Banner */}
@@ -403,10 +405,10 @@ const Settings = () => {
               </div>
               <div>
                 <h4 className="text-lg font-semibold text-gray-800 dark:text-white">
-                  Account Not Verified
+                  {t('dashboard.settingsPage.accountNotVerified')}
                 </h4>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Complete verification to unlock all features
+                  {t('dashboard.settingsPage.completeVerification')}
                 </p>
               </div>
             </div>
@@ -415,7 +417,7 @@ const Settings = () => {
               variant="teal"
               data-verify-button
             >
-              Verify Now
+              {t('dashboard.settingsPage.verifyNow')}
             </AnimatedButton>
           </div>
         </Card>
@@ -430,15 +432,15 @@ const Settings = () => {
               </div>
               <div>
                 <h4 className="text-lg font-semibold text-gray-800 dark:text-white">
-                  Account Verified
+                  {t('dashboard.settingsPage.accountVerified')}
                 </h4>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Your institution has been verified successfully
+                  {t('dashboard.settingsPage.institutionVerifiedSuccess')}
                 </p>
               </div>
             </div>
             <AnimatedButton onClick={() => setShowEditProfileModal(true)} variant="secondary">
-              Edit Profile
+              {t('dashboard.settingsPage.editProfile')}
             </AnimatedButton>
           </div>
         </Card>
@@ -461,7 +463,7 @@ const Settings = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-              Institute Name
+              {t('dashboard.settingsPage.instituteName')}
             </label>
             <input
               type="text"
@@ -473,7 +475,7 @@ const Settings = () => {
 
           <div>
             <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-              Email Address
+              {t('dashboard.settingsPage.emailAddress')}
             </label>
             <input
               type="email"
@@ -489,18 +491,18 @@ const Settings = () => {
       <Modal
         isOpen={showVerificationModal}
         onClose={() => !isSubmitting && setShowVerificationModal(false)}
-        title="Verify Your Institution"
+        title={t('dashboard.settingsPage.verifyYourInstitution')}
       >
         <form onSubmit={handleVerificationSubmit} className="space-y-6">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Complete all fields and upload required documents. All images will be validated by AI before submission.
+            {t('dashboard.settingsPage.completeAllFields')}
           </p>
 
           {/* Text Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Institution Title <span className="text-red-500">*</span>
+                {t('dashboard.settingsPage.institutionTitle')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -516,7 +518,7 @@ const Settings = () => {
 
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Location <span className="text-red-500">*</span>
+                {t('dashboard.settingsPage.location')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -532,7 +534,7 @@ const Settings = () => {
 
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Phone Number <span className="text-red-500">*</span>
+                {t('dashboard.settingsPage.phoneNumber')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="tel"
@@ -550,7 +552,7 @@ const Settings = () => {
 
           <div>
             <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-              About Institution <span className="text-red-500">*</span>
+              {t('dashboard.settingsPage.aboutInstitution')} <span className="text-red-500">*</span>
             </label>
             <textarea
               value={verificationForm.about}
@@ -566,14 +568,14 @@ const Settings = () => {
 
           {/* File Upload Fields */}
           <div className="space-y-4">
-            <h4 className="font-semibold text-gray-800 dark:text-white">Required Documents</h4>
+            <h4 className="font-semibold text-gray-800 dark:text-white">{t('dashboard.settingsPage.requiredDocuments')}</h4>
             
             {[
-              { field: 'profile_image', label: 'Profile Image' },
-              { field: 'idcard_front', label: 'ID Card (Front)' },
-              { field: 'idcard_back', label: 'ID Card (Back)' },
-              { field: 'residence_front', label: 'Residence Document (Front)' },
-              { field: 'residence_back', label: 'Residence Document (Back)' },
+              { field: 'profile_image', label: t('dashboard.settingsPage.profileImage') },
+              { field: 'idcard_front', label: t('dashboard.settingsPage.idCardFront') },
+              { field: 'idcard_back', label: t('dashboard.settingsPage.idCardBack') },
+              { field: 'residence_front', label: t('dashboard.settingsPage.residenceFront') },
+              { field: 'residence_back', label: t('dashboard.settingsPage.residenceBack') },
             ].map(({ field, label }) => (
               <div key={field} className="border border-gray-300 dark:border-navy-600 rounded-lg p-4">
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
@@ -585,7 +587,7 @@ const Settings = () => {
                     <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-navy-700 rounded-lg hover:bg-gray-200 dark:hover:bg-navy-600 transition-colors">
                       <FaUpload className="text-gray-600 dark:text-gray-400" />
                       <span className="text-sm text-gray-700 dark:text-gray-300">
-                        {verificationForm[field] ? verificationForm[field].name : 'Choose file...'}
+                        {verificationForm[field] ? verificationForm[field].name : t('dashboard.settingsPage.chooseFile')}
                       </span>
                     </div>
                     <input
@@ -632,7 +634,7 @@ const Settings = () => {
               variant="secondary"
               disabled={isSubmitting}
             >
-              Cancel
+              {t('dashboard.settingsPage.cancel')}
             </AnimatedButton>
             <AnimatedButton
               type="submit"
@@ -642,10 +644,10 @@ const Settings = () => {
               {isSubmitting ? (
                 <>
                   <FaSpinner className="animate-spin mr-2" />
-                  Submitting...
+                  {t('dashboard.settingsPage.submitting')}
                 </>
               ) : (
-                'Submit for Verification'
+                t('dashboard.settingsPage.submitForVerification')
               )}
             </AnimatedButton>
           </div>
@@ -656,24 +658,24 @@ const Settings = () => {
       <Modal
         isOpen={showEditProfileModal}
         onClose={() => !isSubmitting && setShowEditProfileModal(false)}
-        title="Edit Institution Profile"
+        title={t('dashboard.settingsPage.editInstitutionProfile')}
       >
         <form onSubmit={handleEditProfileSubmit} className="space-y-6">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Update your institution information. Email cannot be changed. Files are optional - only upload if you want to update them.
+            {t('dashboard.settingsPage.updateInstitutionInfo')}
           </p>
 
           {/* Text Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Username
+                {t('dashboard.settingsPage.username')}
               </label>
               <input
                 type="text"
                 value={editForm.username}
                 onChange={(e) => setEditForm(prev => ({ ...prev, username: e.target.value }))}
-                placeholder={instituteData.username || 'Enter new username'}
+                placeholder={instituteData.username || t('dashboard.settingsPage.enterNewUsername')}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
               />
               {editErrors.username && (
@@ -683,13 +685,13 @@ const Settings = () => {
 
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Institution Title
+                {t('dashboard.settingsPage.institutionTitle')}
               </label>
               <input
                 type="text"
                 value={editForm.title}
                 onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Enter institution title"
+                placeholder={t('dashboard.settingsPage.enterInstitutionTitle')}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
               />
               {editErrors.title && (
@@ -699,13 +701,13 @@ const Settings = () => {
 
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Location
+                {t('dashboard.settingsPage.location')}
               </label>
               <input
                 type="text"
                 value={editForm.location}
                 onChange={(e) => setEditForm(prev => ({ ...prev, location: e.target.value }))}
-                placeholder="Enter location"
+                placeholder={t('dashboard.settingsPage.enterLocation')}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
               />
               {editErrors.location && (
@@ -715,7 +717,7 @@ const Settings = () => {
 
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Phone Number
+                {t('dashboard.settingsPage.phoneNumber')}
               </label>
               <input
                 type="tel"
@@ -732,13 +734,13 @@ const Settings = () => {
 
           <div>
             <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-              About Institution
+              {t('dashboard.settingsPage.aboutInstitution')}
             </label>
             <textarea
               value={editForm.about}
               onChange={(e) => setEditForm(prev => ({ ...prev, about: e.target.value }))}
               rows={3}
-              placeholder="Enter institution description"
+              placeholder={t('dashboard.settingsPage.enterInstitutionDescription')}
               className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
             />
             {editErrors.about && (
@@ -749,18 +751,18 @@ const Settings = () => {
           {/* File Upload Fields (Optional) */}
           <div className="space-y-4">
             <h4 className="font-semibold text-gray-800 dark:text-white">
-              Update Documents (Optional)
+              {t('dashboard.settingsPage.updateDocuments')}
             </h4>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Only upload files you want to update. Leave blank to keep existing files.
+              {t('dashboard.settingsPage.onlyUploadToUpdate')}
             </p>
             
             {[
-              { field: 'profile_image', label: 'Profile Image' },
-              { field: 'idcard_front', label: 'ID Card (Front)' },
-              { field: 'idcard_back', label: 'ID Card (Back)' },
-              { field: 'residence_front', label: 'Residence Document (Front)' },
-              { field: 'residence_back', label: 'Residence Document (Back)' },
+              { field: 'profile_image', label: t('dashboard.settingsPage.profileImage') },
+              { field: 'idcard_front', label: t('dashboard.settingsPage.idCardFront') },
+              { field: 'idcard_back', label: t('dashboard.settingsPage.idCardBack') },
+              { field: 'residence_front', label: t('dashboard.settingsPage.residenceFront') },
+              { field: 'residence_back', label: t('dashboard.settingsPage.residenceBack') },
             ].map(({ field, label }) => (
               <div key={field} className="border border-gray-300 dark:border-navy-600 rounded-lg p-4">
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
@@ -772,7 +774,7 @@ const Settings = () => {
                     <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-navy-700 rounded-lg hover:bg-gray-200 dark:hover:bg-navy-600 transition-colors">
                       <FaUpload className="text-gray-600 dark:text-gray-400" />
                       <span className="text-sm text-gray-700 dark:text-gray-300">
-                        {editForm[field] ? editForm[field].name : 'Choose file to update...'}
+                        {editForm[field] ? editForm[field].name : t('dashboard.settingsPage.chooseFileToUpdate')}
                       </span>
                     </div>
                     <input
@@ -819,7 +821,7 @@ const Settings = () => {
               variant="secondary"
               disabled={isSubmitting}
             >
-              Cancel
+              {t('dashboard.settingsPage.cancel')}
             </AnimatedButton>
             <AnimatedButton
               type="submit"
@@ -829,10 +831,10 @@ const Settings = () => {
               {isSubmitting ? (
                 <>
                   <FaSpinner className="animate-spin mr-2" />
-                  Updating...
+                  {t('dashboard.settingsPage.updating')}
                 </>
               ) : (
-                'Update Profile'
+                t('dashboard.settingsPage.updateProfile')
               )}
             </AnimatedButton>
           </div>

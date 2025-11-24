@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { FaMoon, FaSun, FaArrowLeft, FaShieldAlt } from 'react-icons/fa';
 import { useInstitute } from '../context/InstituteContext';
 import { useTheme } from '../context/ThemeContext';
 import AnimatedBackground from '../components/AnimatedBackground';
 import AnimatedButton from '../components/AnimatedButton';
 import Card from '../components/Card';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
 import { authService } from '../services/authService';
@@ -32,6 +34,7 @@ const OTPVerification = () => {
   const location = useLocation();
   const { instituteData, updateInstituteData } = useInstitute();
   const { isDark, toggleTheme } = useTheme();
+  const { t } = useTranslation();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -113,7 +116,7 @@ const OTPVerification = () => {
     const otpCode = otp.join('');
 
     if (otpCode.length !== 6) {
-      setError('Please enter all 6 digits');
+      setError(t('otp.codeRequired'));
       const inputs = document.querySelectorAll('.otp-input');
       inputs.forEach((input) => {
         input.classList.add('shake');
@@ -197,7 +200,7 @@ const OTPVerification = () => {
         origin: { y: 0.6 },
       });
 
-      toast.success(result?.message || 'Verification successful! Welcome back!');
+      toast.success(result?.message || t('otp.verify'));
       
       // Redirect based on user type
       if (userType === 'student' || userType === 'lecturer') {
@@ -207,8 +210,7 @@ const OTPVerification = () => {
       }
     } catch (err) {
       console.error('OTP verification error:', err);
-      const message =
-        err?.message || 'Invalid verification code. Please try again.';
+      const message = err?.message || t('otp.codeInvalid');
       setError(message);
       toast.error(message);
       setOtp(['', '', '', '', '', '']);
@@ -220,7 +222,7 @@ const OTPVerification = () => {
 
   const handleResendCode = async () => {
     if (!email) {
-      toast.error('Missing email. Please go back and request a new code.');
+      toast.error(t('otp.resendError'));
       navigate('/login');
       return;
     }
@@ -230,14 +232,12 @@ const OTPVerification = () => {
 
     try {
       const response = await authService.requestOtp(email);
-      toast.success(response?.message || 'Verification code resent to your email!');
+      toast.success(response?.message || t('otp.resendSuccess'));
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } catch (err) {
       console.error('Resend OTP error:', err);
-      const message =
-        err?.message ||
-        'Unable to resend the verification code. Please try again shortly.';
+      const message = err?.message || t('otp.resendError');
       toast.error(message);
     } finally {
       setIsResending(false);
@@ -248,12 +248,17 @@ const OTPVerification = () => {
     <AnimatedBackground>
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="w-full max-w-md">
+          {/* Language Switcher */}
+          <div className="fixed top-6 right-6 rtl:left-6 rtl:right-auto z-50">
+            <LanguageSwitcher />
+          </div>
+
           {/* Theme Toggle */}
           <motion.button
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             onClick={toggleTheme}
-            className="fixed top-6 right-6 p-3 bg-white/80 dark:bg-navy-800/80 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-all z-50"
+            className="fixed top-6 right-20 rtl:left-20 rtl:right-auto p-3 bg-white/80 dark:bg-navy-800/80 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-all z-50"
             whileHover={{ scale: 1.1, rotate: 180 }}
             whileTap={{ scale: 0.9 }}
           >
@@ -273,7 +278,7 @@ const OTPVerification = () => {
             whileHover={{ x: -5 }}
           >
             <FaArrowLeft />
-            Back to Login
+            {t('otp.backToLogin')}
           </motion.button>
 
           {/* Logo and Title */}
@@ -298,7 +303,7 @@ const OTPVerification = () => {
               transition={{ delay: 0.2 }}
               className="text-4xl font-bold text-gray-800 dark:text-white mb-2"
             >
-              Verify Your Email
+              {t('otp.title')}
             </motion.h1>
             <motion.p
               initial={{ opacity: 0 }}
@@ -306,7 +311,7 @@ const OTPVerification = () => {
               transition={{ delay: 0.3 }}
               className="text-gray-600 dark:text-gray-300"
             >
-              Enter the 6-digit code sent to
+              {t('otp.subtitle')}
             </motion.p>
             <motion.p
               initial={{ opacity: 0 }}
@@ -324,7 +329,7 @@ const OTPVerification = () => {
               {/* OTP Input */}
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-4 text-center">
-                  Verification Code
+                  {t('otp.enterCode')}
                 </label>
                 <div className="flex justify-center gap-3">
                   {otp.map((digit, index) => (
@@ -362,13 +367,13 @@ const OTPVerification = () => {
                 className="w-full text-lg py-4"
                 disabled={isLoading}
               >
-                {isLoading ? 'Verifying...' : 'Verify Code'}
+                {isLoading ? t('otp.verifying') : t('otp.verify')}
               </AnimatedButton>
 
               {/* Resend Code */}
               <div className="text-center">
                 <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">
-                  Didn't receive the code?
+                  {t('otp.resend')}
                 </p>
                 <motion.button
                   type="button"
@@ -378,7 +383,7 @@ const OTPVerification = () => {
                   whileTap={{ scale: isResending ? 1 : 0.95 }}
                   disabled={isResending}
                 >
-                  {isResending ? 'Resending...' : 'Resend Code'}
+                  {isResending ? t('otp.resending') : t('otp.resend')}
                 </motion.button>
               </div>
             </form>

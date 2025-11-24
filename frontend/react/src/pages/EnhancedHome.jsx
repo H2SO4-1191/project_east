@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { FaMoon, FaSun, FaUniversity, FaChalkboardTeacher, FaGraduationCap } from 'react-icons/fa';
 import { useTheme } from '../context/ThemeContext';
 import AnimatedBackground from '../components/AnimatedBackground';
 import AnimatedButton from '../components/AnimatedButton';
 import Card from '../components/Card';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const EnhancedHome = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isDark, toggleTheme } = useTheme();
+  const { t } = useTranslation();
   const [showAccountSelection, setShowAccountSelection] = useState(false);
 
   // Check if we should show account selection (from Sign Up button)
@@ -24,12 +27,17 @@ const EnhancedHome = () => {
     <AnimatedBackground>
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="w-full max-w-4xl">
+          {/* Language Switcher */}
+          <div className="fixed top-6 right-6 rtl:left-6 rtl:right-auto z-50">
+            <LanguageSwitcher />
+          </div>
+
           {/* Theme Toggle */}
           <motion.button
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             onClick={toggleTheme}
-            className="fixed top-6 right-6 p-3 bg-white/80 dark:bg-navy-800/80 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-all z-50"
+            className="fixed top-6 right-20 rtl:left-20 rtl:right-auto p-3 bg-white/80 dark:bg-navy-800/80 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-all z-50"
             whileHover={{ scale: 1.1, rotate: 180 }}
             whileTap={{ scale: 0.9 }}
           >
@@ -62,7 +70,7 @@ const EnhancedHome = () => {
               transition={{ delay: 0.2 }}
               className="text-5xl font-bold bg-gradient-to-r from-primary-600 to-teal-600 dark:from-primary-400 dark:to-teal-400 bg-clip-text text-transparent mb-3"
             >
-              Project East
+              {t('home.title')}
             </motion.h1>
             <motion.p
               initial={{ opacity: 0 }}
@@ -70,7 +78,7 @@ const EnhancedHome = () => {
               transition={{ delay: 0.3 }}
               className="text-gray-600 dark:text-gray-300 text-lg"
             >
-              Educational Institute Management System
+              {t('home.subtitle')}
             </motion.p>
           </motion.div>
 
@@ -85,10 +93,10 @@ const EnhancedHome = () => {
               >
                 <div className="text-center space-y-4">
                   <h2 className="text-3xl font-semibold text-gray-800 dark:text-white">
-                    Welcome Back
+                    {t('home.welcomeBack')}
                   </h2>
                   <p className="text-gray-600 dark:text-gray-400">
-                    Access your account or create a new institution profile.
+                    {t('home.accessAccount')}
                   </p>
                 </div>
                 <div className="space-y-4">
@@ -96,14 +104,14 @@ const EnhancedHome = () => {
                     onClick={() => navigate('/login')}
                     className="w-full text-lg py-4"
                   >
-                    Login
+                    {t('nav.login')}
                   </AnimatedButton>
                   <AnimatedButton
                     onClick={() => setShowAccountSelection(true)}
                     variant="secondary"
                     className="w-full text-lg py-4"
                   >
-                    Sign Up
+                    {t('nav.signUp')}
                   </AnimatedButton>
                 </div>
               </motion.div>
@@ -126,10 +134,10 @@ const EnhancedHome = () => {
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
-                    Back
+                    {t('home.back')}
                   </motion.button>
                   <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">
-                    Choose Account Type
+                    {t('home.chooseAccountType')}
                   </h2>
                 </div>
 
@@ -144,10 +152,10 @@ const EnhancedHome = () => {
                       <FaUniversity className="w-8 h-8 text-white" />
                     </div>
                     <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">
-                      Institution
+                      {t('home.institution')}
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Full access to manage students, staff, schedules, and finances.
+                      {t('home.institutionDesc')}
                     </p>
                   </motion.button>
 
@@ -161,10 +169,10 @@ const EnhancedHome = () => {
                       <FaChalkboardTeacher className="w-8 h-8 text-white" />
                     </div>
                     <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">
-                      Lecturer
+                      {t('home.lecturer')}
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Manage classes and assignments.
+                      {t('home.lecturerDesc')}
                     </p>
                   </motion.button>
 
@@ -178,10 +186,10 @@ const EnhancedHome = () => {
                       <FaGraduationCap className="w-8 h-8 text-white" />
                     </div>
                     <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">
-                      Student
+                      {t('home.student')}
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Access courses, grades, and schedules.
+                      {t('home.studentDesc')}
                     </p>
                   </motion.button>
                 </div>

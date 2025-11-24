@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { FaUsers, FaChalkboardTeacher, FaBriefcase } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 import Card from '../../components/Card';
 import AnimatedCounter from '../../components/AnimatedCounter';
 import { studentsData, teachersData, employeesData, activityData, revenueData } from '../../data/enhancedDemoData';
@@ -39,6 +40,7 @@ const StatCard = ({ title, value, note, icon: Icon, color, delay }) => (
 const Overview = () => {
   const navigate = useNavigate();
   const { instituteData, updateInstituteData, clearInstituteData } = useInstitute();
+  const { t } = useTranslation();
   const [statsState, setStatsState] = useState({
     totalStudents: { value: studentsData.length },
     totalLecturers: { value: teachersData.length },
@@ -58,49 +60,49 @@ const Overview = () => {
     'there';
   const statCards = useMemo(() => ([
     {
-      title: 'Total Students',
+      title: t('dashboard.overviewPage.totalStudents'),
       value: statsState.totalStudents.value,
-      note: statsState.totalStudents.error && 'Showing local totals (API unavailable).',
+      note: statsState.totalStudents.error && t('dashboard.overviewPage.showingLocalTotals'),
       icon: FaUsers,
       color: 'text-blue-600',
       delay: 0,
     },
     {
-      title: 'Active Students',
+      title: t('dashboard.overviewPage.activeStudents'),
       value: statsState.activeStudents.value,
-      note: statsState.activeStudents.error && 'Using fallback active count.',
+      note: statsState.activeStudents.error && t('dashboard.overviewPage.usingFallbackActive'),
       icon: FaUsers,
       color: 'text-indigo-600',
       delay: 0.05,
     },
     {
-      title: 'Total Lecturers',
+      title: t('dashboard.overviewPage.totalLecturers'),
       value: statsState.totalLecturers.value,
-      note: statsState.totalLecturers.error && 'Showing local totals (API unavailable).',
+      note: statsState.totalLecturers.error && t('dashboard.overviewPage.showingLocalTotals'),
       icon: FaChalkboardTeacher,
       color: 'text-teal-600',
       delay: 0.1,
     },
     {
-      title: 'Active Lecturers',
+      title: t('dashboard.overviewPage.activeLecturers'),
       value: statsState.activeLecturers.value,
-      note: statsState.activeLecturers.error && 'Using fallback active count.',
+      note: statsState.activeLecturers.error && t('dashboard.overviewPage.usingFallbackActive'),
       icon: FaChalkboardTeacher,
       color: 'text-emerald-600',
       delay: 0.15,
     },
     {
-      title: 'Total Staff',
+      title: t('dashboard.overviewPage.totalStaff'),
       value: statsState.totalStaff.value,
-      note: statsState.totalStaff.error && 'Showing local totals (API unavailable).',
+      note: statsState.totalStaff.error && t('dashboard.overviewPage.showingLocalTotals'),
       icon: FaBriefcase,
       color: 'text-purple-600',
       delay: 0.2,
     },
     {
-      title: 'Active Staff',
+      title: t('dashboard.overviewPage.activeStaff'),
       value: statsState.activeStaff.value,
-      note: statsState.activeStaff.error && 'Using fallback active count.',
+      note: statsState.activeStaff.error && t('dashboard.overviewPage.usingFallbackActive'),
       icon: FaBriefcase,
       color: 'text-rose-600',
       delay: 0.25,
@@ -192,7 +194,7 @@ const Overview = () => {
         setStatsState(prev => ({
           ...prev,
           loading: false,
-          error: error?.message || 'Unable to load student totals.',
+          error: error?.message || t('dashboard.overviewPage.unableToLoadTotals'),
         }));
       }
     };
@@ -212,9 +214,9 @@ const Overview = () => {
       >
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Overview</h2>
+            <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">{t('dashboard.overviewPage.title')}</h2>
             <p className="text-gray-600 dark:text-gray-400">
-              Welcome back, {displayName}
+              {t('dashboard.overviewPage.welcomeBack')}, {displayName}
             </p>
           </div>
           
@@ -231,7 +233,7 @@ const Overview = () => {
                   transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                   className="w-4 h-4 border-2 border-primary-600 dark:border-teal-400 border-t-transparent rounded-full"
                 />
-                <span>Syncing...</span>
+                <span>{t('dashboard.overviewPage.syncing')}</span>
               </motion.div>
             )}
 
@@ -260,7 +262,7 @@ const Overview = () => {
         {/* Activity Chart */}
         <Card delay={0.4}>
           <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-            Weekly Activity
+            {t('dashboard.overviewPage.weeklyActivity')}
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={activityData}>
@@ -295,7 +297,7 @@ const Overview = () => {
         {/* Revenue Chart */}
         <Card delay={0.5}>
           <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-            Revenue vs Expenses
+            {t('dashboard.overviewPage.revenueVsExpenses')}
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={revenueData}>
@@ -321,14 +323,14 @@ const Overview = () => {
       {/* Recent Activity */}
       <Card delay={0.6}>
         <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-          Recent Activity
+          {t('dashboard.overviewPage.recentActivity')}
         </h3>
         <div className="space-y-4">
           {[
-            { action: 'New student enrolled', name: 'Yasmin Ali', time: '2 hours ago', color: 'text-blue-600' },
-            { action: 'Teacher updated profile', name: 'Dr. Sarah Khan', time: '4 hours ago', color: 'text-teal-600' },
-            { action: 'Payment received', name: 'Ahmed Hassan', time: '6 hours ago', color: 'text-gold-600' },
-            { action: 'Schedule updated', name: 'Grade 10-A', time: '8 hours ago', color: 'text-purple-600' },
+            { action: t('dashboard.overviewPage.newStudentEnrolled'), name: 'Yasmin Ali', time: '2 hours ago', color: 'text-blue-600' },
+            { action: t('dashboard.overviewPage.teacherUpdatedProfile'), name: 'Dr. Sarah Khan', time: '4 hours ago', color: 'text-teal-600' },
+            { action: t('dashboard.overviewPage.paymentReceived'), name: 'Ahmed Hassan', time: '6 hours ago', color: 'text-gold-600' },
+            { action: t('dashboard.overviewPage.scheduleUpdated'), name: 'Grade 10-A', time: '8 hours ago', color: 'text-purple-600' },
           ].map((activity, index) => (
             <motion.div
               key={index}

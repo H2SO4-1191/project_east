@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaChalkboardTeacher, FaEnvelope, FaPhone, FaSearch, FaSync, FaExclamationTriangle } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 import Card from '../../components/Card';
 import { teachersData } from '../../data/enhancedDemoData';
 import { TableSkeleton, ListEmptyState } from '../../components/Skeleton';
@@ -22,6 +23,7 @@ const FALLBACK_LECTURERS = teachersData.map((t) => ({
 
 const Lecturers = () => {
   const { instituteData, updateInstituteData } = useInstitute();
+  const { t } = useTranslation();
   const [lecturers, setLecturers] = useState(FALLBACK_LECTURERS);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -65,7 +67,7 @@ const Lecturers = () => {
       setIsRemote(true);
     } catch (err) {
       console.error('Failed to fetch lecturers:', err);
-      setError(err?.message || 'Unable to load lecturers. Showing demo data.');
+      setError(err?.message || t('dashboard.lecturersPage.unableToLoadLecturers'));
       setLecturers(FALLBACK_LECTURERS);
       setIsRemote(false);
     } finally {
@@ -90,7 +92,8 @@ const Lecturers = () => {
   }, [lecturers, searchTerm]);
 
   const handleQuickAction = (action, lecturer) => {
-    toast.success(`${action} for ${lecturer.first_name} ${lecturer.last_name}`);
+    const actionText = action === 'Email sent' ? t('dashboard.lecturersPage.emailSent') : t('dashboard.lecturersPage.callInitiated');
+    toast.success(`${actionText} ${t('common.for')} ${lecturer.first_name} ${lecturer.last_name}`);
   };
 
   return (
@@ -99,8 +102,8 @@ const Lecturers = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Lecturers</h2>
-        <p className="text-gray-600 dark:text-gray-400">Manage your teaching staff</p>
+        <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">{t('dashboard.lecturersPage.title')}</h2>
+        <p className="text-gray-600 dark:text-gray-400">{t('dashboard.lecturersPage.subtitle')}</p>
       </motion.div>
 
       {/* Search and Refresh */}
@@ -110,7 +113,7 @@ const Lecturers = () => {
             <FaSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by name, email, or specialty..."
+              placeholder={t('dashboard.lecturersPage.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-12 pr-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
@@ -123,20 +126,20 @@ const Lecturers = () => {
             disabled={isLoading}
           >
             <FaSync className={isLoading ? 'animate-spin' : ''} />
-            Refresh
+            {t('dashboard.lecturersPage.refresh')}
           </button>
         </div>
 
         <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-          Showing{' '}
+          {t('dashboard.lecturersPage.showing')}{' '}
           <span className="font-semibold text-teal-600 dark:text-teal-400">
             {filteredLecturers.length}
           </span>{' '}
-          of{' '}
+          {t('dashboard.lecturersPage.of')}{' '}
           <span className="font-semibold text-teal-600 dark:text-teal-400">
             {pagination.count || lecturers.length}
           </span>{' '}
-          lecturers {isRemote ? '(live)' : '(demo)'}
+          {t('dashboard.lecturersPage.lecturers')} {isRemote ? t('dashboard.lecturersPage.live') : t('dashboard.lecturersPage.demo')}
         </div>
 
         {error && (
@@ -156,13 +159,13 @@ const Lecturers = () => {
             <table className="min-w-full">
               <thead className="bg-gradient-to-r from-teal-600 to-teal-700 dark:from-teal-700 dark:to-teal-800 text-white">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Name</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">ID</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Specialty</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Experience</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Phone</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Actions</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.lecturersPage.name')}</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.lecturersPage.id')}</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.lecturersPage.specialty')}</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.lecturersPage.experience')}</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.lecturersPage.phone')}</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.lecturersPage.status')}</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.lecturersPage.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-navy-700">
@@ -207,7 +210,7 @@ const Lecturers = () => {
                         {lecturer.specialty || '—'}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                        {lecturer.experience ? `${lecturer.experience} years` : '—'}
+                        {lecturer.experience ? `${lecturer.experience} ${t('dashboard.lecturersPage.years')}` : '—'}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                         {lecturer.phone_number || '—'}
@@ -220,7 +223,7 @@ const Lecturers = () => {
                               : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
                           }`}
                         >
-                          {lecturer.active ? 'Active' : 'Inactive'}
+                          {lecturer.active ? t('dashboard.lecturersPage.active') : t('dashboard.lecturersPage.inactive')}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -228,9 +231,9 @@ const Lecturers = () => {
                           <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                            onClick={() => handleQuickAction('Email sent', lecturer)}
+                            onClick={() => handleQuickAction(t('dashboard.lecturersPage.emailSent'), lecturer)}
                             className="p-2 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
-                            title="Send Email"
+                            title={t('dashboard.lecturersPage.sendEmail')}
                           >
                             <FaEnvelope />
                           </motion.button>
@@ -239,7 +242,7 @@ const Lecturers = () => {
                             whileTap={{ scale: 0.9 }}
                             onClick={() => handleQuickAction('Call initiated', lecturer)}
                             className="p-2 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-800 transition-colors"
-                            title="Call"
+                            title={t('dashboard.lecturersPage.call')}
                           >
                             <FaPhone />
                           </motion.button>
@@ -254,13 +257,13 @@ const Lecturers = () => {
             {filteredLecturers.length === 0 && (
               <ListEmptyState
                 icon={FaChalkboardTeacher}
-                title="No lecturers found"
+                title={t('dashboard.lecturersPage.noLecturersFound')}
                 message={
                   isRemote
-                    ? 'Try adjusting your search. The API returned no results.'
-                    : 'No matches in the demo dataset. Refresh to hit the API again.'
+                    ? t('dashboard.lecturersPage.tryAdjustingSearch')
+                    : t('dashboard.lecturersPage.noMatchesDemo')
                 }
-                actionLabel="Refresh"
+                actionLabel={t('dashboard.lecturersPage.refresh')}
                 onAction={() => fetchLecturers({ page: 1 })}
               />
             )}
@@ -269,7 +272,7 @@ const Lecturers = () => {
       </Card>
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm text-gray-600 dark:text-gray-400">
-        <div>{isRemote ? 'Live data from backend.' : 'Showing local demo data.'}</div>
+        <div>{isRemote ? t('dashboard.lecturersPage.liveDataFromBackend') : t('dashboard.lecturersPage.showingLocalDemoData')}</div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
@@ -280,10 +283,10 @@ const Lecturers = () => {
             disabled={!pagination.previous || isLoading || !isRemote}
             className="px-4 py-2 border border-gray-300 dark:border-navy-600 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-50 transition-colors"
           >
-            Previous
+            {t('dashboard.lecturersPage.previous')}
           </button>
           <span>
-            Page{' '}
+            {t('dashboard.lecturersPage.page')}{' '}
             <span className="font-semibold text-gray-800 dark:text-white">
               {pagination.currentPage}
             </span>
@@ -297,7 +300,7 @@ const Lecturers = () => {
             disabled={!pagination.next || isLoading || !isRemote}
             className="px-4 py-2 border border-gray-300 dark:border-navy-600 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-50 transition-colors"
           >
-            Next
+            {t('dashboard.lecturersPage.next')}
           </button>
         </div>
       </div>

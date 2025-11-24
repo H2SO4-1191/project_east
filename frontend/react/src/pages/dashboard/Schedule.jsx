@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaCalendarAlt, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 import Card from '../../components/Card';
 import { scheduleData } from '../../data/enhancedDemoData';
 import { ScheduleSkeleton, ListEmptyState } from '../../components/Skeleton';
@@ -25,14 +26,23 @@ const FALLBACK_SCHEDULE = scheduleData.reduce((acc, item) => {
 const Schedule = () => {
   const navigate = useNavigate();
   const { instituteData, updateInstituteData, clearInstituteData } = useInstitute();
+  const { t } = useTranslation();
   const [currentWeek, setCurrentWeek] = useState(0);
   const [schedule, setSchedule] = useState(FALLBACK_SCHEDULE);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   const days = useMemo(
-    () => ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
-    []
+    () => [
+      { key: 'monday', label: t('dashboard.schedulePage.monday') },
+      { key: 'tuesday', label: t('dashboard.schedulePage.tuesday') },
+      { key: 'wednesday', label: t('dashboard.schedulePage.wednesday') },
+      { key: 'thursday', label: t('dashboard.schedulePage.thursday') },
+      { key: 'friday', label: t('dashboard.schedulePage.friday') },
+      { key: 'saturday', label: t('dashboard.schedulePage.saturday') },
+      { key: 'sunday', label: t('dashboard.schedulePage.sunday') },
+    ],
+    [t]
   );
 
   useEffect(() => {
@@ -60,7 +70,7 @@ const Schedule = () => {
         console.error('Failed to fetch schedule:', err);
         setError(
           err?.message ||
-            'Unable to load the schedule from the server. Showing demo data instead.'
+            t('dashboard.schedulePage.unableToLoadSchedule')
         );
         setSchedule(FALLBACK_SCHEDULE);
       } finally {
@@ -77,8 +87,8 @@ const Schedule = () => {
     navigate,
   ]);
 
-  const getScheduleByDay = (day) => {
-    const key = day.toLowerCase();
+  const getScheduleByDay = (dayKey) => {
+    const key = typeof dayKey === 'string' ? dayKey.toLowerCase() : dayKey.key?.toLowerCase();
     if (Array.isArray(schedule?.[key])) {
       return schedule[key];
     }
@@ -96,8 +106,8 @@ const Schedule = () => {
         className="flex items-center justify-between"
       >
         <div>
-          <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Schedule</h2>
-          <p className="text-gray-600 dark:text-gray-400">Weekly class timetable</p>
+          <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">{t('dashboard.schedulePage.title')}</h2>
+          <p className="text-gray-600 dark:text-gray-400">{t('dashboard.schedulePage.subtitle')}</p>
         </div>
         
         <div className="flex items-center gap-4">
@@ -111,9 +121,9 @@ const Schedule = () => {
           </motion.button>
           
           <div className="text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Current Week</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">{t('dashboard.schedulePage.currentWeek')}</p>
             <p className="font-semibold text-gray-800 dark:text-white">
-              Week {currentWeek === 0 ? 'Current' : currentWeek > 0 ? `+${currentWeek}` : currentWeek}
+              {t('dashboard.schedulePage.week')} {currentWeek === 0 ? t('dashboard.schedulePage.current') : currentWeek > 0 ? `+${currentWeek}` : currentWeek}
             </p>
           </div>
           
@@ -141,10 +151,10 @@ const Schedule = () => {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           <AnimatePresence mode="wait">
             {days.slice(0, 5).map((day, index) => {
-              const entries = getScheduleByDay(day);
+              const entries = getScheduleByDay(day.key);
               return (
                 <motion.div
-                  key={`${day}-${currentWeek}`}
+                  key={`${day.key}-${currentWeek}`}
                   initial={{ opacity: 0, x: 50 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -50 }}
@@ -153,8 +163,8 @@ const Schedule = () => {
                   <Card delay={0} className="h-full">
                     <div className="flex items-center gap-2 mb-4">
                       <FaCalendarAlt className="text-primary-600 dark:text-teal-400" />
-                      <h3 className="text-lg font-semibold text-gray-800 dark:text-white capitalize">
-                        {day}
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                        {day.label}
                       </h3>
                     </div>
 
@@ -176,7 +186,7 @@ const Schedule = () => {
                           </p>
                           {item.room && (
                             <p className="text-xs text-gray-500 dark:text-gray-500">
-                              Room {item.room}
+                              {t('dashboard.schedulePage.room')} {item.room}
                             </p>
                           )}
                         </motion.div>
@@ -184,7 +194,7 @@ const Schedule = () => {
 
                       {entries.length === 0 && (
                         <div className="text-center py-8 text-gray-400 dark:text-gray-600">
-                          <p className="text-sm">No classes</p>
+                          <p className="text-sm">{t('dashboard.schedulePage.noClasses')}</p>
                         </div>
                       )}
                     </div>
@@ -196,16 +206,16 @@ const Schedule = () => {
         </div>
       )}
 
-      {!isLoading && days.slice(5).some(day => getScheduleByDay(day).length > 0) && (
+      {!isLoading && days.slice(5).some(day => getScheduleByDay(day.key).length > 0) && (
         <Card delay={0.1}>
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Weekend</h3>
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">{t('dashboard.schedulePage.weekend')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {days.slice(5).map((day) => {
-              const entries = getScheduleByDay(day);
+              const entries = getScheduleByDay(day.key);
               return (
-                <div key={day} className="space-y-3">
+                <div key={day.key} className="space-y-3">
                   <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                    {day}
+                    {day.label}
                   </h4>
                   {entries.length > 0 ? (
                     entries.map((item) => (
@@ -224,13 +234,13 @@ const Schedule = () => {
                         </p>
                         {item.room && (
                           <p className="text-xs text-gray-500 dark:text-gray-500">
-                            Room {item.room}
+                            {t('dashboard.schedulePage.room')} {item.room}
                           </p>
                         )}
                       </div>
                     ))
                   ) : (
-                    <div className="text-sm text-gray-400 dark:text-gray-600">No classes</div>
+                    <div className="text-sm text-gray-400 dark:text-gray-600">{t('dashboard.schedulePage.noClasses')}</div>
                   )}
                 </div>
               );

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { 
   FaHome, FaUsers, FaChalkboardTeacher, FaBriefcase, 
   FaCalendarAlt, FaDollarSign, FaCog, FaBars, FaTimes,
@@ -10,6 +11,7 @@ import { useInstitute } from '../context/InstituteContext';
 import { useTheme } from '../context/ThemeContext';
 import Modal from '../components/Modal';
 import AnimatedButton from '../components/AnimatedButton';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import toast from 'react-hot-toast';
 import Overview from './dashboard/Overview';
 import Students from './dashboard/Students';
@@ -24,6 +26,7 @@ const EnhancedDashboard = () => {
   const location = useLocation();
   const { instituteData, clearInstituteData } = useInstitute();
   const { isDark, toggleTheme } = useTheme();
+  const { t } = useTranslation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const sidebarTimeoutRef = useRef(null);
@@ -97,13 +100,13 @@ const EnhancedDashboard = () => {
   });
 
   const menuItems = [
-    { id: 'overview', path: '/dashboard', label: 'Overview', icon: FaHome, color: 'from-blue-500 to-blue-600' },
-    { id: 'students', path: '/dashboard/students', label: 'Students', icon: FaUsers, color: 'from-blue-500 to-blue-600' },
-    { id: 'lecturers', path: '/dashboard/lecturers', label: 'Lecturers', icon: FaChalkboardTeacher, color: 'from-teal-500 to-teal-600' },
-    { id: 'staff', path: '/dashboard/staff', label: 'Staff', icon: FaBriefcase, color: 'from-purple-500 to-purple-600' },
-    { id: 'schedule', path: '/dashboard/schedule', label: 'Schedule', icon: FaCalendarAlt, color: 'from-pink-500 to-pink-600' },
-    { id: 'finance', path: '/dashboard/finance', label: 'Finance', icon: FaDollarSign, color: 'from-gold-500 to-gold-600' },
-    { id: 'settings', path: '/dashboard/settings', label: 'Settings', icon: FaCog, color: 'from-gray-500 to-gray-600' },
+    { id: 'overview', path: '/dashboard', label: t('dashboard.overview'), icon: FaHome, color: 'from-blue-500 to-blue-600' },
+    { id: 'students', path: '/dashboard/students', label: t('dashboard.students'), icon: FaUsers, color: 'from-blue-500 to-blue-600' },
+    { id: 'lecturers', path: '/dashboard/lecturers', label: t('dashboard.lecturers'), icon: FaChalkboardTeacher, color: 'from-teal-500 to-teal-600' },
+    { id: 'staff', path: '/dashboard/staff', label: t('dashboard.staff'), icon: FaBriefcase, color: 'from-purple-500 to-purple-600' },
+    { id: 'schedule', path: '/dashboard/schedule', label: t('dashboard.schedule'), icon: FaCalendarAlt, color: 'from-pink-500 to-pink-600' },
+    { id: 'finance', path: '/dashboard/finance', label: t('dashboard.finance'), icon: FaDollarSign, color: 'from-gold-500 to-gold-600' },
+    { id: 'settings', path: '/dashboard/settings', label: t('dashboard.settings'), icon: FaCog, color: 'from-gray-500 to-gray-600' },
   ];
 
   const isActiveRoute = (path) => {
@@ -212,7 +215,7 @@ const EnhancedDashboard = () => {
     };
 
     setCourses(prev => [...prev, newCourse]);
-    toast.success('Course created successfully!');
+    toast.success(t('dashboard.courseCreated'));
     setShowCreateCourseModal(false);
     setCreateForm({
       title: '',
@@ -237,7 +240,7 @@ const EnhancedDashboard = () => {
       c.id === selectedCourse.id ? { ...c, ...editForm } : c
     ));
     
-    toast.success('Course updated successfully!');
+    toast.success(t('dashboard.courseUpdated'));
     setSelectedCourse(null);
     setEditForm({
       title: '',
@@ -251,9 +254,9 @@ const EnhancedDashboard = () => {
   };
 
   const handleDeleteCourse = (courseId) => {
-    if (window.confirm('Are you sure you want to delete this course?')) {
+    if (window.confirm(t('dashboard.deleteConfirm'))) {
       setCourses(prev => prev.filter(c => c.id !== courseId));
-      toast.success('Course deleted successfully!');
+      toast.success(t('dashboard.courseDeleted'));
       setSelectedCourse(null);
     }
   };
@@ -299,7 +302,7 @@ const EnhancedDashboard = () => {
             </div>
             <div className={`transition-all duration-500 ease-in-out ${isSidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
               <h2 className="text-lg font-bold text-gray-800 dark:text-white whitespace-nowrap">Project East</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Dashboard</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{t('nav.dashboard')}</p>
             </div>
           </motion.div>
         </div>
@@ -337,10 +340,10 @@ const EnhancedDashboard = () => {
             whileTap={{ scale: 0.98 }}
             onClick={() => navigate('/')}
             className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 transition-all duration-300 ease-in-out`}
-            title="Home Feed"
+            title={t('nav.homeFeed')}
           >
             <FaGlobe className="w-5 h-5 flex-shrink-0" />
-            {isSidebarExpanded && <span className="font-medium whitespace-nowrap">Home Feed</span>}
+            {isSidebarExpanded && <span className="font-medium whitespace-nowrap">{t('nav.homeFeed')}</span>}
           </motion.button>
 
           <motion.button
@@ -348,10 +351,10 @@ const EnhancedDashboard = () => {
             whileTap={{ scale: 0.98 }}
             onClick={toggleTheme}
             className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 transition-all duration-300 ease-in-out`}
-            title={isDark ? 'Light Mode' : 'Dark Mode'}
+            title={isDark ? t('nav.lightMode') : t('nav.darkMode')}
           >
             {isDark ? <FaSun className="w-5 h-5 text-gold-500 flex-shrink-0" /> : <FaMoon className="w-5 h-5 text-navy-600 flex-shrink-0" />}
-            {isSidebarExpanded && <span className="font-medium whitespace-nowrap">{isDark ? 'Light Mode' : 'Dark Mode'}</span>}
+            {isSidebarExpanded && <span className="font-medium whitespace-nowrap">{isDark ? t('nav.lightMode') : t('nav.darkMode')}</span>}
           </motion.button>
           
           <motion.button
@@ -359,10 +362,10 @@ const EnhancedDashboard = () => {
             whileTap={{ scale: 0.98 }}
             onClick={handleLogout}
             className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-300 ease-in-out`}
-            title="Logout"
+            title={t('nav.logout')}
           >
             <FaSignOutAlt className="w-5 h-5 flex-shrink-0" />
-            {isSidebarExpanded && <span className="font-medium whitespace-nowrap">Logout</span>}
+            {isSidebarExpanded && <span className="font-medium whitespace-nowrap">{t('nav.logout')}</span>}
           </motion.button>
         </div>
       </aside>
@@ -393,7 +396,7 @@ const EnhancedDashboard = () => {
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-gray-800 dark:text-white">Project East</h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Dashboard</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{t('nav.dashboard')}</p>
                   </div>
                 </div>
                 <motion.button
@@ -434,7 +437,7 @@ const EnhancedDashboard = () => {
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 transition-all"
                 >
                   <FaGlobe className="w-5 h-5" />
-                  <span className="font-medium">Home Feed</span>
+                  <span className="font-medium">{t('nav.homeFeed')}</span>
                 </button>
 
                 <button
@@ -442,7 +445,7 @@ const EnhancedDashboard = () => {
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 transition-all"
                 >
                   {isDark ? <FaSun className="w-5 h-5 text-gold-500" /> : <FaMoon className="w-5 h-5 text-navy-600" />}
-                  <span className="font-medium">{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+                  <span className="font-medium">{isDark ? t('nav.lightMode') : t('nav.darkMode')}</span>
                 </button>
                 
                 <button
@@ -450,7 +453,7 @@ const EnhancedDashboard = () => {
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
                 >
                   <FaSignOutAlt className="w-5 h-5" />
-                  <span className="font-medium">Logout</span>
+                  <span className="font-medium">{t('nav.logout')}</span>
                 </button>
               </div>
             </motion.aside>
@@ -486,9 +489,12 @@ const EnhancedDashboard = () => {
               </div>
 
               <div className="flex items-center gap-4">
+                {/* Language Switcher */}
+                <LanguageSwitcher />
+
                 <div className="hidden md:block text-right">
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Welcome {greetingName}
+                    {t('dashboard.welcome')} {greetingName}
                   </p>
                   <div className="flex items-center gap-2 justify-end">
                     <p className="text-xs text-gray-500 dark:text-gray-500">
@@ -502,7 +508,7 @@ const EnhancedDashboard = () => {
                             : 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300'
                         }`}
                       >
-                        {instituteData.isVerified ? 'Verified' : 'Unverified'}
+                        {instituteData.isVerified ? t('dashboard.verified') : t('dashboard.unverified')}
                       </span>
                     )}
                   </div>
@@ -534,7 +540,7 @@ const EnhancedDashboard = () => {
                         className="absolute right-0 mt-2 w-80 bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-700 overflow-hidden z-50"
                       >
                         <div className="p-4 border-b border-gray-200 dark:border-navy-700 flex items-center justify-between">
-                          <h3 className="font-bold text-gray-800 dark:text-white">Notifications</h3>
+                          <h3 className="font-bold text-gray-800 dark:text-white">{t('nav.notifications')}</h3>
                           <span className="text-sm text-gray-500 dark:text-gray-400">
                             {notifications.filter(n => !n.read).length} new
                           </span>
@@ -542,7 +548,7 @@ const EnhancedDashboard = () => {
                         <div className="max-h-96 overflow-y-auto">
                           {notifications.length === 0 ? (
                             <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                              No notifications
+                              {t('nav.noNotifications')}
                             </div>
                           ) : (
                             notifications.map((notification) => (
@@ -577,7 +583,7 @@ const EnhancedDashboard = () => {
                         </div>
                         <div className="p-3 border-t border-gray-200 dark:border-navy-700 text-center">
                           <button className="text-sm text-primary-600 dark:text-teal-400 hover:underline font-medium">
-                            View All Notifications
+                            {t('nav.viewAllNotifications')}
                           </button>
                         </div>
                       </motion.div>
@@ -654,7 +660,7 @@ const EnhancedDashboard = () => {
             </motion.button>
             <div className="absolute right-0 top-0 h-14 bg-gradient-to-r from-purple-600 to-purple-700 rounded-full shadow-lg flex items-center pr-16 pl-6 overflow-hidden pointer-events-none w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300 ease-out">
               <span className="whitespace-nowrap font-semibold text-sm text-white">
-                New Post
+                {t('dashboard.newPost')}
               </span>
             </div>
           </div>
@@ -670,7 +676,7 @@ const EnhancedDashboard = () => {
             </motion.button>
             <div className="absolute right-0 top-0 h-14 bg-gradient-to-r from-primary-600 to-primary-700 rounded-full shadow-lg flex items-center pr-16 pl-6 overflow-hidden pointer-events-none w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300 ease-out">
               <span className="whitespace-nowrap font-semibold text-sm text-white">
-                Create New Course
+                {t('dashboard.createNewCourse')}
               </span>
             </div>
           </div>
@@ -686,7 +692,7 @@ const EnhancedDashboard = () => {
             </motion.button>
             <div className="absolute right-0 top-0 h-14 bg-gradient-to-r from-teal-600 to-teal-700 rounded-full shadow-lg flex items-center pr-16 pl-6 overflow-hidden pointer-events-none w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300 ease-out">
               <span className="whitespace-nowrap font-semibold text-sm text-white">
-                Edit Current Courses
+                {t('dashboard.editCurrentCourses')}
               </span>
             </div>
           </div>
@@ -697,7 +703,7 @@ const EnhancedDashboard = () => {
       <Modal
         isOpen={showVerificationWarning}
         onClose={() => setShowVerificationWarning(false)}
-        title="Account Verification Required"
+        title={t('dashboard.accountVerificationRequired')}
       >
         <div className="space-y-6">
           <div className="flex items-start gap-4">
@@ -711,19 +717,17 @@ const EnhancedDashboard = () => {
             </div>
             <div>
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
-                Verification Needed
+                {t('dashboard.verificationNeeded')}
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                You need to verify your account before you can create or manage courses. 
-                Please complete the verification process in Settings to unlock this feature.
+                {t('dashboard.verificationMessage')}
               </p>
             </div>
           </div>
 
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <p className="text-sm text-blue-800 dark:text-blue-300">
-              <strong>Why verify?</strong> Account verification ensures the security and authenticity 
-              of your institution, allowing you to access all platform features.
+              <strong>{t('dashboard.whyVerify')}</strong> {t('dashboard.whyVerifyMessage')}
             </p>
           </div>
 
@@ -732,14 +736,14 @@ const EnhancedDashboard = () => {
               onClick={handleGoToSettings}
               className="flex-1"
             >
-              Go to Settings
+              {t('dashboard.goToSettings')}
             </AnimatedButton>
             <AnimatedButton
               variant="secondary"
               onClick={() => setShowVerificationWarning(false)}
               className="flex-1"
             >
-              OK
+              {t('common.ok')}
             </AnimatedButton>
           </div>
         </div>
@@ -749,13 +753,13 @@ const EnhancedDashboard = () => {
       <Modal
         isOpen={showCreateCourseModal}
         onClose={() => setShowCreateCourseModal(false)}
-        title="Create New Course"
+        title={t('dashboard.createNewCourse')}
       >
         <form onSubmit={handleCreateCourse} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Course Title *
+                {t('dashboard.courseTitle')} *
               </label>
               <input
                 type="text"
@@ -763,14 +767,14 @@ const EnhancedDashboard = () => {
                 value={createForm.title}
                 onChange={handleCreateChange}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                placeholder="e.g. Introduction to Computer Science"
+                placeholder={t('dashboard.courseTitlePlaceholder')}
                 required
               />
             </div>
 
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Course Code *
+                {t('dashboard.courseCode')} *
               </label>
               <input
                 type="text"
@@ -778,14 +782,14 @@ const EnhancedDashboard = () => {
                 value={createForm.code}
                 onChange={handleCreateChange}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                placeholder="e.g. CS101"
+                placeholder={t('dashboard.courseCodePlaceholder')}
                 required
               />
             </div>
 
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Credits
+                {t('dashboard.credits')}
               </label>
               <input
                 type="number"
@@ -793,13 +797,13 @@ const EnhancedDashboard = () => {
                 value={createForm.credits}
                 onChange={handleCreateChange}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                placeholder="e.g. 3"
+                placeholder={t('dashboard.creditsPlaceholder')}
               />
             </div>
 
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Duration
+                {t('dashboard.duration')}
               </label>
               <input
                 type="text"
@@ -807,13 +811,13 @@ const EnhancedDashboard = () => {
                 value={createForm.duration}
                 onChange={handleCreateChange}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                placeholder="e.g. 12 weeks"
+                placeholder={t('dashboard.durationPlaceholder')}
               />
             </div>
 
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Capacity
+                {t('dashboard.capacity')}
               </label>
               <input
                 type="number"
@@ -821,13 +825,13 @@ const EnhancedDashboard = () => {
                 value={createForm.capacity}
                 onChange={handleCreateChange}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                placeholder="e.g. 30"
+                placeholder={t('dashboard.capacityPlaceholder')}
               />
             </div>
 
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Price ($) *
+                {t('dashboard.price')} *
               </label>
               <input
                 type="number"
@@ -835,7 +839,7 @@ const EnhancedDashboard = () => {
                 value={createForm.price}
                 onChange={handleCreateChange}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                placeholder="e.g. 500"
+                placeholder={t('dashboard.pricePlaceholder')}
                 required
               />
             </div>
@@ -843,7 +847,7 @@ const EnhancedDashboard = () => {
 
           <div>
             <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-              Description
+              {t('dashboard.description')}
             </label>
             <textarea
               name="description"
@@ -851,13 +855,13 @@ const EnhancedDashboard = () => {
               onChange={handleCreateChange}
               rows="4"
               className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white resize-none"
-              placeholder="Course description..."
+              placeholder={t('dashboard.descriptionPlaceholder')}
             />
           </div>
 
           <div className="flex gap-3 pt-4">
             <AnimatedButton type="submit" className="flex-1">
-              Create Course
+              {t('dashboard.createCourse')}
             </AnimatedButton>
             <AnimatedButton
               type="button"
@@ -865,7 +869,7 @@ const EnhancedDashboard = () => {
               onClick={() => setShowCreateCourseModal(false)}
               className="flex-1"
             >
-              Cancel
+              {t('common.cancel')}
             </AnimatedButton>
           </div>
         </form>
@@ -878,14 +882,14 @@ const EnhancedDashboard = () => {
           setShowEditCoursesModal(false);
           setSelectedCourse(null);
         }}
-        title={selectedCourse ? "Edit Course" : "Manage Courses"}
+        title={selectedCourse ? t('dashboard.editCourse') : t('dashboard.manageCourses')}
       >
         {!selectedCourse ? (
           <div className="space-y-3">
             {courses.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-gray-500 dark:text-gray-400">
-                  No courses available. Create your first course!
+                  {t('dashboard.noCourses')}
                 </p>
               </div>
             ) : (
@@ -914,7 +918,7 @@ const EnhancedDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Course Title *
+                  {t('dashboard.courseTitle')} *
                 </label>
                 <input
                   type="text"
@@ -928,7 +932,7 @@ const EnhancedDashboard = () => {
 
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Course Code *
+                  {t('dashboard.courseCode')} *
                 </label>
                 <input
                   type="text"
@@ -942,7 +946,7 @@ const EnhancedDashboard = () => {
 
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Credits
+                  {t('dashboard.credits')}
                 </label>
                 <input
                   type="number"
@@ -955,7 +959,7 @@ const EnhancedDashboard = () => {
 
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Duration
+                  {t('dashboard.duration')}
                 </label>
                 <input
                   type="text"
@@ -968,7 +972,7 @@ const EnhancedDashboard = () => {
 
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Capacity
+                  {t('dashboard.capacity')}
                 </label>
                 <input
                   type="number"
@@ -981,7 +985,7 @@ const EnhancedDashboard = () => {
 
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  Price ($) *
+                  {t('dashboard.price')} *
                 </label>
                 <input
                   type="number"
@@ -996,7 +1000,7 @@ const EnhancedDashboard = () => {
 
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                Description
+                {t('dashboard.description')}
               </label>
               <textarea
                 name="description"
@@ -1009,7 +1013,7 @@ const EnhancedDashboard = () => {
 
             <div className="flex gap-3 pt-4">
               <AnimatedButton type="submit" className="flex-1">
-                Update Course
+                {t('dashboard.updateCourse')}
               </AnimatedButton>
               <AnimatedButton
                 type="button"
@@ -1017,7 +1021,7 @@ const EnhancedDashboard = () => {
                 onClick={() => handleDeleteCourse(selectedCourse.id)}
                 className="flex-1 bg-red-600 hover:bg-red-500"
               >
-                Delete Course
+                {t('dashboard.deleteCourse')}
               </AnimatedButton>
               <AnimatedButton
                 type="button"
@@ -1025,7 +1029,7 @@ const EnhancedDashboard = () => {
                 onClick={() => setSelectedCourse(null)}
                 className="flex-1"
               >
-                Back
+                {t('common.back')}
               </AnimatedButton>
             </div>
           </form>
@@ -1036,15 +1040,15 @@ const EnhancedDashboard = () => {
       <Modal
         isOpen={showNewPostModal}
         onClose={() => setShowNewPostModal(false)}
-        title="Create New Post"
+        title={t('dashboard.createNewPost')}
       >
         <div className="space-y-6">
           <p className="text-gray-600 dark:text-gray-400">
-            Create a new post to share updates, achievements, or announcements with the community.
+            {t('dashboard.newPostMessage')}
           </p>
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <p className="text-sm text-blue-800 dark:text-blue-300">
-              <strong>Note:</strong> This feature is coming soon. You'll be able to create posts about your institution's achievements, job openings, and more.
+              <strong>{t('dashboard.newPostNote')}</strong> {t('dashboard.newPostNoteMessage')}
             </p>
           </div>
           <div className="flex gap-3 pt-4">
@@ -1052,7 +1056,7 @@ const EnhancedDashboard = () => {
               onClick={() => setShowNewPostModal(false)}
               className="flex-1"
             >
-              Close
+              {t('common.close')}
             </AnimatedButton>
           </div>
         </div>

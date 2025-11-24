@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   FaUniversity, 
   FaArrowLeft,
@@ -19,12 +20,14 @@ import { useTheme } from '../context/ThemeContext';
 const AboutUs = () => {
   const navigate = useNavigate();
   const { isDark } = useTheme();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
 
   const developers = [
     {
       name: 'Mohammed Salah',
-      role: 'Frontend Developer',
-      bio: 'Passionate about creating innovative solutions and building scalable applications. Specialized in modern web technologies and cloud architecture.',
+      role: t('aboutUs.frontendDeveloper'),
+      bio: t('aboutUs.mohammedBio'),
       skills: ['React', 'Node.js', 'Python', 'AWS'],
       github: 'https://github.com/fuden4',
       instagram: 'https://www.instagram.com/pzx0z/',
@@ -33,8 +36,8 @@ const AboutUs = () => {
     },
     {
       name: 'Mustafa Mohammed',
-      role: 'Backend Developer',
-      bio: 'Dedicated to crafting exceptional user experiences and robust backend systems. Expert in database design and API development.',
+      role: t('aboutUs.backendDeveloper'),
+      bio: t('aboutUs.mustafaBio'),
       skills: ['React', 'Django', 'PostgreSQL', 'Docker'],
       github: 'https://github.com/H2SO4-1191',
       instagram: 'https://www.instagram.com/h2so4.1191/',
@@ -43,8 +46,8 @@ const AboutUs = () => {
     },
     {
       name: 'Noor Naji',
-      role: 'Documentation Specialist',
-      bio: 'Responsible for creating comprehensive documentation and ensuring clear communication of project features and functionality.',
+      role: t('aboutUs.documentationSpecialist'),
+      bio: t('aboutUs.noorBio'),
       skills: ['Technical Writing', 'Documentation', 'Content Management'],
       github: null,
       instagram: null,
@@ -56,23 +59,23 @@ const AboutUs = () => {
   const features = [
     {
       icon: <FaGraduationCap className="w-8 h-8" />,
-      title: 'Educational Excellence',
-      description: 'Connecting students, lecturers, and institutions in one comprehensive platform.',
+      title: t('aboutUs.educationalExcellence'),
+      description: t('aboutUs.educationalExcellenceDesc'),
     },
     {
       icon: <FaUsers className="w-8 h-8" />,
-      title: 'Community Driven',
-      description: 'Building a vibrant community of learners and educators across Iraq.',
+      title: t('aboutUs.communityDriven'),
+      description: t('aboutUs.communityDrivenDesc'),
     },
     {
       icon: <FaRocket className="w-8 h-8" />,
-      title: 'Innovation First',
-      description: 'Leveraging cutting-edge technology to transform education.',
+      title: t('aboutUs.innovationFirst'),
+      description: t('aboutUs.innovationFirstDesc'),
     },
     {
       icon: <FaCode className="w-8 h-8" />,
-      title: 'Modern Technology',
-      description: 'Built with React, Node.js, and modern web standards.',
+      title: t('aboutUs.modernTechnology'),
+      description: t('aboutUs.modernTechnologyDesc'),
     },
   ];
 
@@ -81,11 +84,11 @@ const AboutUs = () => {
       {/* Navigation Bar */}
       <nav className="bg-white dark:bg-navy-800 shadow-lg sticky top-0 z-50 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className={`flex ${isRTL ? 'flex-row-reverse' : 'flex-row'} justify-between items-center h-16`}>
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-3 cursor-pointer"
+              className={`flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-3 cursor-pointer`}
               onClick={() => navigate('/')}
             >
               <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-teal-500 rounded-lg flex items-center justify-center">
@@ -100,10 +103,10 @@ const AboutUs = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => navigate('/')}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 rounded-lg transition-colors"
+              className={`flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 rounded-lg transition-colors`}
             >
               <FaArrowLeft />
-              <span>Back to Feed</span>
+              <span>{t('aboutUs.backToFeed')}</span>
             </motion.button>
           </div>
         </div>
@@ -117,7 +120,7 @@ const AboutUs = () => {
             animate={{ opacity: 1, y: 0 }}
             className="text-5xl md:text-6xl font-bold mb-4"
           >
-            About Project East
+            {t('aboutUs.aboutProjectEast')}
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -125,7 +128,7 @@ const AboutUs = () => {
             transition={{ delay: 0.1 }}
             className="text-xl text-white/90 max-w-3xl mx-auto"
           >
-            Empowering education through technology. Connecting institutions, students, and lecturers across Iraq.
+            {t('aboutUs.heroDescription')}
           </motion.p>
         </div>
       </div>
@@ -139,12 +142,10 @@ const AboutUs = () => {
           className="bg-white dark:bg-navy-800 rounded-2xl shadow-xl p-8 md:p-12"
         >
           <h2 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white mb-6 text-center">
-            Our Mission
+            {t('aboutUs.ourMission')}
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-400 text-center max-w-3xl mx-auto leading-relaxed">
-            Project East is dedicated to revolutionizing the educational landscape in Iraq by providing a comprehensive platform 
-            that bridges the gap between educational institutions, students, and lecturers. We believe in making quality education 
-            accessible to everyone through innovative technology solutions.
+            {t('aboutUs.missionDescription')}
           </p>
         </motion.div>
       </section>
@@ -157,7 +158,7 @@ const AboutUs = () => {
           transition={{ delay: 0.3 }}
           className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white mb-12 text-center"
         >
-          What We Offer
+          {t('aboutUs.whatWeOffer')}
         </motion.h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((feature, index) => (
@@ -190,7 +191,7 @@ const AboutUs = () => {
           transition={{ delay: 0.6 }}
           className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white mb-12 text-center"
         >
-          Meet the Developers
+          {t('aboutUs.meetTheDevelopers')}
         </motion.h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {developers.map((developer, index) => (
@@ -230,8 +231,8 @@ const AboutUs = () => {
 
               {/* Skills */}
               <div className="mb-6">
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                  Skills & Technologies
+                <h4 className={`text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 ${isRTL ? 'text-right' : 'text-left'}`}>
+                  {t('aboutUs.skillsTechnologies')}
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {developer.skills.map((skill, skillIndex) => (
@@ -299,13 +300,13 @@ const AboutUs = () => {
           className="bg-gradient-to-r from-primary-600 to-teal-500 rounded-2xl shadow-xl p-8 md:p-12 text-center"
         >
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Supervised By
+            {t('aboutUs.supervisedBy')}
           </h2>
           <p className="text-xl text-white/90 font-semibold">
             Assist. Prof. Adala Chehad
           </p>
           <p className="text-white/80 mt-2">
-            Project Supervisor
+            {t('aboutUs.projectSupervisor')}
           </p>
         </motion.div>
       </section>
@@ -314,20 +315,20 @@ const AboutUs = () => {
       <footer className="bg-white dark:bg-navy-800 border-t border-gray-200 dark:border-navy-700 mt-16 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
+            <div className={`flex items-center justify-center gap-2 mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
               <FaHeart className="text-red-500" />
               <p className="text-gray-600 dark:text-gray-400">
-                Made with passion for education
+                {t('aboutUs.madeWithPassion')}
               </p>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              © 2025 Project East. All rights reserved.
+              {t('aboutUs.copyright')}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-              Developed by <span className="font-semibold text-primary-600 dark:text-teal-400">Mohammed Salah</span> and <span className="font-semibold text-primary-600 dark:text-teal-400">Mustafa Mohammed</span>
+              {t('aboutUs.developedBy')} <span className="font-semibold text-primary-600 dark:text-teal-400">Mohammed Salah</span> {t('aboutUs.and')} <span className="font-semibold text-primary-600 dark:text-teal-400">Mustafa Mohammed</span>
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
-              Documentation by <span className="font-semibold text-primary-600 dark:text-teal-400">Noor Naji</span>
+              {t('aboutUs.documentationBy')} <span className="font-semibold text-primary-600 dark:text-teal-400">Noor Naji</span>
             </p>
           </div>
         </div>
