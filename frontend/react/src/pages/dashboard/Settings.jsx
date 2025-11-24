@@ -98,7 +98,7 @@ const Settings = () => {
     setFileValidation(prev => ({ ...prev, [fieldName]: null }));
 
     try {
-      const result = await authService.validateDocumentWithAI(file);
+      const result = await authService.validateDocumentWithAI(file, instituteData.accessToken);
       
       console.log('AI validation response:', result);
       
@@ -259,7 +259,7 @@ const Settings = () => {
     setEditFileValidation(prev => ({ ...prev, [fieldName]: null }));
 
     try {
-      const result = await authService.validateDocumentWithAI(file);
+      const result = await authService.validateDocumentWithAI(file, instituteData.accessToken);
       
       console.log('AI validation response (edit):', result);
       
@@ -410,7 +410,11 @@ const Settings = () => {
                 </p>
               </div>
             </div>
-            <AnimatedButton onClick={() => setShowVerificationModal(true)} variant="teal">
+            <AnimatedButton 
+              onClick={() => setShowVerificationModal(true)} 
+              variant="teal"
+              data-verify-button
+            >
               Verify Now
             </AnimatedButton>
           </div>

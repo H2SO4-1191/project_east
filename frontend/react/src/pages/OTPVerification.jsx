@@ -159,10 +159,13 @@ const OTPVerification = () => {
         instituteData.name ||
         email;
 
-      // Check verification status
+      // Check verification status (after we have the access token)
       let isVerified = false;
       try {
-        const verificationStatus = await authService.checkVerificationStatus(resolvedEmail);
+        const verificationStatus = await authService.checkVerificationStatus(
+          resolvedEmail,
+          result?.access
+        );
         isVerified = verificationStatus?.is_verified || false;
       } catch (verifyErr) {
         console.warn('Failed to check verification status:', verifyErr);

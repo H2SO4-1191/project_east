@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/theme_provider.dart';
-import '../../providers/institute_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../config/theme.dart';
 import '../../widgets/card_widget.dart';
 
@@ -13,7 +13,7 @@ class SettingsPage extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final instituteProvider = Provider.of<InstituteProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -37,17 +37,17 @@ class SettingsPage extends StatelessWidget {
                 const SizedBox(height: 16),
                 _SettingRow(
                   label: 'Institute Name',
-                  value: instituteProvider.instituteData['name'] ?? 'N/A',
+                  value: authProvider.instituteData['name'] ?? 'N/A',
                 ),
                 const SizedBox(height: 12),
                 _SettingRow(
                   label: 'Email',
-                  value: instituteProvider.instituteData['email'] ?? 'N/A',
+                  value: authProvider.instituteData['email'] ?? 'N/A',
                 ),
                 const SizedBox(height: 12),
                 _SettingRow(
                   label: 'Subscription',
-                  value: instituteProvider.instituteData['subscriptionLabel'] ?? 'N/A',
+                  value: authProvider.instituteData['subscriptionLabel'] ?? 'N/A',
                 ),
               ],
             ),
@@ -134,7 +134,7 @@ class SettingsPage extends StatelessWidget {
                             ),
                             TextButton(
                               onPressed: () {
-                                instituteProvider.clearData();
+                                authProvider.clearData();
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(

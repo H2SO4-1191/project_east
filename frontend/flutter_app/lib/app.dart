@@ -3,10 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'config/theme.dart';
 import 'providers/theme_provider.dart';
+import 'providers/auth_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/signup_screen.dart';
 import 'screens/otp_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
+import 'widgets/protected_route.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -51,12 +54,14 @@ class MyApp extends StatelessWidget {
           routes: {
             '/': (context) => const HomeScreen(),
             '/login': (context) => const LoginScreen(),
+            '/signup': (context) => const SignupScreen(),
             '/otp': (context) => const OTPScreen(),
-            '/dashboard': (context) => const DashboardScreen(),
+            '/dashboard': (context) => const ProtectedRoute(
+              child: DashboardScreen(),
+            ),
           },
         );
       },
     );
   }
 }
-

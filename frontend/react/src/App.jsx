@@ -10,6 +10,8 @@ import EnhancedLogin from './pages/EnhancedLogin';
 import OTPVerification from './pages/OTPVerification';
 import EnhancedDashboard from './pages/EnhancedDashboard';
 import EnhancedSignup from './pages/EnhancedSignup';
+import AboutUs from './pages/AboutUs';
+import Courses from './pages/Courses';
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -22,6 +24,8 @@ function AnimatedRoutes() {
         <Route path="/login" element={<EnhancedLogin />} />
         <Route path="/signup" element={<EnhancedSignup />} />
         <Route path="/verify-otp" element={<OTPVerification />} />
+        <Route path="/about" element={<AboutUs />} />
+        <Route path="/courses" element={<Courses />} />
         <Route 
           path="/dashboard/*" 
           element={

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/theme_provider.dart';
-import '../../providers/institute_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../config/theme.dart';
 import 'overview_page.dart';
 import 'students_page.dart';
@@ -60,7 +60,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final instituteProvider = Provider.of<InstituteProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
 
     return Scaffold(
       key: _scaffoldKey,
@@ -75,11 +75,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              instituteProvider.instituteData['name'] ?? 'Institute',
+              authProvider.instituteData['name'] ?? 'Institute',
               style: theme.textTheme.titleMedium,
             ),
             Text(
-              instituteProvider.instituteData['email'] ?? '',
+              authProvider.instituteData['email'] ?? '',
               style: theme.textTheme.bodySmall,
             ),
           ],
@@ -98,7 +98,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 Text(
-                  instituteProvider.instituteData['subscriptionLabel'] ?? 'Premium Plan',
+                  authProvider.instituteData['subscriptionLabel'] ?? 'Premium Plan',
                   style: theme.textTheme.bodySmall,
                 ),
               ],
@@ -109,7 +109,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: CircleAvatar(
               radius: 20,
               child: Text(
-                (instituteProvider.instituteData['name'] ?? 'I')[0].toUpperCase(),
+                (authProvider.instituteData['name'] ?? 'I')[0].toUpperCase(),
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -119,7 +119,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-      drawer: _buildDrawer(theme, isDark, themeProvider, instituteProvider),
+      drawer: _buildDrawer(theme, isDark, themeProvider, authProvider),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: _menuItems[_selectedIndex].page,
@@ -146,7 +146,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildDrawer(ThemeData theme, bool isDark, ThemeProvider themeProvider, InstituteProvider instituteProvider) {
+  Widget _buildDrawer(ThemeData theme, bool isDark, ThemeProvider themeProvider, AuthProvider authProvider) {
     return Drawer(
       child: Column(
         children: [

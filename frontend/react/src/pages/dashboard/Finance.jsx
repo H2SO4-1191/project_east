@@ -1,20 +1,111 @@
-import { motion } from 'framer-motion';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { FaDollarSign, FaFileInvoiceDollar, FaCreditCard } from 'react-icons/fa';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FaDollarSign, FaFileInvoiceDollar, FaCreditCard, FaPlus, FaEdit, FaTimes, FaBook, FaClock, FaUsers } from 'react-icons/fa';
 import Card from '../../components/Card';
 import AnimatedCounter from '../../components/AnimatedCounter';
-import { invoicesData, paymentMethodsData, revenueData } from '../../data/enhancedDemoData';
+import AnimatedButton from '../../components/AnimatedButton';
+import Modal from '../../components/Modal';
+import toast from 'react-hot-toast';
 
 const Finance = () => {
-  const COLORS = ['#3b82f6', '#14b8a6', '#f59e0b', '#ef4444'];
+  const [showCreateCourseModal, setShowCreateCourseModal] = useState(false);
+  const [showEditCoursesModal, setShowEditCoursesModal] = useState(false);
+  const [courses, setCourses] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState(null);
   
-  const totalRevenue = invoicesData
-    .filter(i => i.status === 'Paid')
-    .reduce((sum, i) => sum + i.amount, 0);
+  // Create course form state
+  const [createForm, setCreateForm] = useState({
+    title: '',
+    code: '',
+    credits: '',
+    duration: '',
+    capacity: '',
+    price: '',
+    description: '',
+  });
+
+  // Edit course form state
+  const [editForm, setEditForm] = useState({
+    title: '',
+    code: '',
+    credits: '',
+    duration: '',
+    capacity: '',
+    price: '',
+    description: '',
+  });
+
+  const handleCreateChange = (e) => {
+    const { name, value } = e.target;
+    setCreateForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCreateCourse = (e) => {
+    e.preventDefault();
     
-  const pendingAmount = invoicesData
-    .filter(i => i.status === 'Pending' || i.status === 'Overdue')
-    .reduce((sum, i) => sum + i.amount, 0);
+    // Validate form
+    if (!createForm.title || !createForm.code || !createForm.price) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const newCourse = {
+      id: Date.now(),
+      ...createForm,
+      createdAt: new Date().toISOString(),
+    };
+
+    setCourses(prev => [...prev, newCourse]);
+    toast.success('Course created successfully!');
+    setShowCreateCourseModal(false);
+    setCreateForm({
+      title: '',
+      code: '',
+      credits: '',
+      duration: '',
+      capacity: '',
+      price: '',
+      description: '',
+    });
+  };
+
+  const handleEditCourse = (course) => {
+    setSelectedCourse(course);
+    setEditForm(course);
+  };
+
+  const handleUpdateCourse = (e) => {
+    e.preventDefault();
+    
+    setCourses(prev => prev.map(c => 
+      c.id === selectedCourse.id ? { ...c, ...editForm } : c
+    ));
+    
+    toast.success('Course updated successfully!');
+    setSelectedCourse(null);
+    setEditForm({
+      title: '',
+      code: '',
+      credits: '',
+      duration: '',
+      capacity: '',
+      price: '',
+      description: '',
+    });
+  };
+
+  const handleDeleteCourse = (courseId) => {
+    if (window.confirm('Are you sure you want to delete this course?')) {
+      setCourses(prev => prev.filter(c => c.id !== courseId));
+      toast.success('Course deleted successfully!');
+      setSelectedCourse(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -23,17 +114,17 @@ const Finance = () => {
         animate={{ opacity: 1, y: 0 }}
       >
         <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Finance</h2>
-        <p className="text-gray-600 dark:text-gray-400">Financial overview and management</p>
+        <p className="text-gray-600 dark:text-gray-400">Financial overview and course management</p>
       </motion.div>
 
-      {/* Stats */}
+      {/* Stats - All Zero */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card delay={0.1} className="relative overflow-hidden">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-2">Total Revenue</p>
               <p className="text-4xl font-bold text-green-600">
-                $<AnimatedCounter value={totalRevenue} duration={2} />
+                $<AnimatedCounter value={0} duration={2} />
               </p>
             </div>
             <div className="p-4 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 bg-opacity-10">
@@ -47,7 +138,7 @@ const Finance = () => {
             <div>
               <p className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-2">Pending Payments</p>
               <p className="text-4xl font-bold text-orange-600">
-                $<AnimatedCounter value={pendingAmount} duration={2} />
+                $<AnimatedCounter value={0} duration={2} />
               </p>
             </div>
             <div className="p-4 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 bg-opacity-10">
@@ -61,7 +152,7 @@ const Finance = () => {
             <div>
               <p className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-2">Total Invoices</p>
               <p className="text-4xl font-bold text-blue-600">
-                <AnimatedCounter value={invoicesData.length} duration={2} />
+                <AnimatedCounter value={0} duration={2} />
               </p>
             </div>
             <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 bg-opacity-10">
@@ -71,120 +162,400 @@ const Finance = () => {
         </Card>
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card delay={0.4}>
-          <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-            Payment Methods Distribution
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={paymentMethodsData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {paymentMethodsData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </Card>
+      {/* Zero Balance Message */}
+      <Card delay={0.4}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.5, duration: 0.5 }}
+          className="text-center py-16"
+        >
+          <motion.div
+            animate={{ 
+              scale: [1, 1.1, 1],
+              rotate: [0, 5, -5, 0]
+            }}
+            transition={{ 
+              duration: 2,
+              repeat: Infinity,
+              repeatDelay: 1
+            }}
+            className="inline-block mb-6"
+          >
+            <div className="w-24 h-24 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-navy-700 dark:to-navy-600 rounded-full flex items-center justify-center mx-auto">
+              <FaDollarSign className="w-12 h-12 text-gray-400 dark:text-gray-500" />
+            </div>
+          </motion.div>
+          
+          <motion.h3
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="text-2xl font-bold text-gray-800 dark:text-white mb-3"
+          >
+            No Funds Available
+          </motion.h3>
+          
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9 }}
+            className="text-gray-600 dark:text-gray-400 text-lg max-w-md mx-auto"
+          >
+            You currently have a balance of <span className="font-bold text-gray-800 dark:text-white">zero</span> or no funds available!
+          </motion.p>
 
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.1 }}
+            className="text-gray-500 dark:text-gray-500 text-sm mt-4"
+          >
+            Start creating courses to generate revenue
+          </motion.p>
+        </motion.div>
+      </Card>
+
+      {/* Courses List */}
+      {courses.length > 0 && (
         <Card delay={0.5}>
           <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-            Monthly Revenue
+            Your Courses
           </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={revenueData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-navy-700" />
-              <XAxis dataKey="month" className="text-gray-600 dark:text-gray-400" />
-              <YAxis className="text-gray-600 dark:text-gray-400" />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)', 
-                  border: 'none', 
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-                }} 
-              />
-              <Bar dataKey="revenue" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {courses.map((course, index) => (
+              <motion.div
+                key={course.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="p-4 border-2 border-gray-200 dark:border-navy-700 rounded-lg hover:border-primary-500 dark:hover:border-teal-500 transition-all cursor-pointer"
+                onClick={() => handleEditCourse(course)}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <h4 className="font-bold text-gray-800 dark:text-white mb-1">{course.title}</h4>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{course.code}</p>
+                  </div>
+                  <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">
+                    ${course.price}
+                  </span>
+                </div>
+                
+                <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                  {course.credits && (
+                    <div className="flex items-center gap-2">
+                      <FaBook className="text-primary-600 dark:text-teal-400" />
+                      <span>{course.credits} Credits</span>
+                    </div>
+                  )}
+                  {course.duration && (
+                    <div className="flex items-center gap-2">
+                      <FaClock className="text-primary-600 dark:text-teal-400" />
+                      <span>{course.duration}</span>
+                    </div>
+                  )}
+                  {course.capacity && (
+                    <div className="flex items-center gap-2">
+                      <FaUsers className="text-primary-600 dark:text-teal-400" />
+                      <span>Max {course.capacity} students</span>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </Card>
-      </div>
+      )}
 
-      {/* Invoices Table */}
-      <Card delay={0.6}>
-        <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-          Recent Invoices
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead className="bg-gradient-to-r from-gold-600 to-gold-700 dark:from-gold-700 dark:to-gold-800 text-white">
-              <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold">Invoice ID</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold">Student</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold">Amount</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold">Due Date</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold">Payment Method</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-navy-700">
-              {invoicesData.map((invoice, index) => (
-                <motion.tr
-                  key={invoice.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  whileHover={{ backgroundColor: 'rgba(245, 158, 11, 0.05)' }}
-                  className="hover:shadow-md transition-all"
+      {/* Create Course Modal */}
+      <Modal
+        isOpen={showCreateCourseModal}
+        onClose={() => setShowCreateCourseModal(false)}
+        title="Create New Course"
+      >
+        <form onSubmit={handleCreateCourse} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                Course Title *
+              </label>
+              <input
+                type="text"
+                name="title"
+                value={createForm.title}
+                onChange={handleCreateChange}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                placeholder="e.g. Introduction to Computer Science"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                Course Code *
+              </label>
+              <input
+                type="text"
+                name="code"
+                value={createForm.code}
+                onChange={handleCreateChange}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                placeholder="e.g. CS101"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                Credits
+              </label>
+              <input
+                type="number"
+                name="credits"
+                value={createForm.credits}
+                onChange={handleCreateChange}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                placeholder="e.g. 3"
+              />
+            </div>
+
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                Duration
+              </label>
+              <input
+                type="text"
+                name="duration"
+                value={createForm.duration}
+                onChange={handleCreateChange}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                placeholder="e.g. 12 weeks"
+              />
+            </div>
+
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                Capacity
+              </label>
+              <input
+                type="number"
+                name="capacity"
+                value={createForm.capacity}
+                onChange={handleCreateChange}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                placeholder="e.g. 30"
+              />
+            </div>
+
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                Price ($) *
+              </label>
+              <input
+                type="number"
+                name="price"
+                value={createForm.price}
+                onChange={handleCreateChange}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                placeholder="e.g. 500"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+              Description
+            </label>
+            <textarea
+              name="description"
+              value={createForm.description}
+              onChange={handleCreateChange}
+              rows="4"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white resize-none"
+              placeholder="Course description..."
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <AnimatedButton type="submit" className="flex-1">
+              Create Course
+            </AnimatedButton>
+            <AnimatedButton
+              type="button"
+              variant="secondary"
+              onClick={() => setShowCreateCourseModal(false)}
+              className="flex-1"
+            >
+              Cancel
+            </AnimatedButton>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Courses Modal */}
+      <Modal
+        isOpen={showEditCoursesModal}
+        onClose={() => {
+          setShowEditCoursesModal(false);
+          setSelectedCourse(null);
+        }}
+        title={selectedCourse ? "Edit Course" : "Manage Courses"}
+      >
+        {!selectedCourse ? (
+          <div className="space-y-3">
+            {courses.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 dark:text-gray-400">
+                  No courses available. Create your first course!
+                </p>
+              </div>
+            ) : (
+              courses.map((course) => (
+                <motion.div
+                  key={course.id}
+                  whileHover={{ scale: 1.02 }}
+                  className="p-4 border-2 border-gray-200 dark:border-navy-700 rounded-lg hover:border-primary-500 dark:hover:border-teal-500 transition-all cursor-pointer"
+                  onClick={() => handleEditCourse(course)}
                 >
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
-                    {invoice.id}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                    {invoice.studentName}
-                  </td>
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">
-                    ${invoice.amount.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                    {new Date(invoice.dueDate).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        invoice.status === 'Paid'
-                          ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
-                          : invoice.status === 'Pending'
-                          ? 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300'
-                          : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
-                      }`}
-                    >
-                      {invoice.status}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-bold text-gray-800 dark:text-white">{course.title}</h4>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{course.code}</p>
+                    </div>
+                    <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-sm font-semibold">
+                      ${course.price}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                    {invoice.paymentMethod || '-'}
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </div>
+        ) : (
+          <form onSubmit={handleUpdateCourse} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                  Course Title *
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  value={editForm.title}
+                  onChange={handleEditChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                  Course Code *
+                </label>
+                <input
+                  type="text"
+                  name="code"
+                  value={editForm.code}
+                  onChange={handleEditChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                  Credits
+                </label>
+                <input
+                  type="number"
+                  name="credits"
+                  value={editForm.credits}
+                  onChange={handleEditChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                  Duration
+                </label>
+                <input
+                  type="text"
+                  name="duration"
+                  value={editForm.duration}
+                  onChange={handleEditChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                  Capacity
+                </label>
+                <input
+                  type="number"
+                  name="capacity"
+                  value={editForm.capacity}
+                  onChange={handleEditChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                  Price ($) *
+                </label>
+                <input
+                  type="number"
+                  name="price"
+                  value={editForm.price}
+                  onChange={handleEditChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                Description
+              </label>
+              <textarea
+                name="description"
+                value={editForm.description}
+                onChange={handleEditChange}
+                rows="4"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white resize-none"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <AnimatedButton type="submit" className="flex-1">
+                Update Course
+              </AnimatedButton>
+              <AnimatedButton
+                type="button"
+                variant="secondary"
+                onClick={() => handleDeleteCourse(selectedCourse.id)}
+                className="flex-1 bg-red-600 hover:bg-red-500"
+              >
+                Delete Course
+              </AnimatedButton>
+              <AnimatedButton
+                type="button"
+                variant="secondary"
+                onClick={() => setSelectedCourse(null)}
+                className="flex-1"
+              >
+                Back
+              </AnimatedButton>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 };
 
 export default Finance;
-

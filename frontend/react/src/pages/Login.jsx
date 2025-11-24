@@ -25,7 +25,7 @@ const Login = () => {
     // Hardcoded demo credentials
     if (formData.email === 'demo@east.edu' && formData.password === '12345') {
       setInstituteData({
-        name: 'Al-Noor Educational Institute',
+        name: 'Baghdad Technical University',
         email: 'demo@east.edu',
       });
       navigate('/dashboard');

@@ -200,10 +200,21 @@ export const authService = {
     return data.schedule;
   },
 
-  async checkVerificationStatus(email) {
-    const response = await fetch(`${BASE_URL}/registration/is-verified/`, {
+  async checkVerificationStatus(email, accessToken) {
+    if (!email) {
+      throw buildError(400, { message: 'Email is required to check verification status.' });
+    }
+
+    if (!accessToken) {
+      throw buildError(401, { message: 'Access token is required to check verification status.' });
+    }
+
+    const response = await fetch(`${BASE_URL}/registration/is-verified/?email=${encodeURIComponent(email)}`, {
       method: 'GET',
-      headers: defaultHeaders,
+      headers: {
+        ...defaultHeaders,
+        Authorization: `Bearer ${accessToken}`,
+      },
     });
 
     const data = await parseResponse(response);
@@ -215,12 +226,19 @@ export const authService = {
     return data;
   },
 
-  async validateDocumentWithAI(file) {
+  async validateDocumentWithAI(file, accessToken) {
+    if (!accessToken) {
+      throw buildError(401, { message: 'Access token is required for AI document validation.' });
+    }
+
     const formData = new FormData();
     formData.append('file', file);
 
     const response = await fetch(`${BASE_URL}/ai/doc/`, {
       method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
       body: formData,
     });
 

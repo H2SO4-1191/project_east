@@ -254,42 +254,40 @@ const EnhancedSignup = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                    Institution Username
-                  </label>
-                  <motion.input
-                    whileFocus={{ scale: 1.01 }}
-                    type="text"
-                    name="username"
-                    value={formValues.username}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                    placeholder="e.g. alnoor_institution"
-                    autoComplete="organization"
-                  />
-                  {errors.username && (
-                    <p className="mt-2 text-sm text-red-500">{errors.username}</p>
-                  )}
-                </div>
+              <div>
+                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                  Institution Username
+                </label>
+                <motion.input
+                  whileFocus={{ scale: 1.01 }}
+                  type="text"
+                  name="username"
+                  value={formValues.username}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                  placeholder="e.g. alnoor_institution"
+                  autoComplete="organization"
+                />
+                {errors.username && (
+                  <p className="mt-2 text-sm text-red-500">{errors.username}</p>
+                )}
+              </div>
 
-                <div>
-                  <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                    Contact Email
-                  </label>
-                  <motion.input
-                    whileFocus={{ scale: 1.01 }}
-                    type="email"
-                    name="email"
-                    value={formValues.email}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                    placeholder="name@institution.edu"
-                    autoComplete="email"
-                  />
-                  {errors.email && <p className="mt-2 text-sm text-red-500">{errors.email}</p>}
-                </div>
+              <div>
+                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                  Contact Email
+                </label>
+                <motion.input
+                  whileFocus={{ scale: 1.01 }}
+                  type="email"
+                  name="email"
+                  value={formValues.email}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                  placeholder="name@institution.edu"
+                  autoComplete="email"
+                />
+                {errors.email && <p className="mt-2 text-sm text-red-500">{errors.email}</p>}
               </div>
 
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 px-4 py-3 rounded-lg text-sm">

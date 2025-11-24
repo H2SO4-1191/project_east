@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../providers/theme_provider.dart';
-import '../providers/institute_provider.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/animated_background.dart';
 import '../widgets/enhanced_button.dart';
 import '../config/theme.dart';
 import '../utils/page_transitions.dart';
+import '../services/api_service.dart';
+import '../models/auth_response.dart';
 import 'dashboard/dashboard_screen.dart';
 
 class OTPScreen extends StatefulWidget {
@@ -28,16 +32,38 @@ class _OTPScreenState extends State<OTPScreen> {
     (index) => FocusNode(),
   );
   bool _isLoading = false;
+  bool _isResending = false;
   String _error = '';
   String? _email;
+  Map<String, dynamic>? _recentSignup;
 
   @override
   void initState() {
     super.initState();
     _email = widget.email;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNodes[0].requestFocus();
-    });
+    _loadRecentSignup();
+    
+    if (_email == null || _email!.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).pushReplacementNamed('/login');
+      });
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _focusNodes[0].requestFocus();
+      });
+    }
+  }
+
+  Future<void> _loadRecentSignup() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString('recentSignup');
+      if (stored != null) {
+        _recentSignup = json.decode(stored);
+      }
+    } catch (e) {
+      print('Failed to load recent signup: $e');
+    }
   }
 
   @override
@@ -70,27 +96,74 @@ class _OTPScreenState extends State<OTPScreen> {
       _error = '';
     });
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final result = await ApiService.verifyOtp(
+        email: _email!,
+        otpCode: otpCode,
+      );
 
-    if (mounted) {
-      if (otpCode == '200471') {
-        // Success
-        final instituteProvider = Provider.of<InstituteProvider>(context, listen: false);
+      if (mounted) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
         
-        instituteProvider.updateInstituteData({
-          'name': 'Al-Noor Educational Institute',
-          'email': _email ?? 'info@alnoor.edu',
+        // Decode JWT payload
+        final payload = JwtPayload.decode(result['access']);
+        final resolvedEmail = payload?.email ?? _email!;
+        final usernameFromEmail = resolvedEmail.split('@')[0];
+        
+        final firstName = payload?.firstName ?? 
+            _recentSignup?['firstName'] ?? 
+            usernameFromEmail;
+        final lastName = payload?.lastName ?? 
+            _recentSignup?['lastName'] ?? 
+            '';
+        final username = payload?.username ?? 
+            _recentSignup?['username'] ?? 
+            usernameFromEmail;
+        final displayName = payload?.fullName ?? 
+            payload?.name ?? 
+            [firstName, lastName].where((s) => s.isNotEmpty).join(' ').ifEmpty ?? 
+            username;
+
+        // Check verification status
+        bool isVerified = false;
+        try {
+          final verificationStatus = await ApiService.checkVerificationStatus(resolvedEmail);
+          isVerified = verificationStatus['is_verified'] ?? false;
+        } catch (e) {
+          print('Failed to check verification status: $e');
+        }
+
+        // Update auth provider with all data
+        await authProvider.updateInstituteData({
+          'name': displayName,
+          'email': resolvedEmail,
+          'username': username,
+          'firstName': firstName,
+          'lastName': lastName,
+          'userId': result['user_id'],
+          'userType': result['user_type'] ?? _recentSignup?['userType'] ?? 'institution',
+          'accessToken': result['access'],
+          'refreshToken': result['refresh'],
+          'isAuthenticated': true,
+          'isVerified': isVerified,
         });
 
+        // Clear recent signup if it matches
+        if (_recentSignup?['email'] == resolvedEmail) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('recentSignup');
+        }
+
+        final message = result['message'] ?? 'Verification successful! Welcome back!';
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
                 const Icon(Icons.check_circle, color: Colors.white),
                 const SizedBox(width: 12),
-                const Expanded(
-                  child: Text('Verification successful! Welcome back!'),
+                Expanded(
+                  child: Text(message),
                 ),
               ],
             ),
@@ -109,11 +182,26 @@ class _OTPScreenState extends State<OTPScreen> {
             ScaleSlideTransition(page: const DashboardScreen()),
           );
         }
-      } else {
+      }
+    } catch (e) {
+      if (mounted) {
         setState(() {
-          _error = 'Invalid verification code. Please try again.';
           _isLoading = false;
+          _error = e is ApiException 
+              ? e.message 
+              : 'Invalid verification code. Please try again.';
         });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_error),
+            backgroundColor: Colors.red.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
         
         // Clear OTP inputs
         for (var controller in _controllers) {
@@ -124,21 +212,69 @@ class _OTPScreenState extends State<OTPScreen> {
     }
   }
 
-  void _handleResendCode() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Verification code resent to your email!'),
-        backgroundColor: AppTheme.teal500,
-      ),
-    );
-    
-    for (var controller in _controllers) {
-      controller.clear();
+  void _handleResendCode() async {
+    if (_email == null || _email!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Missing email. Please go back and request a new code.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      Navigator.of(context).pushReplacementNamed('/login');
+      return;
     }
-    _focusNodes[0].requestFocus();
+
     setState(() {
+      _isResending = true;
       _error = '';
     });
+
+    try {
+      final response = await ApiService.requestOtp(_email!);
+      
+      if (mounted) {
+        final message = response['message'] ?? 'Verification code resent to your email!';
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: AppTheme.teal500,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+        
+        for (var controller in _controllers) {
+          controller.clear();
+        }
+        _focusNodes[0].requestFocus();
+      }
+    } catch (e) {
+      if (mounted) {
+        final message = e is ApiException 
+            ? e.message 
+            : 'Unable to resend the verification code. Please try again shortly.';
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.red.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isResending = false;
+        });
+      }
+    }
   }
 
   @override
@@ -411,46 +547,6 @@ class _OTPScreenState extends State<OTPScreen> {
                                 
                                 const SizedBox(height: 24),
                                 
-                                // Demo Code Info
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: isDark
-                                        ? AppTheme.primary900.withOpacity(0.2)
-                                        : AppTheme.primary50,
-                                    border: Border.all(
-                                      color: isDark
-                                          ? AppTheme.primary800
-                                          : AppTheme.primary200,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        'Demo Code: ',
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark
-                                              ? AppTheme.primary400
-                                              : AppTheme.primary700,
-                                        ),
-                                      ),
-                                      Text(
-                                        '200471',
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                          color: isDark
-                                              ? AppTheme.primary400
-                                              : AppTheme.primary700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                
-                                const SizedBox(height: 24),
-                                
                                 SizedBox(
                                   width: double.infinity,
                                   child: EnhancedButton(
@@ -472,9 +568,9 @@ class _OTPScreenState extends State<OTPScreen> {
                                     ),
                                     const SizedBox(height: 8),
                                     TextButton(
-                                      onPressed: _handleResendCode,
+                                      onPressed: _isResending ? null : _handleResendCode,
                                       child: Text(
-                                        'Resend Code',
+                                        _isResending ? 'Resending...' : 'Resend Code',
                                         style: TextStyle(
                                           color: isDark
                                               ? AppTheme.teal400
@@ -502,3 +598,6 @@ class _OTPScreenState extends State<OTPScreen> {
   }
 }
 
+extension on String {
+  String get ifEmpty => isEmpty ? '' : this;
+}

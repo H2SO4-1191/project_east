@@ -124,6 +124,23 @@ const Overview = () => {
       setStatsState(prev => ({ ...prev, loading: true, error: '' }));
 
       try {
+        // Fetch verification status on dashboard load
+        if (instituteData.email && instituteData.userType === 'institution' && instituteData.accessToken) {
+          try {
+            const verificationStatus = await authService.checkVerificationStatus(
+              instituteData.email,
+              instituteData.accessToken
+            );
+            if (isMounted && verificationStatus?.is_verified !== instituteData.isVerified) {
+              updateInstituteData({
+                isVerified: verificationStatus?.is_verified || false,
+              });
+            }
+          } catch (verifyErr) {
+            console.warn('Failed to check verification status on dashboard load:', verifyErr);
+          }
+        }
+
         const results = await authService.getDashboardStats(instituteData.accessToken, {
           refreshToken: instituteData.refreshToken,
           onTokenRefreshed: (tokens) =>
@@ -193,10 +210,42 @@ const Overview = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Overview</h2>
-        <p className="text-gray-600 dark:text-gray-400">
-          Welcome back, {displayName}
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Overview</h2>
+            <p className="text-gray-600 dark:text-gray-400">
+              Welcome back, {displayName}
+            </p>
+          </div>
+          
+          {/* Syncing/Error Status in Navigation */}
+          <div className="flex flex-col items-end gap-1">
+            {statsState.loading && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center gap-2 text-sm text-primary-600 dark:text-teal-400 bg-primary-50 dark:bg-primary-900/20 px-3 py-2 rounded-lg"
+              >
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  className="w-4 h-4 border-2 border-primary-600 dark:border-teal-400 border-t-transparent rounded-full"
+                />
+                <span>Syncing...</span>
+              </motion.div>
+            )}
+
+            {statsState.error && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="text-sm text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg max-w-xs text-right"
+              >
+                {statsState.error}
+              </motion.div>
+            )}
+          </div>
+        </div>
       </motion.div>
 
       {/* Stats Grid */}
@@ -205,26 +254,6 @@ const Overview = () => {
           <StatCard key={stat.title} {...stat} />
         ))}
       </div>
-
-      {statsState.loading && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-sm text-gray-600 dark:text-gray-400"
-        >
-          Syncing dashboard metrics with the server...
-        </motion.div>
-      )}
-
-      {statsState.error && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-sm text-red-500"
-        >
-          {statsState.error}
-        </motion.div>
-      )}
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -26,6 +26,9 @@ dependencies:
   # Charts
   fl_chart: ^0.66.0
   
+  # HTTP & API
+  http: ^1.1.0
+  
   # Other
   intl: ^0.18.1
   

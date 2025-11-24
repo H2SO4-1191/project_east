@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
-import '../providers/institute_provider.dart';
 import '../widgets/animated_background.dart';
 import '../widgets/enhanced_button.dart';
 import '../widgets/glass_card.dart';
@@ -42,14 +41,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _handleRegistrationSubmit() {
     if (_formKey.currentState!.validate()) {
-      final instituteProvider = Provider.of<InstituteProvider>(context, listen: false);
-      instituteProvider.updateInstituteData({
-        'name': _instituteNameController.text,
-        'email': _emailController.text,
-        'registrationDate': DateTime.now().toIso8601String(),
-      });
-      
-      Navigator.pushReplacementNamed(context, '/dashboard');
+      // Navigate to signup screen instead
+      Navigator.pushNamed(context, '/signup');
     }
   }
 

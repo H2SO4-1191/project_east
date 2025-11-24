@@ -6,10 +6,13 @@ import '../widgets/enhanced_button.dart';
 import '../widgets/glass_card.dart';
 import '../config/theme.dart';
 import '../utils/page_transitions.dart';
+import '../services/api_service.dart';
 import 'otp_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? initialEmail;
+  
+  const LoginScreen({super.key, this.initialEmail});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -19,6 +22,16 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  String _error = '';
+  bool _signupPrompt = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialEmail != null) {
+      _emailController.text = widget.initialEmail!;
+    }
+  }
 
   @override
   void dispose() {
@@ -30,37 +43,65 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
+        _error = '';
+        _signupPrompt = false;
       });
 
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 1));
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text('Verification code sent to your email!'),
-                ),
-              ],
+      try {
+        final response = await ApiService.requestOtp(_emailController.text.trim());
+        
+        if (mounted) {
+          final message = response['message'] ?? 'Verification code sent to your email!';
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(message),
+                  ),
+                ],
+              ),
+              backgroundColor: AppTheme.teal500,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 3),
             ),
-            backgroundColor: AppTheme.teal500,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+          );
 
-        Navigator.of(context).push(
-          SmoothPageRoute(
-            page: OTPScreen(email: _emailController.text),
-          ),
-        );
+          Navigator.of(context).push(
+            SmoothPageRoute(
+              page: OTPScreen(email: _emailController.text.trim()),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            if (e is ApiException) {
+              _error = e.message;
+              _signupPrompt = e.suggestSignup;
+            } else {
+              _error = 'Unable to reach the server. Please check your connection and try again.';
+            }
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Login failed. Please review the message below.'),
+              backgroundColor: Colors.red.shade600,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        }
       }
     }
   }
@@ -186,24 +227,24 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 48),
 
-          // Login Form Card
-          TweenAnimationBuilder(
-            tween: Tween<double>(begin: 0, end: 1),
-            duration: const Duration(milliseconds: 800),
-            builder: (context, value, child) {
-              return Opacity(
-                opacity: value,
-                child: Transform.translate(
-                  offset: Offset(0, 30 * (1 - value)),
-                  child: Transform.scale(
-                    scale: 0.9 + (0.1 * value),
-                    child: child,
-                  ),
-                ),
-              );
-            },
-            child: GlassCard(
-              borderRadius: 20,
+                        // Login Form Card
+                        TweenAnimationBuilder(
+                          tween: Tween<double>(begin: 0, end: 1),
+                          duration: const Duration(milliseconds: 800),
+                          builder: (context, value, child) {
+                            return Opacity(
+                              opacity: value,
+                              child: Transform.translate(
+                                offset: Offset(0, 30 * (1 - value)),
+                                child: Transform.scale(
+                                  scale: 0.9 + (0.1 * value),
+                                  child: child,
+                                ),
+                              ),
+                            );
+                          },
+                          child: GlassCard(
+                            borderRadius: 20,
                             child: Form(
                               key: _formKey,
                               child: Column(
@@ -222,6 +263,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                       hintText: 'Enter your email',
                                     ),
                                     keyboardType: TextInputType.emailAddress,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _error = '';
+                                        _signupPrompt = false;
+                                      });
+                                    },
                                     validator: (value) {
                                       if (value == null || value.trim().isEmpty) {
                                         return 'Please enter your email address';
@@ -233,54 +280,67 @@ class _LoginScreenState extends State<LoginScreen> {
                                       return null;
                                     },
                                   ),
-                                  const SizedBox(height: 24),
                                   
-                                  // Demo Info
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: isDark
-                                          ? AppTheme.primary900.withOpacity(0.2)
-                                          : AppTheme.primary50,
-                                      border: Border.all(
-                                        color: isDark
-                                            ? AppTheme.primary800
-                                            : AppTheme.primary200,
+                                  if (_error.isNotEmpty) ...[
+                                    const SizedBox(height: 16),
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.withOpacity(0.1),
+                                        border: Border.all(color: Colors.red.shade300),
+                                        borderRadius: BorderRadius.circular(8),
                                       ),
-                                      borderRadius: BorderRadius.circular(8),
+                                      child: Text(
+                                        _error,
+                                        style: TextStyle(
+                                          color: Colors.red.shade700,
+                                          fontSize: 12,
+                                        ),
+                                      ),
                                     ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Demo Login:',
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: isDark
-                                                ? AppTheme.primary400
-                                                : AppTheme.primary700,
+                                  ],
+
+                                  if (_signupPrompt) ...[
+                                    const SizedBox(height: 16),
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber.withOpacity(0.1),
+                                        border: Border.all(color: Colors.amber.shade300),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          Text(
+                                            'Need an account? Start your institution signup.',
+                                            style: TextStyle(
+                                              color: Colors.amber.shade800,
+                                              fontSize: 12,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Email: demo@east.edu',
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            color: isDark
-                                                ? AppTheme.primary400
-                                                : AppTheme.primary700,
+                                          const SizedBox(height: 8),
+                                          ElevatedButton(
+                                            onPressed: () {
+                                              Navigator.pushNamed(context, '/signup');
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.amber.shade600,
+                                              foregroundColor: Colors.white,
+                                              padding: const EdgeInsets.symmetric(vertical: 8),
+                                            ),
+                                            child: const Text(
+                                              'Go to Sign Up',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                        Text(
-                                          'Verification Code: 200471',
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            color: isDark
-                                                ? AppTheme.primary400
-                                                : AppTheme.primary700,
-                                          ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                   
                                   const SizedBox(height: 24),
                                   
@@ -310,7 +370,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: theme.textTheme.bodySmall,
                             ),
                             TextButton(
-                              onPressed: () => Navigator.pop(context),
+                              onPressed: () => Navigator.pushNamed(context, '/signup'),
                               child: Text(
                                 'Sign up here',
                                 style: TextStyle(
@@ -335,4 +395,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-
