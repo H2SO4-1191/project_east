@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FaMoon, FaSun, FaUniversity, FaChalkboardTeacher, FaGraduationCap } from 'react-icons/fa';
 import { useTheme } from '../context/ThemeContext';
@@ -9,8 +9,16 @@ import Card from '../components/Card';
 
 const EnhancedHome = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isDark, toggleTheme } = useTheme();
   const [showAccountSelection, setShowAccountSelection] = useState(false);
+
+  // Check if we should show account selection (from Sign Up button)
+  useEffect(() => {
+    if (location.state?.showSignUp) {
+      setShowAccountSelection(true);
+    }
+  }, [location.state]);
 
   return (
     <AnimatedBackground>
@@ -143,22 +151,29 @@ const EnhancedHome = () => {
                     </p>
                   </motion.button>
 
-                  <div className="relative p-6 rounded-xl border-2 border-dashed border-gray-300 dark:border-navy-700 bg-gray-50 dark:bg-navy-900 text-left opacity-60 cursor-not-allowed">
-                    <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center mb-4">
+                  <motion.button
+                    whileHover={{ y: -6, scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => navigate('/signup/lecturer')}
+                    className="p-6 rounded-xl border-2 border-gray-200 dark:border-navy-700 hover:border-purple-400 dark:hover:border-purple-500 transition-all bg-white dark:bg-navy-800 text-left"
+                  >
+                    <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-4">
                       <FaChalkboardTeacher className="w-8 h-8 text-white" />
                     </div>
                     <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">
-                      Teacher
+                      Lecturer
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Manage classes and assignments. <span className="font-semibold">Coming soon.</span>
+                      Manage classes and assignments.
                     </p>
-                    <span className="absolute top-3 right-3 px-2 py-1 bg-gray-500 text-white text-xs rounded-full">
-                      Coming Soon
-                    </span>
-                  </div>
+                  </motion.button>
 
-                  <div className="relative p-6 rounded-xl border-2 border-dashed border-gray-300 dark:border-navy-700 bg-gray-50 dark:bg-navy-900 text-left opacity-60 cursor-not-allowed">
+                  <motion.button
+                    whileHover={{ y: -6, scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => navigate('/signup/student')}
+                    className="p-6 rounded-xl border-2 border-gray-200 dark:border-navy-700 hover:border-blue-400 dark:hover:border-blue-500 transition-all bg-white dark:bg-navy-800 text-left"
+                  >
                     <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4">
                       <FaGraduationCap className="w-8 h-8 text-white" />
                     </div>
@@ -166,12 +181,9 @@ const EnhancedHome = () => {
                       Student
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Access courses, grades, and schedules. <span className="font-semibold">Coming soon.</span>
+                      Access courses, grades, and schedules.
                     </p>
-                    <span className="absolute top-3 right-3 px-2 py-1 bg-gray-500 text-white text-xs rounded-full">
-                      Coming Soon
-                    </span>
-                  </div>
+                  </motion.button>
                 </div>
               </motion.div>
             )}

@@ -1053,6 +1053,140 @@ const Feed = () => {
                 )}
               </motion.button>
 
+              {/* Student/Lecturer Navigation Buttons */}
+              {instituteData.isAuthenticated && (instituteData.userType === 'student' || instituteData.userType === 'lecturer') && (
+                <>
+                  {/* Notification Button for Students */}
+                  <div className="relative" ref={notificationRef}>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setShowNotifications(!showNotifications)}
+                      className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors"
+                    >
+                      <FaBell className="text-gray-600 dark:text-gray-400 text-xl" />
+                      {notifications.filter(n => !n.read).length > 0 && (
+                        <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                          {notifications.filter(n => !n.read).length}
+                        </span>
+                      )}
+                    </motion.button>
+
+                    {/* Notification Popup */}
+                    <AnimatePresence>
+                      {showNotifications && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                          className="absolute right-0 mt-2 w-80 bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-700 overflow-hidden z-50"
+                        >
+                          <div className="p-4 border-b border-gray-200 dark:border-navy-700 flex items-center justify-between">
+                            <h3 className="font-bold text-gray-800 dark:text-white">Notifications</h3>
+                            <span className="text-sm text-gray-500 dark:text-gray-400">
+                              {notifications.filter(n => !n.read).length} new
+                            </span>
+                          </div>
+                          <div className="max-h-96 overflow-y-auto">
+                            {notifications.length === 0 ? (
+                              <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                                No notifications
+                              </div>
+                            ) : (
+                              notifications.map((notification) => (
+                                <motion.div
+                                  key={notification.id}
+                                  initial={{ opacity: 0, x: -20 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  className={`p-4 border-b border-gray-100 dark:border-navy-700 hover:bg-gray-50 dark:hover:bg-navy-900 transition-colors cursor-pointer ${
+                                    !notification.read ? 'bg-primary-50 dark:bg-primary-900/20' : ''
+                                  }`}
+                                  onClick={() => setShowNotifications(false)}
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                                      !notification.read ? 'bg-primary-600' : 'bg-transparent'
+                                    }`} />
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-semibold text-sm text-gray-800 dark:text-white mb-1">
+                                        {notification.title}
+                                      </h4>
+                                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">
+                                        {notification.message}
+                                      </p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-500">
+                                        {notification.time}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              ))
+                            )}
+                          </div>
+                          <div className="p-3 border-t border-gray-200 dark:border-navy-700 text-center">
+                            <button className="text-sm text-primary-600 dark:text-teal-400 hover:underline font-medium">
+                              View All Notifications
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {instituteData.userType === 'student' && (
+                    <>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => navigate('/student/schedule')}
+                        className="hidden sm:flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
+                        </svg>
+                        <span>Schedule</span>
+                      </motion.button>
+
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => navigate('/student/courses')}
+                        className="hidden sm:flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg transition-colors"
+                      >
+                        <FaBook className="w-5 h-5" />
+                        <span>Current Courses</span>
+                      </motion.button>
+                    </>
+                  )}
+
+                  {instituteData.userType === 'lecturer' && (
+                    <>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => navigate('/lecturer/schedule')}
+                        className="hidden sm:flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
+                        </svg>
+                        <span>Schedule</span>
+                      </motion.button>
+
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => navigate('/lecturer/courses')}
+                        className="hidden sm:flex items-center gap-2 px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-lg transition-colors"
+                      >
+                        <FaBook className="w-5 h-5" />
+                        <span>Current Courses</span>
+                      </motion.button>
+                    </>
+                  )}
+                </>
+              )}
+
               {/* Dashboard Link (Institution Only) */}
               {instituteData.isAuthenticated && isInstitution && (
                 <>
@@ -1179,6 +1313,15 @@ const Feed = () => {
                           <p className="text-xs text-gray-500 dark:text-gray-400">
                             {instituteData.email}
                           </p>
+                          {instituteData.userType === 'lecturer' && (
+                            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-navy-700">
+                              <p className="text-xs text-gray-500 dark:text-gray-500">Institution</p>
+                              <p className="text-sm font-medium text-primary-600 dark:text-teal-400 flex items-center gap-1">
+                                <FaUniversity className="w-3 h-3" />
+                                {instituteData.institution || 'Baghdad International Academy'}
+                              </p>
+                            </div>
+                          )}
                         </div>
 
                         {isInstitution && (
@@ -1192,6 +1335,60 @@ const Feed = () => {
                             <FaTachometerAlt />
                             Dashboard
                           </button>
+                        )}
+
+                        {instituteData.userType === 'student' && (
+                          <>
+                            <button
+                              onClick={() => {
+                                navigate('/student/schedule');
+                                setShowUserMenu(false);
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center gap-2 transition-colors sm:hidden"
+                            >
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
+                              </svg>
+                              Schedule
+                            </button>
+                            <button
+                              onClick={() => {
+                                navigate('/student/courses');
+                                setShowUserMenu(false);
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center gap-2 transition-colors sm:hidden"
+                            >
+                              <FaBook className="w-4 h-4" />
+                              Current Courses
+                            </button>
+                          </>
+                        )}
+
+                        {instituteData.userType === 'lecturer' && (
+                          <>
+                            <button
+                              onClick={() => {
+                                navigate('/lecturer/schedule');
+                                setShowUserMenu(false);
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center gap-2 transition-colors sm:hidden"
+                            >
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
+                              </svg>
+                              Schedule
+                            </button>
+                            <button
+                              onClick={() => {
+                                navigate('/lecturer/courses');
+                                setShowUserMenu(false);
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center gap-2 transition-colors sm:hidden"
+                            >
+                              <FaBook className="w-4 h-4" />
+                              Current Courses
+                            </button>
+                          </>
                         )}
 
                         <button
@@ -1220,7 +1417,7 @@ const Feed = () => {
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate('/signup')}
+                    onClick={() => navigate('/home', { state: { showSignUp: true } })}
                     className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors"
                   >
                     <FaUser />

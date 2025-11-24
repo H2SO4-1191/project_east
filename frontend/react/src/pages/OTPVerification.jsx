@@ -171,6 +171,8 @@ const OTPVerification = () => {
         console.warn('Failed to check verification status:', verifyErr);
       }
 
+      const userType = result?.user_type ?? pendingProfile.userType ?? instituteData.userType;
+      
       updateInstituteData({
         name: displayName,
         email: resolvedEmail,
@@ -178,7 +180,7 @@ const OTPVerification = () => {
         firstName,
         lastName,
         userId: result?.user_id ?? instituteData.userId,
-        userType: result?.user_type ?? pendingProfile.userType ?? instituteData.userType,
+        userType,
         accessToken: result?.access,
         refreshToken: result?.refresh,
         isAuthenticated: true,
@@ -196,7 +198,13 @@ const OTPVerification = () => {
       });
 
       toast.success(result?.message || 'Verification successful! Welcome back!');
-      navigate('/dashboard', { replace: true });
+      
+      // Redirect based on user type
+      if (userType === 'student' || userType === 'lecturer') {
+        navigate('/feed', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     } catch (err) {
       console.error('OTP verification error:', err);
       const message =

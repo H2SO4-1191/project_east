@@ -18,6 +18,7 @@ const createDefaultInstituteData = () => ({
   lastName: '',
   userId: null,
   userType: '',
+  institution: '', // For lecturers - the institution they work with
   accessToken: '',
   refreshToken: '',
   subscription: '',
