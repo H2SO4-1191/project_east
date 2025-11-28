@@ -343,6 +343,59 @@ class InstitutionEditProfileView(APIView):
         return Response({"success": False, "errors": serializer.errors},
                         status=status.HTTP_400_BAD_REQUEST)
 
+class InstitiutionCreatePostView(APIView):
+    permission_classes = [IsInstitution, IsVerified]
+
+    def post(self, request):
+        serializer = PostCreateSerializer(data=request.data)
+
+        if serializer.is_valid():
+            post = serializer.save(user=request.user)
+            return Response({
+                "success": True,
+                "message": "Post created successfully.",
+                "post_id": post.id
+            }, status=status.HTTP_201_CREATED)
+
+        return Response({
+            "success": False,
+            "errors": serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+class InstitutionCreateCourseView(APIView):
+    permission_classes = [IsInstitution, IsVerified]
+
+    def post(self, request):
+        serializer = CourseSerializer(data=request.data, context={"request": request})
+        if serializer.is_valid():
+            course = serializer.save()
+            return Response({
+                "success": True,
+                "message": "Course created successfully.",
+                "course_id": course.id
+            }, status=status.HTTP_201_CREATED)
+
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+class InstitutionEditCourseView(APIView):
+    permission_classes = [IsInstitution, IsVerified]
+
+    def put(self, request, course_id):
+        try:
+            course = Course.objects.get(id=course_id, institution=request.user.institution)
+        except Course.DoesNotExist:
+            return Response({"success": False, "message": "Course not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = CourseSerializer(course, data=request.data, partial=True, context={"request": request})
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "success": True,
+                "message": "Course updated successfully."
+            })
+
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
 

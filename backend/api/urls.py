@@ -21,7 +21,9 @@ urlpatterns = [
     path('institution/schedule/', InstitutionWeeklyScheduleView.as_view(), name='institutionschedule'),
     path('institution/institution-verify/', InstitutionVerificationView.as_view(), name='institutionverify'),
     path('institution/institution-edit/', InstitutionEditProfileView.as_view(), name='institutionedit'),
-
+    path('institution/create-post/', InstitiutionCreatePostView.as_view(), name='institutioncreatepost'),
+    path('institution/create-course/', InstitutionCreateCourseView.as_view(), name='institutioncreatecourse'),
+    path('institution/edit-course/', InstitutionEditCourseView.as_view(), name='institutioneditcourse'),
 
 
 

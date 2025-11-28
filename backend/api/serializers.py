@@ -6,7 +6,7 @@ from datetime import timedelta
 class SignupSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'user_type']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'city', 'user_type']
     def create(self, validated_data):
         user = User.objects.create(**validated_data)
         user.set_unusable_password()
@@ -176,6 +176,76 @@ class InstitutionEditProfileSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+class PostImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PostImage
+        fields = ['image']
+
+class PostCreateSerializer(serializers.ModelSerializer):
+    images = serializers.ListField(
+        child=serializers.ImageField(),
+        required=False
+    )
+
+    class Meta:
+        model = Post
+        fields = ['title', 'description', 'images']
+
+    def create(self, validated_data):
+        images = validated_data.pop('images', [])
+        post = Post.objects.create(**validated_data)
+
+        for img in images:
+            PostImage.objects.create(post=post, image=img)
+
+        return post
+
+class CourseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Course
+        fields = [
+            'id',
+            'title',
+            'about',
+            'course_image',
+            'starting_date',
+            'ending_date',
+            'level',
+            'price',
+            'days',
+            'start_time',
+            'end_time',
+            'lecturer'
+        ]
+
+    def validate(self, data):
+        start = data.get("starting_date") or getattr(self.instance, "starting_date", None)
+        end = data.get("ending_date") or getattr(self.instance, "ending_date", None)
+        price = data.get("price") or getattr(self.instance, "price", None)
+
+        if start and end and end < start:
+            raise serializers.ValidationError({"ending_date": "Ending date cannot be before starting date."})
+
+        if price < 0:
+            raise serializers.ValidationError({"price": "Price must be positive"})
+
+        st = data.get("start_time") or getattr(self.instance, "start_time", None)
+        et = data.get("end_time") or getattr(self.instance, "end_time", None)
+
+        if st and et and et <= st:
+            raise serializers.ValidationError({"end_time": "End time must be greater than start time."})
+
+        return data
+
+    def create(self, validated_data):
+        institution = self.context["request"].user.institution
+        return Course.objects.create(institution=institution, **validated_data)
+
+    def update(self, instance, validated_data):
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+        instance.save()
+        return instance
 
 
 

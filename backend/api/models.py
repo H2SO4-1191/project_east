@@ -26,12 +26,14 @@ def upload_path(instance, file_name):
 def upload_course_path(instance, file_name):
     return f"media/{instance.institution.username}/courses/{file_name}"
 
+def upload_post_path(instance, file_name):
+    return f"media/{instance.institution.username}/posts/{file_name}"
+
 def upload_staff_path(instance, file_name):
     first = instance.first_name.replace(" ", "_").lower()
     last = instance.last_name.replace(" ", "_").lower()
     staff_folder = f"{first}_{last}"
     return f"media/{instance.institution.user.username}/staff/{staff_folder}/{file_name}"
-
 
 class User(AbstractUser):
     USER_TYPES = (
@@ -39,10 +41,31 @@ class User(AbstractUser):
         ('lecturer', 'Lecturer'),
         ('student', 'Student'),
     )
+    CITY_CHOICES = (
+        ('baghdad', 'Baghdad'),
+        ('basra', 'Basra'),
+        ('maysan', 'Maysan'),
+        ('dhi_qar', 'Dhi Qar'),
+        ('muthanna', 'Muthanna'),
+        ('qadisiyyah', 'Qadisiyyah'),
+        ('najaf', 'Najaf'),
+        ('karbala', 'Karbala'),
+        ('babel', 'Babel'),
+        ('wasit', 'Wasit'),
+        ('anbar', 'Anbar'),
+        ('salah_al_din', 'Salah Al-Din'),
+        ('kirkuk', 'Kirkuk'),
+        ('diyala', 'Diyala'),
+        ('mosul', 'Mosul'),
+        ('erbil', 'Erbil'),
+        ('duhok', 'Duhok'),
+        ('sulaymaniyah', 'Sulaymaniyah'),
+    )
     first_name = models.CharField(max_length=100, blank=False, null=False)
     last_name = models.CharField(max_length=100, blank=False, null=False)
     email = models.EmailField(max_length=250, unique=True, null=False, blank=False)
     user_type = models.CharField(max_length=20, choices=USER_TYPES, null=False, blank=False)
+    city = models.CharField(max_length=255, choices=CITY_CHOICES)
     phone_number = models.CharField(max_length=15, blank=True, null=True, validators=[phone_validator])
     about = models.CharField(max_length=1000, blank=True, null=True)
     profile_image = models.ImageField(upload_to=upload_path, blank=True, null=True)
@@ -57,7 +80,7 @@ class User(AbstractUser):
     is_verified = models.BooleanField(default=False)
     otp_code = models.CharField(max_length=6, blank=True, null=True)
     otp_generated = models.DateTimeField(blank=True, null=True)
-    REQUIRED_FIELDS=['first_name', 'last_name', 'email', 'user_type']
+    REQUIRED_FIELDS=['first_name', 'last_name', 'email', 'city','user_type']
     def save(self, *args, **kwargs):
         if not self.password:
             self.set_unusable_password()
@@ -82,11 +105,18 @@ class Lecturer(models.Model):
         return self.user.username
 
 class Course(models.Model):
+    COURSE_LEVEL_CHOICES = (
+        ('beginner', 'Beginner'),
+        ('intermediate', 'Intermediate'),
+        ('advanced', 'Advanced'),
+    )
     title = models.CharField(max_length=255)
     about = models.CharField(max_length=1000)
     course_image = models.ImageField(upload_to=upload_course_path, blank=True, null=True)
     starting_date = models.DateField()
     ending_date = models.DateField()
+    level = models.CharField(max_length=255, choices=COURSE_LEVEL_CHOICES)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
 
     DAYS = [
         ('monday', 'Monday'),
@@ -139,8 +169,18 @@ class Staff(models.Model):
     institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name="staff", null=True, blank=True) # nullable for dev only!
     is_active = models.BooleanField(default=True)
 
+class Post(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='posts')
+    title = models.CharField(max_length=255)
+    description = models.CharField(max_length=2048, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return self.title
 
+class PostImage(models.Model):
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to=upload_post_path)
 
 
 
