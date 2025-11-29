@@ -14,7 +14,6 @@ from ai.predict_doc import classify_document
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 
-
 class FeedPagination(PageNumberPagination):
     page_size = 20
 
@@ -737,7 +736,6 @@ class InstitutionCourseAttendanceSummaryView(APIView):
             "students": summary
         })
 
-
 class StaffCreateView(APIView):
     permission_classes = [IsInstitution]
 
@@ -797,14 +795,6 @@ class StaffDetailView(APIView):
 
         serializer = StaffDetailSerializer(staff)
         return Response({"success": True, "data": serializer.data})
-
-
-
-
-
-
-
-
 
 class LecturerCoursesListView(ListAPIView):
     serializer_class = LecturerCourseListSerializer
@@ -1152,8 +1142,6 @@ class LecturerEditGradesView(APIView):
             "message": "Grades updated successfully."
         })
 
-
-
 class StudentSelfProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -1463,7 +1451,6 @@ class NotificationsView(APIView):
             "success": True,
             "notifications": notifications
         })
-
 
 class ExploreSearchView(APIView):
     permission_classes = []  # public search
