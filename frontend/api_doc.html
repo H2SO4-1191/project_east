@@ -1,437 +1,2881 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Project East API Documentation</title>
-<style>
+  <meta charset="UTF-8" />
+  <title>ProjectEast API Docs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #050816;
+      --bg-alt: #090b20;
+      --bg-card: #0b1022;
+      --border: #26284a;
+      --accent: #8b5cf6;
+      --accent-soft: rgba(139, 92, 246, 0.2);
+      --accent-2: #22d3ee;
+      --accent-3: #f97316;
+      --text: #e5e7eb;
+      --text-soft: #9ca3af;
+      --danger: #f97373;
+      --success: #4ade80;
+      --shadow-neon: 0 0 18px rgba(139, 92, 246, 0.7);
+      --radius-lg: 14px;
+      --radius-xl: 18px;
+      --transition-fast: 0.18s ease-out;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(circle at top, #111827 0, #020617 45%, #000 100%);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+      height: 100%;
+    }
+
     body {
-        background: #0f0f0f;
-        color: #e4e4e4;
-        font-family: "Segoe UI", sans-serif;
-        padding: 40px;
-        line-height: 1.6;
+      display: flex;
+      min-height: 100vh;
+      overflow: hidden;
     }
-    h1, h2, h3 {
-        color: #66ccff;
-        margin-bottom: 10px;
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      max-width: 35vw;
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.94));
+      border-right: 1px solid var(--border);
+      padding: 18px 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: relative;
+      z-index: 2;
     }
-    .endpoint {
-        border: 1px solid #333;
-        padding: 20px;
-        margin-bottom: 30px;
-        background: #1a1a1a;
-        border-radius: 8px;
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
     }
-    .method {
-        display: inline-block;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-weight: bold;
-        margin-bottom: 10px;
+
+    .logo-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 20%, var(--accent-2), var(--accent));
+      box-shadow: var(--shadow-neon);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #020617;
     }
-    .get { background: #2f6fda; }
-    .post { background: #1e8f4d; }
-    .delete { background: #b32d2d; }
-    .put { background: #b39b2d; }
-    pre {
-        background: #111;
-        padding: 15px;
-        border-radius: 6px;
-        overflow-x: auto;
-        border: 1px solid #222;
+
+    .logo-text-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-2);
     }
-    code { color: #9cdcfe; }
+
+    .logo-text-sub {
+      font-size: 11px;
+      color: var(--text-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.13em;
+    }
+
+    .base-url-box {
+      margin-top: 6px;
+      padding: 10px 11px;
+      background: rgba(15, 23, 42, 0.96);
+      border-radius: 12px;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
+      font-size: 11px;
+      line-height: 1.3;
+      position: relative;
+    }
+
+    .base-url-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--accent-2);
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .base-url-value {
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      word-break: break-all;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.95);
+      color: var(--accent-2);
+      padding: 2px 7px;
+      font-size: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      opacity: 0.8;
+      transition: var(--transition-fast);
+    }
+
+    .copy-btn:hover {
+      opacity: 1;
+      background: rgba(15, 23, 42, 1);
+    }
+
+    .sidebar-section-title {
+      margin-top: 14px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--text-soft);
+    }
+
+    .nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 4px;
+      padding-right: 2px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      max-height: calc(100vh - 230px);
+    }
+
+    .nav::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .nav::-webkit-scrollbar-thumb {
+      background: rgba(30, 64, 175, 0.7);
+      border-radius: 999px;
+    }
+
+    .nav-item {
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 12px;
+      color: var(--text-soft);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: transparent;
+      border: 1px solid transparent;
+      transition: var(--transition-fast);
+    }
+
+    .nav-item span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-item .nav-pill {
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+    }
+
+    .nav-item:hover {
+      background: radial-gradient(circle at 0 0, rgba(56, 189, 248, 0.22), transparent 55%);
+      border-color: rgba(94, 234, 212, 0.4);
+      color: var(--accent-2);
+    }
+
+    .nav-item.active {
+      background: linear-gradient(90deg, rgba(37, 99, 235, 0.5), rgba(124, 58, 237, 0.7));
+      color: #e5e7eb;
+      border-color: rgba(191, 219, 254, 0.7);
+      box-shadow: var(--shadow-neon);
+    }
+
+    .nav-footer {
+      margin-top: auto;
+      font-size: 10px;
+      color: var(--text-soft);
+      opacity: 0.75;
+    }
+
+    .nav-footer span {
+      color: var(--accent-3);
+    }
+
+    /* Main layout */
+    .main {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .main-inner {
+      position: relative;
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 22px 24px;
+      scrollbar-width: thin;
+    }
+
+    .main-inner::-webkit-scrollbar {
+      width: 7px;
+    }
+
+    .main-inner::-webkit-scrollbar-thumb {
+      background: rgba(30, 64, 175, 0.8);
+      border-radius: 999px;
+    }
+
+    .bg-orb {
+      position: fixed;
+      filter: blur(70px);
+      opacity: 0.6;
+      z-index: -1;
+      border-radius: 999px;
+    }
+
+    .bg-orb.a {
+      width: 380px;
+      height: 380px;
+      background: radial-gradient(circle at 30% 0, rgba(56, 189, 248, 0.75), transparent 60%);
+      top: -120px;
+      right: -120px;
+    }
+
+    .bg-orb.b {
+      width: 320px;
+      height: 320px;
+      background: radial-gradient(circle at 0 70%, rgba(139, 92, 246, 0.7), transparent 70%);
+      bottom: -140px;
+      left: -80px;
+    }
+
+    .page-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .page-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .page-title-pill {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      background: rgba(15, 23, 42, 0.95);
+      border-radius: 999px;
+      padding: 3px 8px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      color: var(--text-soft);
+    }
+
+    .page-subtitle {
+      font-size: 12px;
+      color: var(--text-soft);
+      max-width: 580px;
+    }
+
+    .filters-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 0 16px;
+      align-items: center;
+    }
+
+    .tag {
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      color: var(--text-soft);
+      background: rgba(15, 23, 42, 0.85);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .tag-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: radial-gradient(circle, var(--accent-2), transparent);
+      box-shadow: 0 0 9px rgba(34, 211, 238, 0.9);
+    }
+
+    .search-input {
+      flex: 1;
+      min-width: 180px;
+      border-radius: 999px;
+      padding: 6px 10px 6px 28px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: rgba(15, 23, 42, 0.95);
+      color: var(--text);
+      font-size: 12px;
+      outline: none;
+      position: relative;
+    }
+
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .search-wrapper::before {
+      content: "⌕";
+      position: absolute;
+      left: 9px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 11px;
+      color: var(--text-soft);
+      opacity: 0.9;
+    }
+
+    .search-input::placeholder {
+      color: rgba(148, 163, 184, 0.7);
+    }
+
+    /* Sections */
+    .section {
+      margin-bottom: 24px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
     .section-title {
-        color: #ffaa44;
-        margin-top: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--accent-2);
     }
-</style>
+
+    .section-description {
+      font-size: 11px;
+      color: var(--text-soft);
+      max-width: 480px;
+    }
+
+    .section-count {
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    /* Endpoint card */
+    .endpoint {
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border);
+      background: radial-gradient(circle at 0 0, rgba(79, 70, 229, 0.27), transparent 55%), rgba(15, 23, 42, 0.96);
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.9);
+      margin-bottom: 9px;
+      overflow: hidden;
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast), background 200ms ease-out;
+    }
+
+    .endpoint.collapsed {
+      background: radial-gradient(circle at 0 0, rgba(56, 189, 248, 0.26), transparent 60%), rgba(15, 23, 42, 0.96);
+    }
+
+    .endpoint-header {
+      padding: 7px 12px 7px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .endpoint-header-main {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .method {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      border: 1px solid rgba(15, 23, 42, 0.95);
+      background: rgba(15, 23, 42, 0.95);
+    }
+
+    .method-get {
+      color: #22c55e;
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+    }
+
+    .method-post {
+      color: #38bdf8;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+    }
+
+    .method-put {
+      color: #f97316;
+      box-shadow: 0 0 12px rgba(249, 115, 22, 0.4);
+    }
+
+    .method-delete {
+      color: #fb7185;
+      box-shadow: 0 0 12px rgba(248, 113, 113, 0.4);
+    }
+
+    .endpoint-url {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      color: #e5e7eb;
+      max-width: 100%;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .endpoint-usecase {
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    .endpoint-labels {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      max-width: 40%;
+    }
+
+    .chip {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: rgba(15, 23, 42, 0.92);
+      color: var(--text-soft);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .chip-role {
+      border-color: rgba(94, 234, 212, 0.7);
+      color: #a5f3fc;
+    }
+
+    .chip-jwt-on {
+      border-color: rgba(52, 211, 153, 0.9);
+      color: #6ee7b7;
+    }
+
+    .chip-jwt-off {
+      border-color: rgba(239, 68, 68, 0.8);
+      color: #fecaca;
+    }
+
+    .chip-public {
+      border-color: rgba(129, 140, 248, 0.9);
+      color: #c7d2fe;
+    }
+
+    .endpoint-toggle {
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: radial-gradient(circle at 30% 20%, rgba(251, 191, 36, 0.6), rgba(30, 64, 175, 0.95));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: #020617;
+      flex-shrink: 0;
+      transform: rotate(0deg);
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+      box-shadow: 0 0 10px rgba(251, 191, 36, 0.7);
+    }
+
+    .endpoint.open .endpoint-toggle {
+      transform: rotate(90deg);
+      box-shadow: 0 0 16px rgba(251, 191, 36, 0.9);
+      border-color: rgba(251, 191, 36, 0.9);
+    }
+
+    .endpoint-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.26s ease-out, border-top var(--transition-fast), background 140ms ease-out;
+      border-top: 1px solid transparent;
+      background: rgba(15, 23, 42, 0.96);
+    }
+
+    .endpoint.open .endpoint-body {
+      border-top-color: rgba(55, 65, 81, 0.9);
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.95));
+    }
+
+    .endpoint-body-inner {
+      padding: 10px 14px 12px 14px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr);
+      gap: 10px 18px;
+    }
+
+    @media (max-width: 900px) {
+      body { flex-direction: column; }
+      .sidebar { width: 100%; max-width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+      .main-inner { padding: 14px 14px 16px; }
+      .endpoint-body-inner { grid-template-columns: minmax(0, 1fr); }
+      .endpoint-header { flex-wrap: wrap; align-items: flex-start; }
+      .endpoint-labels { max-width: 100%; justify-content: flex-start; }
+    }
+
+    .field {
+      font-size: 11px;
+      border-radius: 10px;
+      border: 1px solid rgba(31, 41, 55, 0.9);
+      background: radial-gradient(circle at 0 0, rgba(40, 40, 68, 0.8), transparent 60%);
+      padding: 6px 8px;
+    }
+
+    .field-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--text-soft);
+      margin-bottom: 4px;
+    }
+
+    .field-content {
+      font-size: 11px;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .field-pill {
+      display: inline-flex;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: rgba(15, 23, 42, 0.95);
+      margin-right: 4px;
+      margin-bottom: 3px;
+    }
+
+    .field-pill.success {
+      border-color: rgba(52, 211, 153, 0.9);
+      color: var(--success);
+    }
+
+    .field-pill.danger {
+      border-color: rgba(248, 113, 113, 0.9);
+      color: var(--danger);
+    }
+
+    pre {
+      margin: 0;
+      padding: 8px 8px;
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.97);
+      border: 1px solid rgba(31, 41, 55, 0.95);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 11px;
+      overflow: auto;
+      max-height: 260px;
+      scrollbar-width: thin;
+    }
+
+    pre::-webkit-scrollbar {
+      height: 5px;
+      width: 5px;
+    }
+    pre::-webkit-scrollbar-thumb {
+      background: rgba(55, 65, 81, 0.9);
+      border-radius: 999px;
+    }
+
+    code {
+      font-family: inherit;
+      color: #e5e7eb;
+    }
+
+    /* Fixed lists */
+    .fixed-section {
+      margin-top: 8px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: radial-gradient(circle at 100% 0, rgba(244, 63, 94, 0.38), transparent 60%), rgba(15, 23, 42, 0.97);
+      padding: 10px 12px 12px;
+    }
+
+    .fixed-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      gap: 10px;
+    }
+
+    .fixed-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: #fecaca;
+    }
+
+    .fixed-note {
+      font-size: 10px;
+      color: var(--text-soft);
+    }
+
+    .fixed-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .fixed-card {
+      border-radius: 10px;
+      border: 1px dashed rgba(75, 85, 99, 0.9);
+      background: rgba(15, 23, 42, 0.98);
+      padding: 6px 7px;
+      font-size: 11px;
+    }
+
+    .fixed-card h4 {
+      margin: 0 0 4px;
+      font-size: 11px;
+      color: #fca5a5;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+    }
+
+    .fixed-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    .fixed-table td {
+      padding: 2px 4px;
+      border-bottom: 1px solid rgba(31, 41, 55, 0.9);
+    }
+
+    .fixed-table td:first-child {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      color: #facc15;
+      white-space: nowrap;
+    }
+
+    .fixed-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
 </head>
 <body>
-<h1>Project East API Documentation</h1>
-<p>BASE URL - https://projecteastapi.ddns.net/</p>
+  <div class="bg-orb a"></div>
+  <div class="bg-orb b"></div>
 
-<h2>REGISTRATION</h2>
-<div class="endpoint">
-    <h3>/registration/signup/</h3>
-    <span class="method post">POST</span>
-    <p><strong>Auth Required:</strong> No</p>
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-badge">PE</div>
+      <div>
+        <div class="logo-text-title">ProjectEast</div>
+        <div class="logo-text-sub">Backend API · v1</div>
+      </div>
+    </div>
 
-    <h4 class="section-title">Request Body</h4>
-    <pre><code>{
-  "username": "john123",
-  "email": "john@example.com",
-  "first_name": "John",
-  "last_name": "Doe",
-  "user_type": "institution | lecturer | student"
-}</code></pre>
+    <div class="base-url-box">
+      <span class="base-url-label">Base URL</span>
+      <div class="base-url-value" id="baseUrl">https://projecteastapi.ddns.net</div>
+      <button class="copy-btn" id="copyBase">
+        <span>copy</span>
+      </button>
+    </div>
 
-    <h4 class="section-title">Success Response</h4>
-    <pre><code>{
-  "success": true,
-  "user_id": 12,
-  "message": "Account registered successfully."
-}</code></pre>
+    <div class="sidebar-section-title">Sections</div>
+    <nav class="nav" id="nav"></nav>
 
-    <h4 class="section-title">Failure Response</h4>
-    <pre><code>{
-  "success": false,
-  "errors": {
-    "email": ["Email already exists."]
-  }
-}</code></pre>
-</div>
+    <div class="nav-footer">
+      JWT = <span>Authorization: Bearer &lt;access_token&gt;</span>
+    </div>
+  </aside>
 
-<div class="endpoint">
-    <h3>/registration/login/</h3>
-    <span class="method post">POST</span>
-    <p><strong>Auth Required:</strong> No</p>
+  <main class="main">
+    <div class="main-inner">
+      <header class="page-header">
+        <div>
+          <div class="page-title">
+            API Reference
+            <span class="page-title-pill">JSON REST API</span>
+          </div>
+          <div class="page-subtitle">
+            This is a documentation containing all the endpoints existing in the backend of Project East.
+          </div>
+        </div>
+      </header>
 
-    <h4 class="section-title">Request Body</h4>
-    <pre><code>{
-  "email": "john@example.com"
-}</code></pre>
+      <div class="filters-row">
+        <div class="search-wrapper">
+          <input id="searchInput" class="search-input" placeholder="Search endpoints (e.g. /registration, lecturer, attendance)" />
+        </div>
+      </div>
 
-    <h4 class="section-title">Success Response (OTP sent)</h4>
-    <pre><code>{
-  "success": true,
-  "message": "An OTP code had been sent through email to 'john@example.com'"
-}</code></pre>
+      <div id="sections"></div>
 
-    <h4 class="section-title">Failure (cooldown)</h4>
-    <pre><code>{
-  "success": false,
-  "message": "An OTP code had been already sent, try again after 120 seconds."
-}</code></pre>
-</div>
+      <!-- Fixed lists (DB choices) -->
+      <section class="section" id="fixed-lists">
+        <div class="section-header">
+          <div class="section-title">Fixed Lists &amp; Choices</div>
+        </div>
+        <div class="fixed-section">
+          <div class="fixed-header">
+            <div class="fixed-title">Reference values</div>
+            <div class="fixed-note">These are fixed enums/choices stored in DB. Use them in request bodies and to interpret responses.</div>
+          </div>
+          <div class="fixed-grid">
+            <div class="fixed-card">
+              <h4>User Types (User.user_type)</h4>
+              <table class="fixed-table">
+                <tr><td>"institution"</td><td>Institution account</td></tr>
+                <tr><td>"lecturer"</td><td>Lecturer/teacher account</td></tr>
+                <tr><td>"student"</td><td>Student account</td></tr>
+              </table>
+            </div>
 
-<div class="endpoint">
-    <h3>/registration/otp/</h3>
-    <span class="method post">POST</span>
-    <p><strong>Auth Required:</strong> No</p>
+            <div class="fixed-card">
+              <h4>Cities (User.city)</h4>
+              <table class="fixed-table">
+                <tr><td>"baghdad"</td><td>Baghdad</td></tr>
+                <tr><td>"basra"</td><td>Basra</td></tr>
+                <tr><td>"maysan"</td><td>Maysan</td></tr>
+                <tr><td>"dhi_qar"</td><td>Dhi Qar</td></tr>
+                <tr><td>"muthanna"</td><td>Muthanna</td></tr>
+                <tr><td>"qadisiyyah"</td><td>Qadisiyyah</td></tr>
+                <tr><td>"najaf"</td><td>Najaf</td></tr>
+                <tr><td>"karbala"</td><td>Karbala</td></tr>
+                <tr><td>"babel"</td><td>Babel</td></tr>
+                <tr><td>"wasit"</td><td>Wasit</td></tr>
+                <tr><td>"anbar"</td><td>Anbar</td></tr>
+                <tr><td>"salah_al_din"</td><td>Salah Al-Din</td></tr>
+                <tr><td>"kirkuk"</td><td>Kirkuk</td></tr>
+                <tr><td>"diyala"</td><td>Diyala</td></tr>
+                <tr><td>"mosul"</td><td>Mosul</td></tr>
+                <tr><td>"erbil"</td><td>Erbil</td></tr>
+                <tr><td>"duhok"</td><td>Duhok</td></tr>
+                <tr><td>"sulaymaniyah"</td><td>Sulaymaniyah</td></tr>
+              </table>
+            </div>
 
-    <h4 class="section-title">Request Body</h4>
-    <pre><code>{
-  "email": "john@example.com",
-  "otp_code": "123456"
-}</code></pre>
+            <div class="fixed-card">
+              <h4>Course Level (Course.level)</h4>
+              <table class="fixed-table">
+                <tr><td>"beginner"</td><td>Beginner</td></tr>
+                <tr><td>"intermediate"</td><td>Intermediate</td></tr>
+                <tr><td>"advanced"</td><td>Advanced</td></tr>
+              </table>
+            </div>
 
-    <h4 class="section-title">Success Response</h4>
-    <pre><code>{
-  "success": true,
-  "access": "jwt-access-token",
-  "refresh": "jwt-refresh-token",
-  "user_id": 12,
-  "user_type": "institution"
-}</code></pre>
+            <div class="fixed-card">
+              <h4>Course Days (Course.days)</h4>
+              <table class="fixed-table">
+                <tr><td>"monday"</td><td>Monday</td></tr>
+                <tr><td>"tuesday"</td><td>Tuesday</td></tr>
+                <tr><td>"wednesday"</td><td>Wednesday</td></tr>
+                <tr><td>"thursday"</td><td>Thursday</td></tr>
+                <tr><td>"friday"</td><td>Friday</td></tr>
+                <tr><td>"saturday"</td><td>Saturday</td></tr>
+                <tr><td>"sunday"</td><td>Sunday</td></tr>
+              </table>
+            </div>
 
-    <h4 class="section-title">Failure Response</h4>
-    <pre><code>{
-  "success": false,
-  "errors": {
-    "otp_code": "Expired or invalid."
-  }
-}</code></pre>
-</div>
+            <div class="fixed-card">
+              <h4>Student Level (Student.studying_level)</h4>
+              <table class="fixed-table">
+                <tr><td>"primary"</td><td>Primary</td></tr>
+                <tr><td>"intermediate"</td><td>Intermediate</td></tr>
+                <tr><td>"high"</td><td>High school</td></tr>
+                <tr><td>"bachelors"</td><td>Bachelor’s</td></tr>
+                <tr><td>"masters"</td><td>Master’s</td></tr>
+                <tr><td>"phd"</td><td>PhD</td></tr>
+                <tr><td>"none"</td><td>Not studying</td></tr>
+              </table>
+            </div>
 
-<div class="endpoint">
-    <h3>/registration/is-verified/</h3>
-    <span class="method get">GET</span>
-    <p><strong>Auth Required:</strong>No</p>
+            <div class="fixed-card">
+              <h4>Attendance Status (Attendance.status)</h4>
+              <table class="fixed-table">
+                <tr><td>"present"</td><td>Student attended</td></tr>
+                <tr><td>"absent"</td><td>Student absent</td></tr>
+                <tr><td>"late"</td><td>Student late</td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
 
-    <h4 class="section-title">Success Response</h4>
-    <pre><code>{
-  "success": true,
-  "is_verified": true
-}</code></pre>
+  <script>
+    const BASE_URL = "https://projecteastapi.ddns.net";
 
-    <h4 class="section-title">Example When Not Verified</h4>
-    <pre><code>{
-  "success": true,
-  "is_verified": false
-}</code></pre>
-</div>
+    // === Endpoint data ===
+    const endpoints = [
+      /* GLOBAL / PUBLIC / UTIL */
+      {
+        section: "Global & Utility",
+        name: "Home Feed",
+        method: "GET",
+        path: "/home/feed/",
+        usecase: "Get mixed feed of posts, courses and jobs (personalized if logged in).",
+        permission: "Public (AllowAny). Personalization if JWT sent.",
+        jwt: "Optional",
+        requestBody: null,
+        successExample: `GET ${BASE_URL}/home/feed/
 
-<h2>AI ENDPOINTS</h2>
-
-<div class="endpoint">
-    <h3>/ai/doc/</h3>
-    <span class="method post">POST</span>
-    <p><strong>Auth Required:</strong> No</p>
-
-    <h4 class="section-title">Request Body</h4>
-    <pre><code>file: (image file)</code></pre>
-
-    <h4 class="section-title">Success Response</h4>
-    <pre><code>{
-  "success": true,
-  "document": 0.91,
-  "non_document": 0.08
-}</code></pre>
-
-    <h4 class="section-title">Failure Response (No File)</h4>
-    <pre><code>{
-  "error": "No file uploaded"
-}</code></pre>
-
-    <h4 class="section-title">Failure Response (Invalid File)</h4>
-    <pre><code>{
-  "error": "Invalid file type"
-}</code></pre>
-</div>
-
-
-<h2>INSTITUTION ENDPOINTS</h2>
-
-<div class="endpoint">
-    <h3>/institution/total-students/</h3>
-    <span class="method get">GET</span>
-    <p><strong>Auth Required:</strong> Yes (Institution only)</p>
-
-    <h4 class="section-title">Success Response</h4>
-    <pre><code>{ "success": true, "total_students": 34 }</code></pre>
-</div>
-
-<div class="endpoint">
-    <h3>/institution/total-lecturers/</h3>
-    <span class="method get">GET</span>
-    <p><strong>Auth Required:</strong> Yes (Institution only)</p>
-
-    <h4 class="section-title">Success Response</h4>
-    <pre><code>{ "success": true, "total_lecturers": 12 }</code></pre>
-</div>
-
-<div class="endpoint">
-    <h3>/institution/total-staff/</h3>
-    <span class="method get">GET</span>
-    <p><strong>Auth Required:</strong> Yes (Institution only)</p>
-
-    <h4 class="section-title">Success Response</h4>
-    <pre><code>{ "success": true, "total_staff": 5 }</code></pre>
-</div>
-
-<div class="endpoint">
-    <h3>/institution/active-students/</h3>
-    <span class="method get">GET</span>
-    <p><strong>Auth Required:</strong> Yes (Institution only)</p>
-
-    <h4 class="section-title">Success Response</h4>
-    <pre><code>{ "success": true, "active_students": 18 }</code></pre>
-</div>
-
-<div class="endpoint">
-    <h3>/institution/active-lecturers/</h3>
-    <span class="method get">GET</span>
-    <p><strong>Auth Required:</strong> Yes (Institution only)</p>
-</div>
-
-<div class="endpoint">
-    <h3>/institution/active-staff/</h3>
-    <span class="method get">GET</span>
-    <p><strong>Auth Required:</strong> Yes (Institution only)</p>
-</div>
-
-
-<h2>STUDENT LIST</h2>
-<div class="endpoint">
-    <h3>/institution/students-list/</h3>
-    <span class="method get">GET</span>
-    <p><strong>Auth Required:</strong> Yes (Institution only)</p>
-
-    <h4 class="section-title">Available Query Params</h4>
-    <pre><code>?page=1
-?active=true | false
-?studying_level=bachelors</code></pre>
-
-    <h4 class="section-title">Success Response</h4>
-    <pre><code>{
-  "count": 42,
-  "next": "/institution/students-list/?page=2",
+Response 200:
+{
+  "count": 20,
+  "next": null,
   "previous": null,
   "results": [
     {
-      "id": 22,
+      "type": "post",
+      "id": 1,
+      "title": "New course",
+      "description": "Details...",
+      "image": "/media/...",
+      "created_at": "2025-01-01T10:00:00Z"
+    }
+  ]
+}`,
+        errorsExample: `401 if provided JWT is invalid / expired (from JWT middleware).`
+      },
+      {
+        section: "Global & Utility",
+        name: "Document Type Check (AI)",
+        method: "POST",
+        path: "/ai/doc/",
+        usecase: "Upload a file and check if it is a document using AI model.",
+        permission: "Authenticated only (any user_type).",
+        jwt: "Required",
+        requestBody: `Content-Type: multipart/form-data
+
+file: <uploaded file>`,
+        successExample: `POST ${BASE_URL}/ai/doc/
+
+Response 200:
+{
+  "document_percentage": 92.31,
+  "nondocument_percentage": 7.69,
+  "is_document": true
+}`,
+        errorsExample: `400:
+{
+  "error": "No file uploaded"
+}
+
+401 if no / invalid JWT.`
+      },
+      {
+        section: "Global & Utility",
+        name: "Notifications (Tomorrow lectures)",
+        method: "GET",
+        path: "/notifications/",
+        usecase: "Get reminders about tomorrow's lectures for students and lecturers.",
+        permission: "Authenticated only (student or lecturer).",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `GET ${BASE_URL}/notifications/
+
+Response 200:
+{
+  "success": true,
+  "notifications": [
+    {
+      "type": "lecture_reminder",
+      "course_title": "Physics 101",
+      "message": "You have 'Physics 101' tomorrow at 09:00.",
+      "day": "monday",
+      "time": "09:00"
+    }
+  ]
+}`,
+        errorsExample: `401 if no / invalid JWT.
+
+If user_type = institution:
+{
+  "success": true,
+  "notifications": []
+}`
+      },
+      {
+        section: "Global & Utility",
+        name: "Course Progress (Public/Personal)",
+        method: "GET",
+        path: "/course/<course_id>/progress/",
+        usecase: "Get either personal student progress or overall course progress.",
+        permission: "Public (permission_classes = []). Behaviour depends on JWT.",
+        jwt: "Optional",
+        requestBody: null,
+        successExample: `GET ${BASE_URL}/course/12/progress/
+
+Response 200 (student enrolled, personal):
+{
+  "success": true,
+  "progress": {
+    "course_title": "Python Basics",
+    "total_lectures": 10,
+    "completed_lectures": 7,
+    "progress_percentage": 70.0
+  }
+}
+
+Response 200 (visitor / non-student overall avg):
+{
+  "success": true,
+  "progress": {
+    "course_title": "Python Basics",
+    "total_lectures": 10,
+    "completed_lectures": null,
+    "progress_percentage": 63.5
+  }
+}`,
+        errorsExample: `404:
+{
+  "success": false,
+  "message": "Course not found."
+}
+
+403 (student, not enrolled):
+{
+  "success": false,
+  "message": "You are not enrolled in this course."
+}`
+      },
+      {
+        section: "Global & Utility",
+        name: "Explore Search",
+        method: "GET",
+        path: "/explore/",
+        usecase: "Full-text search across students, lecturers, institutions, courses, jobs.",
+        permission: "Public (permission_classes = []).",
+        jwt: "Optional (used only to prioritize by user city).",
+        requestBody: `Query params:
+q      = string search term (optional, default "")
+filter = one of ["students","lecturers","institutions","courses","jobs"] or omitted for all groups`,
+        successExample: `GET ${BASE_URL}/explore/?q=python
+
+Response 200 (no filter):
+{
+  "success": true,
+  "results": {
+    "students": [...],
+    "lecturers": [...],
+    "institutions": [...],
+    "courses": [...],
+    "jobs": [...]
+  }
+}
+
+Response 200 (filter=courses):
+{
+  "success": true,
+  "courses": [
+    {
+      "id": 3,
+      "title": "Python Basics",
+      "about": "Intro course...",
+      "institution": "Some Academy",
+      "city": "baghdad"
+    }
+  ]
+}`,
+        errorsExample: `400:
+{
+  "success": false,
+  "message": "Invalid filter."
+}`
+      },
+
+      /* AUTH / REGISTRATION */
+      {
+        section: "Auth & Registration",
+        name: "Signup (create user skeleton)",
+        method: "POST",
+        path: "/registration/signup/",
+        usecase: "Create a user (institution/lecturer/student) with email. Passwordless OTP login flow.",
+        permission: "Public (AllowAny).",
+        jwt: "Not required",
+        requestBody: `Content-Type: application/json
+
+{
+  "username": "myuser",
+  "email": "user@example.com",
+  "first_name": "John",
+  "last_name": "Doe",
+  "city": "baghdad",           // one of fixed cities
+  "user_type": "student"       // institution | lecturer | student
+}`,
+        successExample: `Response 201:
+{
+  "success": true,
+  "user_id": 7,
+  "message": "Account registered successfully."
+}`,
+        errorsExample: `Response 400:
+{
+  "success": false,
+  "errors": {
+    "email": ["user with this Email already exists."],
+    "username": ["This field is required."],
+    ...
+  }
+}`
+      },
+      {
+        section: "Auth & Registration",
+        name: "Login (request OTP)",
+        method: "POST",
+        path: "/registration/login/",
+        usecase: "Request login OTP via email for existing user.",
+        permission: "Public (AllowAny).",
+        jwt: "Not required",
+        requestBody: `Content-Type: application/json
+
+{
+  "email": "user@example.com"
+}`,
+        successExample: `Response 200:
+{
+  "success": true,
+  "message": "An OTP code had been sent throught email to 'user@example.com'"
+}
+
+If OTP already sent in last 3 minutes:
+{
+  "success": false,
+  "message": "An OTP code had been already sent to user@example.com, try again after <seconds> seconds."
+}`,
+        errorsExample: `Response 400:
+{
+  "success": false,
+  "errors": {
+    "email": ["Email not found."]   // from serializer
+  }
+}`
+      },
+      {
+        section: "Auth & Registration",
+        name: "OTP Verify (exchange for JWT)",
+        method: "POST",
+        path: "/registration/otp/",
+        usecase: "Verify OTP and get access/refresh tokens + user info.",
+        permission: "Public (AllowAny).",
+        jwt: "Not required",
+        requestBody: `Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "otp_code": "123456"
+}`,
+        successExample: `Response 200:
+{
+  "success": true,
+  "access": "<JWT access token>",
+  "refresh": "<JWT refresh token>",
+  "user_id": 7,
+  "user_type": "student"
+}`,
+        errorsExample: `Response 400:
+{
+  "success": false,
+  "errors": {
+    "email": ["Email not found."],
+    "otp_code": ["Invalid OTP code."] or ["OTP code expired."]
+  }
+}`
+      },
+      {
+        section: "Auth & Registration",
+        name: "Check Verification Status",
+        method: "GET",
+        path: "/registration/is-verified/",
+        usecase: "Check if current user has verified account (is_verified).",
+        permission: "Authenticated (any user_type).",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `GET ${BASE_URL}/registration/is-verified/
+
+Response 200:
+{
+  "success": true,
+  "is_verified": true
+}`,
+        errorsExample: `401 if no / invalid JWT.`
+      },
+      {
+        section: "Auth & Registration",
+        name: "Refresh Token",
+        method: "POST",
+        path: "/registration/refresh/",
+        usecase: "Refresh JWT access token using refresh token (SimpleJWT default).",
+        permission: "Public (handled by JWT).",
+        jwt: "Refresh token in body",
+        requestBody: `Content-Type: application/json
+
+{
+  "refresh": "<refresh_token>"
+}`,
+        successExample: `Response 200 (SimpleJWT default):
+{
+  "access": "<new_access_token>"
+}`,
+        errorsExample: `401 / 400 if refresh token invalid/expired (SimpleJWT standard errors).`
+      },
+
+      /* INSTITUTION DASHBOARD / STATS */
+      {
+        section: "Institution · Dashboard & Stats",
+        name: "Total Students",
+        method: "GET",
+        path: "/institution/total-students/",
+        usecase: "Count all students linked to this institution.",
+        permission: "Institution only (user_type='institution').",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "total_students": 42
+}`,
+        errorsExample: `401 if no/invalid token.
+
+403 if user_type != "institution" (from IsInstitution).`
+      },
+      {
+        section: "Institution · Dashboard & Stats",
+        name: "Total Lecturers",
+        method: "GET",
+        path: "/institution/total-lecturers/",
+        usecase: "Count all lecturers linked to this institution.",
+        permission: "Institution only.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `{
+  "success": true,
+  "total_lecturers": 6
+}`,
+        errorsExample: `Same pattern as total-students.`
+      },
+      {
+        section: "Institution · Dashboard & Stats",
+        name: "Total Staff",
+        method: "GET",
+        path: "/institution/total-staff/",
+        usecase: "Count all staff linked to this institution.",
+        permission: "Institution only.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `{
+  "success": true,
+  "total_staff": 10
+}`,
+        errorsExample: `401 / 403 on auth issues.`
+      },
+      {
+        section: "Institution · Dashboard & Stats",
+        name: "Active Students",
+        method: "GET",
+        path: "/institution/active-students/",
+        usecase: "Count students in courses that are currently running (date range).",
+        permission: "Institution only.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `{
+  "success": true,
+  "active_students": 18
+}`,
+        errorsExample: `Auth-related as above.`
+      },
+      {
+        section: "Institution · Dashboard & Stats",
+        name: "Active Lecturers",
+        method: "GET",
+        path: "/institution/active-lecturers/",
+        usecase: "Count lecturers teaching currently running courses.",
+        permission: "Institution only.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `{
+  "success": true,
+  "active_lecturers": 4
+}`,
+        errorsExample: `Auth-related as above.`
+      },
+      {
+        section: "Institution · Dashboard & Stats",
+        name: "Active Staff",
+        method: "GET",
+        path: "/institution/active-staff/",
+        usecase: "Count active staff (is_active=true).",
+        permission: "Institution only.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `{
+  "success": true,
+  "active_staff": 7
+}`,
+        errorsExample: `Auth-related as above.`
+      },
+      {
+        section: "Institution · Dashboard & Stats",
+        name: "Students List",
+        method: "GET",
+        path: "/institution/students-list/",
+        usecase: "Paginated list of students belonging to institution with filters.",
+        permission: "Institution only.",
+        jwt: "Required",
+        requestBody: `Query params:
+studying_level = optional, one of STUDYING_LEVEL_CHOICES
+active         = optional, "true" | "false" (active in any currently running course)`,
+        successExample: `GET ${BASE_URL}/institution/students-list/?active=true
+
+Response 200 (paginated):
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 5,
       "first_name": "Ali",
       "last_name": "Hassan",
       "email": "ali@example.com",
-      "profile_image": "/media/ali/profile.jpg",
+      "profile_image": "/media/...",
       "studying_level": "bachelors",
-      "responsible_phone": "+964770000000",
+      "responsible_phone": "+964..."
+    }
+  ]
+}`,
+        errorsExample: `401 / 403 on auth issues.`
+      },
+      {
+        section: "Institution · Dashboard & Stats",
+        name: "Lecturers List",
+        method: "GET",
+        path: "/institution/lecturers-list/",
+        usecase: "Paginated list of lecturers linked to institution. Adds 'active' flag per lecturer.",
+        permission: "Institution only.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 3,
+      "first_name": "Sara",
+      "last_name": "K.",
+      "email": "sara@example.com",
+      "profile_image": "/media/...",
+      "specialty": "Math",
+      "experience": 5,
+      "phone_number": "+964...",
       "active": true
     }
   ]
-}</code></pre>
-</div>
-
-<h2>LECTURER LIST</h2>
-<div class="endpoint">
-    <h3>/institution/lecturers-list/</h3>
-    <span class="method get">GET</span>
-    <p><strong>Auth Required:</strong> Yes (Institution only)</p>
-
-    <h4 class="section-title">Available Query Params</h4>
-    <pre><code>?page=1</code></pre>
-
-    <h4 class="section-title">Success Response</h4>
-    <pre><code>{
-  "count": 8,
-  "next": "/institution/lecturers-list/?page=2",
+}`,
+        errorsExample: `Auth-related only.`
+      },
+      {
+        section: "Institution · Dashboard & Stats",
+        name: "Staff List",
+        method: "GET",
+        path: "/institution/staff-list/",
+        usecase: "Paginated list of staff for institution.",
+        permission: "Institution only.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "count": 1,
+  "next": null,
   "previous": null,
   "results": [
     {
-      "id": 14,
-      "first_name": "Sarah",
-      "last_name": "Khalid",
-      "email": "sarah@example.com",
-      "profile_image": "/media/sarah/profile.jpg",
-      "specialty": "Computer Science",
-      "experience": 5,
-      "active": true,
-      "phone_number": "+964770000000"
-    }
-  ]
-}</code></pre>
-</div>
-
-<h2>STAFF LIST</h2>
-<div class="endpoint">
-    <h3>/institution/staff-list/</h3>
-    <span class="method get">GET</span>
-    <p><strong>Auth Required:</strong> Yes (Institution only)</p>
-
-    <h4 class="section-title">Available Query Params</h4>
-    <pre><code>?page=1</code></pre>
-
-    <h4 class="section-title">Success Response</h4>
-    <pre><code>{
-  "count": 12,
-  "next": "/institution/staff-list/?page=2",
-  "previous": null,
-  "results": [
-    {
-      "id": 9,
+      "id": 2,
       "first_name": "Omar",
-      "last_name": "Saleh",
-      "personal_image": "/media/omar/staff/photo.jpg",
-      "duty": "Administrator",
-      "phone_number": "+964770111111",
-      "salary": 800,
+      "last_name": "Ali",
+      "personal_image": "/media/...",
+      "duty": "Reception",
+      "phone_number": "+964...",
+      "salary": 600000,
       "is_active": true
     }
   ]
-}</code></pre>
-</div>
-
-<h2>SCHEDULE</h2>
-<div class="endpoint">
-    <h3>/institution/schedule/</h3>
-    <span class="method get">GET</span>
-    <p><strong>Auth Required:</strong> Yes (Institution only)</p>
-
-    <h4 class="section-title">Success Response</h4>
-    <pre><code>{
+}`,
+        errorsExample: `Auth-related only.`
+      },
+      {
+        section: "Institution · Dashboard & Stats",
+        name: "Institution Weekly Schedule",
+        method: "GET",
+        path: "/institution/schedule/",
+        usecase: "Weekly schedule of all courses in institution.",
+        permission: "Institution only.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
   "success": true,
   "schedule": {
     "monday": [
       {
-        "course_id": 12,
-        "course_title": "Mathematics",
-        "lecturer": "Sarah Khan",
+        "course_title": "Physics 1",
+        "lecturer": "Sara K",
         "start_time": "09:00",
-        "end_time": "11:00"
+        "end_time": "10:00",
+        "course_id": 12
       }
     ],
     "tuesday": [],
-    "wednesday": [],
-    "thursday": [],
-    "friday": [],
-    "saturday": [],
-    "sunday": []
+    ...
   }
-}</code></pre>
-</div>
+}`,
+        errorsExample: `Auth-related only.`
+      },
 
-<div class="endpoint">
-    <h3>/institution/institution-verify/</h3>
-    <span class="method put">PUT</span>
-    <p><strong>Auth Required:</strong> Yes (Institution only, must NOT be verified yet)</p>
+      /* INSTITUTION PROFILE / CONTENT / COURSES / STAFF / JOBS */
+      {
+        section: "Institution · Profile & Verification",
+        name: "Verify Institution Account",
+        method: "PUT",
+        path: "/institution/verify/",
+        usecase: "Submit required info + docs and mark institution as verified.",
+        permission: "Institution only (unverified allowed).",
+        jwt: "Required",
+        requestBody: `Content-Type: multipart/form-data (recommended)
 
-    <h4 class="section-title">Request Body</h4>
-    <pre><code>{
-  "title": "Modern Science Institute",
-  "location": "Baghdad",
-  "phone_number": "+9647700000000",
-  "about": "Leading educational center.",
-  "profile_image": "(file)",
-  "idcard_back": "(file)",
-  "idcard_front": "(file)",
-  "residence_front": "(file)",
-  "residence_back": "(file)"
-}</code></pre>
-
-    <h4 class="section-title">Success Response</h4>
-    <pre><code>{
+Required fields:
+title            (institution title)
+location         (text address)
+phone_number
+about
+profile_image
+idcard_back
+idcard_front
+residence_front
+residence_back`,
+        successExample: `Response 200:
+{
   "success": true,
   "message": "Institution account verified successfully.",
   "is_verified": true
-}</code></pre>
-
-    <h4 class="section-title">Failure Response</h4>
-    <pre><code>{
-  "success": false,
-  "errors": {
-    "phone_number": ["This field is required."]
-  }
-}</code></pre>
-</div>
-
-<div class="endpoint">
-    <h3>/institution/edit-profile/</h3>
-    <span class="method put">PUT</span>
-    <p><strong>Auth Required:</strong> Yes (Institution only, must be verified)</p>
-
-    <h4 class="section-title">Notes</h4>
-    <ul>
-        <li>Email cannot be changed.</li>
-        <li>Username can be changed but must be unique.</li>
-        <li>All institution & user fields except email are editable.</li>
-    </ul>
-
-    <h4 class="section-title">Request Body</h4>
-    <pre><code>{
-  "username": "new_institution123",
-  "title": "Updated Institution Title",
-  "location": "Updated Location",
-  "phone_number": "+9647701111111",
-  "about": "Updated institution description.",
-  "profile_image": "(file)",
-  "idcard_back": "(file)",
-  "idcard_front": "(file)",
-  "residence_front": "(file)",
-  "residence_back": "(file)"
-}</code></pre>
-
-    <h4 class="section-title">Success Response</h4>
-    <pre><code>{
-  "success": true,
-  "message": "Institution profile updated successfully."
-}</code></pre>
-
-    <h4 class="section-title">Failure Response</h4>
-    <pre><code>{
+}`,
+        errorsExample: `400:
+{
   "success": false,
   "errors": {
     "phone_number": ["This field is required."],
-    "about": ["This field is required."],
     "profile_image": ["This field is required."],
-    "idcard_back": ["This field is required."],
-    "idcard_front": ["This field is required."],
-    "residence_front": ["This field is required."],
-    "residence_back": ["This field is required."]
+    ...
   }
-}</code></pre>
-</div>
+}`
+      },
+      {
+        section: "Institution · Profile & Verification",
+        name: "Edit Institution Profile (verified only)",
+        method: "PUT",
+        path: "/institution/edit/",
+        usecase: "Edit institution profile (username, names, images, title, location...).",
+        permission: "Institution + IsVerified.",
+        jwt: "Required",
+        requestBody: `Content-Type: multipart/form-data or JSON (partial allowed)
 
+Fields (all optional):
+username
+first_name
+last_name
+phone_number
+about
+profile_image
+idcard_back
+idcard_front
+residence_front
+residence_back
+title
+location`,
+        successExample: `Response 200:
+{
+  "success": true,
+  "message": "Institution profile updated successfully."
+}`,
+        errorsExample: `400:
+{
+  "success": false,
+  "errors": {
+    "username": ["This username is already taken."]
+  }
+}
 
+403 if not verified / wrong user type.`
+      },
+      {
+        section: "Institution · Profile & Verification",
+        name: "Get Own Institution Profile",
+        method: "GET",
+        path: "/institution/profile/self/",
+        usecase: "Get full profile for logged-in institution user.",
+        permission: "Institution only.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "data": {
+    "id": 3,
+    "username": "inst1",
+    "email": "inst@example.com",
+    "first_name": "Center",
+    "last_name": "Name",
+    "city": "baghdad",
+    "phone_number": "+964...",
+    "about": "We teach...",
+    "profile_image": "/media/...",
+    "idcard_back": "/media/...",
+    "idcard_front": "/media/...",
+    "residence_front": "/media/...",
+    "residence_back": "/media/...",
+    "is_verified": true,
+    "title": "ProjectEast Academy",
+    "location": "Baghdad ..."
+  }
+}`,
+        errorsExample: `Auth-related only.`
+      },
+      {
+        section: "Institution · Public Profile & Lists",
+        name: "Get Institution Public Profile",
+        method: "GET",
+        path: "/institution/profile/<username>/",
+        usecase: "Public profile of institution (for visitors).",
+        permission: "Public (AllowAny).",
+        jwt: "Not required",
+        requestBody: null,
+        successExample: `GET ${BASE_URL}/institution/profile/inst1/
+
+Response 200:
+{
+  "success": true,
+  "data": {
+    "username": "inst1",
+    "first_name": "Center",
+    "last_name": "Owner",
+    "city": "baghdad",
+    "about": "We teach...",
+    "profile_image": "/media/...",
+    "title": "ProjectEast Academy",
+    "location": "Baghdad ..."
+  }
+}`,
+        errorsExample: `404:
+{
+  "success": false,
+  "message": "Institution not found"
+}`
+      },
+      {
+        section: "Institution · Public Profile & Lists",
+        name: "Institution Courses (Public list)",
+        method: "GET",
+        path: "/institution/<username>/courses/",
+        usecase: "List all courses of institution (public).",
+        permission: "Public (AllowAny).",
+        jwt: "Not required",
+        requestBody: null,
+        successExample: `GET ${BASE_URL}/institution/inst1/courses/
+
+Response 200:
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 12,
+      "title": "Python Basics",
+      "about": "Intro course...",
+      "course_image": "/media/...",
+      "starting_date": "2025-01-05",
+      "ending_date": "2025-02-01",
+      "level": "beginner",
+      "price": "150.00"
+    }
+  ]
+}`,
+        errorsExample: `200 with empty results if username not found (view returns none).`
+      },
+      {
+        section: "Institution · Public Profile & Lists",
+        name: "Institution Posts (Public list)",
+        method: "GET",
+        path: "/institution/<username>/posts/",
+        usecase: "Public list of posts created by institution.",
+        permission: "Public (AllowAny).",
+        jwt: "Not required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+      "title": "New course announcement",
+      "description": "We launched...",
+      "created_at": "2025-01-01T12:00:00Z",
+      "images": [
+        { "image": "/media/..." }
+      ]
+    }
+  ]
+}`,
+        errorsExample: `Empty result if institution not found.`
+      },
+      {
+        section: "Institution · Posts & Courses",
+        name: "Create Post",
+        method: "POST",
+        path: "/institution/create-post/",
+        usecase: "Create a post with optional multiple images.",
+        permission: "Institution + IsVerified.",
+        jwt: "Required",
+        requestBody: `Content-Type: multipart/form-data
+
+title       (string, required)
+description (string, optional)
+images      (0..N files, optional)`,
+        successExample: `Response 201:
+{
+  "success": true,
+  "message": "Post created successfully.",
+  "post_id": 5
+}`,
+        errorsExample: `400 with serializer errors:
+{
+  "success": false,
+  "errors": {
+    "title": ["This field is required."]
+  }
+}`
+      },
+      {
+        section: "Institution · Posts & Courses",
+        name: "Create Course",
+        method: "POST",
+        path: "/institution/create-course/",
+        usecase: "Create new course under current institution.",
+        permission: "Institution + IsVerified.",
+        jwt: "Required",
+        requestBody: `Content-Type: multipart/form-data or JSON
+
+Required:
+title
+about
+starting_date   (YYYY-MM-DD)
+ending_date     (YYYY-MM-DD)
+level           ("beginner" | "intermediate" | "advanced")
+price           (>= 0)
+days            (array of day codes, e.g. ["monday","wednesday"])
+start_time      (HH:MM)
+end_time        (HH:MM)
+lecturer        (lecturer id)
+
+Optional:
+course_image`,
+        successExample: `Response 201:
+{
+  "success": true,
+  "message": "Course created successfully.",
+  "course_id": 12
+}`,
+        errorsExample: `400:
+{
+  "success": false,
+  "errors": {
+    "ending_date": ["Ending date cannot be before starting date."],
+    "end_time": ["End time must be greater than start time."],
+    "price": ["Price must be positive"],
+    ...
+  }
+}`
+      },
+      {
+        section: "Institution · Posts & Courses",
+        name: "Edit Course",
+        method: "PUT",
+        path: "/institution/edit-course/",
+        usecase: "Update an existing course (backend expects course_id, currently mismatch in path—check backend).",
+        permission: "Institution + IsVerified.",
+        jwt: "Required",
+        requestBody: `Note: view expects course_id in URL: /institution/edit-course/<course_id>/
+Current urls.py has no <course_id> in path, so FE & BE need to agree on final path.
+
+Body: partial CourseSerializer fields (same as create-course).`,
+        successExample: `Response 200:
+{
+  "success": true,
+  "message": "Course updated successfully."
+}`,
+        errorsExample: `404:
+{
+  "success": false,
+  "message": "Course not found."
+}
+
+400 on validation errors.`
+      },
+      {
+        section: "Institution · Students & Lecturers",
+        name: "View Specific Student Profile (Institution view)",
+        method: "GET",
+        path: "/institution/student/<student_id>/",
+        usecase: "Institution views a student's full profile if enrolled in its courses.",
+        permission: "Institution only.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "data": {
+    "id": 5,
+    "username": "stud1",
+    "email": "stud@example.com",
+    "first_name": "Ali",
+    "last_name": "Hassan",
+    "city": "baghdad",
+    "phone_number": "+964...",
+    "about": "...",
+    "profile_image": "/media/...",
+    "idcard_back": "/media/...",
+    "idcard_front": "/media/...",
+    "residence_front": "/media/...",
+    "residence_back": "/media/...",
+    "studying_level": "bachelors",
+    "interesting_keywords": "Physics, Math",
+    "responsible_phone": "+964...",
+    "responsible_email": "parent@example.com"
+  }
+}`,
+        errorsExample: `404:
+{
+  "success": false,
+  "message": "Student not found or not enrolled in your courses."
+}`
+      },
+      {
+        section: "Institution · Students & Lecturers",
+        name: "View Specific Lecturer Profile (Institution view)",
+        method: "GET",
+        path: "/institution/lecturer/<lecturer_id>/",
+        usecase: "Institution views lecturer profile if teaching in its courses.",
+        permission: "Institution only.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "data": {
+    "id": 3,
+    "username": "lect1",
+    "email": "lect@example.com",
+    "first_name": "Sara",
+    "last_name": "K.",
+    "city": "baghdad",
+    "phone_number": "+964...",
+    "about": "...",
+    "profile_image": "/media/...",
+    "academic_achievement": "MSc",
+    "specialty": "Math",
+    "skills": "Teaching, Python",
+    "experience": 5,
+    "free_time": "09:00-14:00"
+  }
+}`,
+        errorsExample: `404 if lecturer not found or not teaching in this institution.`
+      },
+      {
+        section: "Institution · Staff Management",
+        name: "Create Staff Member",
+        method: "POST",
+        path: "/institution/staff/create/",
+        usecase: "Create new staff member for institution.",
+        permission: "Institution only.",
+        jwt: "Required",
+        requestBody: `Content-Type: multipart/form-data
+
+first_name
+last_name
+phone_number
+personal_image
+idcard_front (optional)
+idcard_back  (optional)
+residence_front (optional)
+residence_back  (optional)
+duty
+salary`,
+        successExample: `Response 201:
+{
+  "success": true,
+  "message": "Staff member added successfully.",
+  "staff_id": 2
+}`,
+        errorsExample: `400 with serializer errors.`
+      },
+      {
+        section: "Institution · Staff Management",
+        name: "Staff Detail",
+        method: "GET",
+        path: "/institution/staff/<staff_id>/",
+        usecase: "Get full staff member data.",
+        permission: "Institution only.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "data": {
+    "id": 2,
+    "first_name": "Omar",
+    "last_name": "Ali",
+    "phone_number": "+964...",
+    "personal_image": "/media/...",
+    "idcard_front": "/media/...",
+    "idcard_back": "/media/...",
+    "residence_front": "/media/...",
+    "residence_back": "/media/...",
+    "duty": "Reception",
+    "salary": 600000,
+    "is_active": true
+  }
+}`,
+        errorsExample: `404:
+{
+  "success": false,
+  "message": "Staff not found."
+}`
+      },
+      {
+        section: "Institution · Staff Management",
+        name: "Edit Staff Member",
+        method: "PUT",
+        path: "/institution/staff/<staff_id>/edit/",
+        usecase: "Update staff member fields.",
+        permission: "Institution only.",
+        jwt: "Required",
+        requestBody: `Partial StaffEditSerializer fields (same as create).`,
+        successExample: `Response 200:
+{
+  "success": true,
+  "message": "Staff updated successfully."
+}`,
+        errorsExample: `404 if staff not found / not belongs to institution.
+400 on validation errors.`
+      },
+      {
+        section: "Institution · Staff Management",
+        name: "Delete Staff Member",
+        method: "DELETE",
+        path: "/institution/staff/<staff_id>/delete/",
+        usecase: "Delete staff member from institution.",
+        permission: "Institution only.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "message": "Staff deleted successfully."
+}`,
+        errorsExample: `404 if staff not found / not belongs to institution.`
+      },
+      {
+        section: "Institution · Jobs",
+        name: "Create Job Post",
+        method: "POST",
+        path: "/institution/job/create/",
+        usecase: "Create job post for lecturers.",
+        permission: "Institution + IsVerified.",
+        jwt: "Required",
+        requestBody: `Content-Type: application/json or form
+
+title
+description        (optional)
+specialty
+experience_required (int)
+skills_required    (optional)
+salary_offer       (int)`,
+        successExample: `Response 201:
+{
+  "success": true,
+  "message": "Job post created successfully.",
+  "job_id": 9
+}`,
+        errorsExample: `400 with serializer errors.`
+      },
+      {
+        section: "Institution · Jobs",
+        name: "Institution Jobs (Public list)",
+        method: "GET",
+        path: "/institution/<username>/jobs/",
+        usecase: "Public list of job posts for institution.",
+        permission: "Public (AllowAny).",
+        jwt: "Not required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "data": [
+    {
+      "id": 9,
+      "title": "Math Lecturer",
+      "description": "Teach high-school level",
+      "specialty": "Math",
+      "experience_required": 3,
+      "skills_required": "Teaching, Communication",
+      "salary_offer": 700000,
+      "created_at": "2025-01-01T10:00:00Z"
+    }
+  ]
+}`,
+        errorsExample: `404:
+{
+  "success": false,
+  "message": "Institution not found"
+}`
+      },
+      {
+        section: "Institution · Jobs",
+        name: "Job Detail (Public)",
+        method: "GET",
+        path: "/institution/job/<job_id>/",
+        usecase: "Get single job post details.",
+        permission: "Public (AllowAny).",
+        jwt: "Not required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "data": {
+    "id": 9,
+    "title": "Math Lecturer",
+    "description": "Teach high school...",
+    "specialty": "Math",
+    "experience_required": 3,
+    "skills_required": "Teaching, Communication",
+    "salary_offer": 700000,
+    "created_at": "2025-01-01T10:00:00Z"
+  }
+}`,
+        errorsExample: `404:
+{
+  "success": false,
+  "message": "Job not found"
+}`
+      },
+      {
+        section: "Institution · Jobs",
+        name: "Job Applications (Institution side)",
+        method: "GET",
+        path: "/institution/job/<job_id>/applications/",
+        usecase: "Get all lecturer applications for a job.",
+        permission: "Institution + IsVerified (owner of job).",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "applications": [
+    {
+      "application_id": 3,
+      "lecturer_id": 5,
+      "first_name": "Sara",
+      "last_name": "K.",
+      "email": "lect@example.com",
+      "phone_number": "+964...",
+      "specialty": "Math",
+      "experience": 5,
+      "skills": "Teaching, Python",
+      "message": "I am interested...",
+      "applied_at": "2025-01-01T11:00:00Z"
+    }
+  ]
+}`,
+        errorsExample: `404:
+{
+  "success": false,
+  "message": "Job not found."
+}`
+      },
+      {
+        section: "Institution · Attendance & Analytics",
+        name: "Course Attendance Summary",
+        method: "GET",
+        path: "/institution/course/<course_id>/attendance/",
+        usecase: "Get per-student attendance summary for given course.",
+        permission: "Institution only.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "course": "Python Basics",
+  "total_lectures": 10,
+  "students": [
+    {
+      "student_id": 5,
+      "name": "Ali Hassan",
+      "present": 8,
+      "absent": 1,
+      "late": 1,
+      "percentage": 80.0
+    }
+  ]
+}`,
+        errorsExample: `404:
+{
+  "success": false,
+  "message": "Course not found."
+}`
+      },
+
+      /* LECTURER */
+      {
+        section: "Lecturer · Profiles & Courses",
+        name: "Lecturer Self Profile",
+        method: "GET",
+        path: "/lecturer/profile/self/",
+        usecase: "Get full profile for logged-in lecturer.",
+        permission: "Authenticated; must be lecturer.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "data": {
+    "id": 5,
+    "first_name": "Sara",
+    "last_name": "K.",
+    "email": "lect@example.com",
+    "city": "baghdad",
+    "phone_number": "+964...",
+    "about": "...",
+    "profile_image": "/media/...",
+    "idcard_back": "/media/...",
+    "idcard_front": "/media/...",
+    "residence_front": "/media/...",
+    "residence_back": "/media/...",
+    "academic_achievement": "MSc",
+    "specialty": "Math",
+    "skills": "Teaching, Python",
+    "experience": 5,
+    "free_time": "09:00-14:00",
+    "institutions": ["ProjectEast Academy", ...]
+  }
+}`,
+        errorsExample: `403:
+{
+  "success": false,
+  "message": "Not a lecturer account"
+}`
+      },
+      {
+        section: "Lecturer · Profiles & Courses",
+        name: "Lecturer Public Profile",
+        method: "GET",
+        path: "/lecturer/profile/<username>/",
+        usecase: "Public lecturer profile by username.",
+        permission: "Public (AllowAny).",
+        jwt: "Not required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "data": {
+    "id": 5,
+    "first_name": "Sara",
+    "last_name": "K.",
+    "city": "baghdad",
+    "profile_image": "/media/...",
+    "specialty": "Math",
+    "experience": 5,
+    "academic_achievement": "MSc",
+    "institutions": ["ProjectEast Academy"],
+    "free_time": "09:00-14:00"
+  }
+}`,
+        errorsExample: `404:
+{
+  "success": false,
+  "message": "Lecturer not found"
+}`
+      },
+      {
+        section: "Lecturer · Profiles & Courses",
+        name: "Lecturer Courses (Public list)",
+        method: "GET",
+        path: "/lecturer/<username>/courses/",
+        usecase: "List all courses taught by lecturer (public).",
+        permission: "Public (AllowAny).",
+        jwt: "Not required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 12,
+      "title": "Python Basics",
+      "about": "Intro course...",
+      "course_image": "/media/...",
+      "starting_date": "2025-01-05",
+      "ending_date": "2025-02-01",
+      "level": "beginner",
+      "price": "150.00"
+    }
+  ]
+}`,
+        errorsExample: `Empty result if lecturer username invalid.`
+      },
+      {
+        section: "Lecturer · Profiles & Courses",
+        name: "Edit Lecturer Profile",
+        method: "PUT",
+        path: "/lecturer/profile/edit/",
+        usecase: "Lecturer edits own profile & lecturer-specific fields.",
+        permission: "Authenticated; must be lecturer.",
+        jwt: "Required",
+        requestBody: `Partial fields allowed:
+username, first_name, last_name, city, phone_number, about, profile_image,
+idcard_back, idcard_front, residence_front, residence_back,
+academic_achievement, specialty, skills, experience, free_time`,
+        successExample: `Response 200:
+{
+  "success": true,
+  "message": "Lecturer profile updated successfully."
+}`,
+        errorsExample: `403 if not lecturer.
+400 on validation errors.`
+      },
+      {
+        section: "Lecturer · Jobs",
+        name: "Apply to Job",
+        method: "POST",
+        path: "/lecturer/job/<job_id>/apply/",
+        usecase: "Lecturer applies to a job post (verified lecturers only).",
+        permission: "Lecturer + IsVerified.",
+        jwt: "Required",
+        requestBody: `Content-Type: application/json
+
+{
+  "message": "Optional message to institution"
+}`,
+        successExample: `Response 200:
+{
+  "success": true,
+  "message": "Application submitted successfully."
+}`,
+        errorsExample: `404: job not found.
+
+400:
+{
+  "success": false,
+  "message": "This job post is no longer accepting applications."
+}
+
+400:
+{
+  "success": false,
+  "message": "You already applied for this job."
+}`
+      },
+      {
+        section: "Lecturer · Exams & Grades",
+        name: "Create Exam",
+        method: "POST",
+        path: "/lecturer/course/<course_id>/exam/create/",
+        usecase: "Create exam for course taught by lecturer.",
+        permission: "Lecturer + IsVerified.",
+        jwt: "Required",
+        requestBody: `Content-Type: application/json
+
+{
+  "title": "Midterm",
+  "date": "2025-02-10",
+  "max_score": 100
+}`,
+        successExample: `Response 201:
+{
+  "success": true,
+  "message": "Exam created successfully.",
+  "exam_id": 3
+}`,
+        errorsExample: `404 if course not taught by lecturer.
+
+400 on serializer errors.`
+      },
+      {
+        section: "Lecturer · Exams & Grades",
+        name: "Add / Overwrite Grades (Bulk)",
+        method: "POST",
+        path: "/lecturer/exam/<exam_id>/grades/",
+        usecase: "Bulk create/update grades AND send emails to students + responsible_email.",
+        permission: "Lecturer + IsVerified.",
+        jwt: "Required",
+        requestBody: `Content-Type: application/json
+
+{
+  "grades": [
+    { "student_id": 5, "score": 85.5 },
+    { "student_id": 6, "score": 92 }
+  ]
+}`,
+        successExample: `Response 200:
+{
+  "success": true,
+  "message": "Grades processed and emails sent."
+}`,
+        errorsExample: `404 exam not found / not lecturer's.
+
+400 with serializer errors.
+
+Scores <0 or >max_score or students not in course are silently skipped.`
+      },
+      {
+        section: "Lecturer · Exams & Grades",
+        name: "View Exam Grades",
+        method: "GET",
+        path: "/lecturer/exam/<exam_id>/grades/view/",
+        usecase: "View all grades for an exam.",
+        permission: "Lecturer + IsVerified.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "exam_title": "Midterm",
+  "course": "Python Basics",
+  "max_score": 100,
+  "grades": [
+    {
+      "student_id": 5,
+      "student_name": "Ali Hassan",
+      "score": 85.5,
+      "max_score": 100
+    }
+  ]
+}`,
+        errorsExample: `404 exam not found.`
+      },
+      {
+        section: "Lecturer · Exams & Grades",
+        name: "Edit Grades (Bulk)",
+        method: "PUT",
+        path: "/lecturer/exam/<exam_id>/grades/edit/",
+        usecase: "Bulk update grades without sending emails.",
+        permission: "Lecturer + IsVerified.",
+        jwt: "Required",
+        requestBody: `Same schema as POST /lecturer/exam/<exam_id>/grades/`,
+        successExample: `Response 200:
+{
+  "success": true,
+  "message": "Grades updated successfully."
+}`,
+        errorsExample: `404 exam not found.
+
+400 on serializer errors.`
+      },
+      {
+        section: "Lecturer · Attendance",
+        name: "Mark Attendance (Bulk)",
+        method: "POST",
+        path: "/lecturer/course/<course_id>/attendance/",
+        usecase: "Mark attendance for all students for a single lecture number.",
+        permission: "Lecturer + IsVerified.",
+        jwt: "Required",
+        requestBody: `Content-Type: application/json
+
+{
+  "lecture_number": 1,
+  "records": [
+    { "student_id": 5, "status": "present" },
+    { "student_id": 6, "status": "late" }
+  ]
+}`,
+        successExample: `Response 200:
+{
+  "success": true,
+  "message": "Attendance saved successfully."
+}`,
+        errorsExample: `404 course not found / not lecturer's.
+
+400:
+{
+  "success": false,
+  "message": "Invalid lecture number."
+}
+
+Invalid students are silently skipped.`
+      },
+      {
+        section: "Lecturer · Attendance",
+        name: "View Lecture Attendance",
+        method: "GET",
+        path: "/lecturer/course/<course_id>/attendance/<lecture_number>/",
+        usecase: "View attendance records for single lecture.",
+        permission: "Lecturer + IsVerified.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "course": "Python Basics",
+  "lecture_number": 1,
+  "records": [
+    {
+      "student_id": 5,
+      "name": "Ali Hassan",
+      "status": "present"
+    }
+  ]
+}`,
+        errorsExample: `404 course not found.
+
+400:
+{
+  "success": false,
+  "message": "Invalid lecture number."
+}`
+      },
+      {
+        section: "Lecturer · Schedule",
+        name: "Lecturer Weekly Schedule",
+        method: "GET",
+        path: "/lecturer/schedule/",
+        usecase: "Flat list schedule for lecturer across all courses.",
+        permission: "Lecturer + IsVerified.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "schedule": [
+    {
+      "course_id": 12,
+      "course_title": "Python Basics",
+      "day": "monday",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "institution": "ProjectEast Academy"
+    }
+  ]
+}`,
+        errorsExample: `Auth-related only.`
+      },
+
+      /* STUDENT */
+      {
+        section: "Student · Profiles & Courses",
+        name: "Student Self Profile",
+        method: "GET",
+        path: "/student/profile/self/",
+        usecase: "Get full profile for logged-in student.",
+        permission: "Authenticated; must be student.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "data": {
+    "id": 5,
+    "username": "stud1",
+    "email": "stud@example.com",
+    "first_name": "Ali",
+    "last_name": "Hassan",
+    "city": "baghdad",
+    "phone_number": "+964...",
+    "about": "...",
+    "profile_image": "/media/...",
+    "idcard_back": "/media/...",
+    "idcard_front": "/media/...",
+    "residence_front": "/media/...",
+    "residence_back": "/media/...",
+    "is_verified": true,
+    "studying_level": "bachelors",
+    "interesting_keywords": "Physics, Math",
+    "responsible_phone": "+964...",
+    "responsible_email": "parent@example.com"
+  }
+}`,
+        errorsExample: `403:
+{
+  "success": false,
+  "message": "Not a student account"
+}`
+      },
+      {
+        section: "Student · Profiles & Courses",
+        name: "Student Public Profile",
+        method: "GET",
+        path: "/student/profile/<username>/",
+        usecase: "Public student card info.",
+        permission: "Public (AllowAny).",
+        jwt: "Not required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "data": {
+    "username": "stud1",
+    "first_name": "Ali",
+    "last_name": "Hassan",
+    "city": "baghdad",
+    "about": "...",
+    "profile_image": "/media/...",
+    "studying_level": "bachelors"
+  }
+}`,
+        errorsExample: `404:
+{
+  "success": false,
+  "message": "Student not found"
+}`
+      },
+      {
+        section: "Student · Profiles & Courses",
+        name: "Student Courses (Public list by username)",
+        method: "GET",
+        path: "/student/<username>/courses/",
+        usecase: "Public list of courses the student is enrolled in.",
+        permission: "Public (AllowAny).",
+        jwt: "Not required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 12,
+      "title": "Python Basics",
+      "about": "Intro...",
+      "course_image": "/media/...",
+      "starting_date": "2025-01-05",
+      "ending_date": "2025-02-01",
+      "level": "beginner",
+      "price": "150.00"
+    }
+  ]
+}`,
+        errorsExample: `Empty result if username invalid.`
+      },
+      {
+        section: "Student · Profiles & Courses",
+        name: "Edit Student Profile",
+        method: "PUT",
+        path: "/student/profile/edit/",
+        usecase: "Student edits own profile & student-specific fields.",
+        permission: "Authenticated; must be student.",
+        jwt: "Required",
+        requestBody: `Partial fields allowed:
+username, first_name, last_name, city, phone_number, about,
+profile_image, idcard_back, idcard_front, residence_front, residence_back,
+studying_level, interesting_keywords, responsible_phone, responsible_email`,
+        successExample: `Response 200:
+{
+  "success": true,
+  "message": "Student profile updated successfully."
+}`,
+        errorsExample: `403 if non-student.
+400 on validation errors.`
+      },
+      {
+        section: "Student · Attendance & Grades",
+        name: "View Own Attendance for Course",
+        method: "GET",
+        path: "/student/course/<course_id>/attendance/",
+        usecase: "Student gets own attendance records for a course.",
+        permission: "Student + IsVerified.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "course": "Python Basics",
+  "total_lectures": 10,
+  "attendance_percentage": 80.0,
+  "records": [
+    { "lecture_number": 1, "status": "present" },
+    { "lecture_number": 2, "status": "absent" }
+  ]
+}`,
+        errorsExample: `404:
+{
+  "success": false,
+  "message": "Course not found."
+}   // not enrolled / wrong id`
+      },
+      {
+        section: "Student · Attendance & Grades",
+        name: "View Own Grades for Course",
+        method: "GET",
+        path: "/student/course/<course_id>/grades/",
+        usecase: "Student gets list of grades for all exams in a course.",
+        permission: "Student + IsVerified.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "course": "Python Basics",
+  "grades": [
+    {
+      "exam_title": "Midterm",
+      "exam_date": "2025-02-10",
+      "score": 85.5,
+      "max_score": 100
+    }
+  ]
+}`,
+        errorsExample: `404:
+{
+  "success": false,
+  "message": "Course not found."
+}`
+      },
+      {
+        section: "Student · Schedule",
+        name: "Student Weekly Schedule",
+        method: "GET",
+        path: "/student/schedule/",
+        usecase: "List schedule of all courses the student is enrolled in.",
+        permission: "Student + IsVerified.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "schedule": [
+    {
+      "course_id": 12,
+      "course_title": "Python Basics",
+      "day": "monday",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "lecturer": "Sara K",
+      "institution": "ProjectEast Academy"
+    }
+  ]
+}`,
+        errorsExample: `Auth-related only.`
+      },
+
+      /* COURSES / DETAILS (PUBLIC) */
+      {
+        section: "Courses · Public Details",
+        name: "Course Detail (Public)",
+        method: "GET",
+        path: "/institution/course-detail/<course_id>/", // NOTE: real path is /course/<int:course_id>/ via CourseDetailView
+        usecase: "Get full course details.",
+        permission: "Public (AllowAny).",
+        jwt: "Not required",
+        requestBody: null,
+        successExample: `GET ${BASE_URL}/course/12/
+
+Response 200:
+{
+  "success": true,
+  "data": {
+    "id": 12,
+    "title": "Python Basics",
+    "about": "Intro course...",
+    "course_image": "/media/...",
+    "starting_date": "2025-01-05",
+    "ending_date": "2025-02-01",
+    "level": "beginner",
+    "price": "150.00",
+    "days": ["monday", "wednesday"],
+    "start_time": "09:00:00",
+    "end_time": "10:00:00",
+    "lecturer": 5,
+    "lecturer_name": "Sara K",
+    "institution_name": "ProjectEast Academy",
+    "institution_username": "inst1"
+  }
+}`,
+        errorsExample: `404:
+{
+  "success": false,
+  "message": "Course not found."
+}`
+      }
+    ];
+
+    // Small fix: ensure the last "Course Detail" has correct displayed path
+    endpoints[endpoints.length - 1].path = "/course/<course_id>/";
+
+    // === Render logic ===
+    const navEl = document.getElementById("nav");
+    const sectionsEl = document.getElementById("sections");
+    const searchInput = document.getElementById("searchInput");
+
+    function groupBySection(list) {
+      const groups = {};
+      for (const ep of list) {
+        if (!groups[ep.section]) groups[ep.section] = [];
+        groups[ep.section].push(ep);
+      }
+      return groups;
+    }
+
+    function renderNav(sections) {
+      navEl.innerHTML = "";
+      const sectionNames = Object.keys(sections);
+      sectionNames.forEach((name, idx) => {
+        const item = document.createElement("div");
+        item.className = "nav-item" + (idx === 0 ? " active" : "");
+        item.dataset.target = name;
+
+        const spanTitle = document.createElement("span");
+        spanTitle.textContent = name;
+
+        const pill = document.createElement("span");
+        pill.className = "nav-pill";
+        pill.textContent = sections[name].length;
+
+        item.appendChild(spanTitle);
+        item.appendChild(pill);
+
+        item.addEventListener("click", () => {
+          document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+          item.classList.add("active");
+          document.getElementById(sectionId(name))?.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+          });
+        });
+
+        navEl.appendChild(item);
+      });
+    }
+
+    function sectionId(name) {
+      return "sec-" + name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    }
+
+    function renderSections(groups) {
+      sectionsEl.innerHTML = "";
+      Object.entries(groups).forEach(([name, list]) => {
+        const section = document.createElement("section");
+        section.className = "section";
+        section.id = sectionId(name);
+
+        const header = document.createElement("div");
+        header.className = "section-header";
+
+        const left = document.createElement("div");
+        const title = document.createElement("div");
+        title.className = "section-title";
+        title.textContent = name;
+        const desc = document.createElement("div");
+        desc.className = "section-description";
+        desc.textContent = ""; // keep compact, frontend bro can add copy if needed
+
+        left.appendChild(title);
+        left.appendChild(desc);
+
+        const right = document.createElement("div");
+        right.className = "section-count";
+        right.textContent = list.length + " endpoints";
+
+        header.appendChild(left);
+        header.appendChild(right);
+
+        section.appendChild(header);
+
+        list.forEach(ep => {
+          const card = renderEndpoint(ep);
+          section.appendChild(card);
+        });
+
+        sectionsEl.appendChild(section);
+      });
+    }
+
+    function renderEndpoint(ep) {
+      const card = document.createElement("article");
+      card.className = "endpoint collapsed";
+
+      const header = document.createElement("div");
+      header.className = "endpoint-header";
+
+      const headerMain = document.createElement("div");
+      headerMain.className = "endpoint-header-main";
+
+      const method = document.createElement("span");
+      method.className = "method " + methodClass(ep.method);
+      method.textContent = ep.method;
+
+      const url = document.createElement("span");
+      url.className = "endpoint-url";
+      url.textContent = ep.path;
+
+      const usecase = document.createElement("span");
+      usecase.className = "endpoint-usecase";
+      usecase.textContent = ep.usecase;
+
+      headerMain.appendChild(method);
+      headerMain.appendChild(url);
+      headerMain.appendChild(usecase);
+
+      const labels = document.createElement("div");
+      labels.className = "endpoint-labels";
+
+      if (ep.permission) {
+        const chipRole = document.createElement("span");
+        chipRole.className = "chip chip-role";
+        chipRole.textContent = roleShort(ep.permission);
+        labels.appendChild(chipRole);
+      }
+
+      const chipJwt = document.createElement("span");
+      chipJwt.className = "chip " + (ep.jwt === "Required" ? "chip-jwt-on" : ep.jwt === "Optional" ? "chip-public" : "chip-jwt-off");
+      chipJwt.textContent = "JWT: " + (ep.jwt || "No");
+      labels.appendChild(chipJwt);
+
+      const toggle = document.createElement("div");
+      toggle.className = "endpoint-toggle";
+      toggle.textContent = "›";
+
+      header.appendChild(headerMain);
+      header.appendChild(labels);
+      header.appendChild(toggle);
+
+      const body = document.createElement("div");
+      body.className = "endpoint-body";
+
+      const bodyInner = document.createElement("div");
+      bodyInner.className = "endpoint-body-inner";
+
+      // Column 1: meta
+      const metaCol = document.createElement("div");
+
+      metaCol.appendChild(fieldBlock("URL", `${BASE_URL}${ep.path}`));
+      metaCol.appendChild(fieldBlock("Permission", ep.permission || "—"));
+      metaCol.appendChild(fieldBlock("JWT", ep.jwt || "Not required"));
+
+      if (ep.requestBody !== null) {
+        metaCol.appendChild(fieldCode("Request Body", ep.requestBody));
+      } else {
+        metaCol.appendChild(fieldBlock("Request Body", "No body. Uses path/query only."));
+      }
+
+      // Column 2: responses
+      const respCol = document.createElement("div");
+      respCol.appendChild(fieldCode("Success Example", ep.successExample || "—"));
+      respCol.appendChild(fieldCode("Common Error Responses", ep.errorsExample || "—"));
+
+      bodyInner.appendChild(metaCol);
+      bodyInner.appendChild(respCol);
+
+      body.appendChild(bodyInner);
+
+      // expand / collapse
+      function toggleOpen() {
+        const isOpen = card.classList.contains("open");
+        if (isOpen) {
+          card.classList.remove("open");
+          card.classList.add("collapsed");
+          body.style.maxHeight = "0";
+        } else {
+          card.classList.add("open");
+          card.classList.remove("collapsed");
+          body.style.maxHeight = bodyInner.scrollHeight + 24 + "px";
+        }
+      }
+
+      header.addEventListener("click", toggleOpen);
+
+      card.appendChild(header);
+      card.appendChild(body);
+
+      return card;
+    }
+
+    function methodClass(m) {
+      const x = m.toUpperCase();
+      if (x === "GET") return "method-get";
+      if (x === "POST") return "method-post";
+      if (x === "PUT" || x === "PATCH") return "method-put";
+      if (x === "DELETE") return "method-delete";
+      return "";
+    }
+
+    function roleShort(permission) {
+      if (!permission) return "Unknown";
+      const s = permission.toLowerCase();
+      if (s.includes("institution")) return "Institution";
+      if (s.includes("lecturer")) return "Lecturer";
+      if (s.includes("student")) return "Student";
+      if (s.includes("public")) return "Public";
+      if (s.includes("authenticated")) return "Any authenticated";
+      return permission;
+    }
+
+    function fieldBlock(title, text) {
+      const box = document.createElement("div");
+      box.className = "field";
+      const t = document.createElement("div");
+      t.className = "field-title";
+      t.textContent = title;
+      const c = document.createElement("div");
+      c.className = "field-content";
+      c.textContent = text;
+      box.appendChild(t);
+      box.appendChild(c);
+      return box;
+    }
+
+    function fieldCode(title, text) {
+      const box = document.createElement("div");
+      box.className = "field";
+      const t = document.createElement("div");
+      t.className = "field-title";
+      t.textContent = title;
+      const c = document.createElement("div");
+      c.className = "field-content";
+      const pre = document.createElement("pre");
+      const code = document.createElement("code");
+      code.textContent = text;
+      pre.appendChild(code);
+      c.appendChild(pre);
+      box.appendChild(t);
+      box.appendChild(c);
+      return box;
+    }
+
+    function applySearch(term) {
+      const lower = term.trim().toLowerCase();
+      const cards = document.querySelectorAll(".endpoint");
+      if (!lower) {
+        cards.forEach(c => c.classList.remove("hidden"));
+        return;
+      }
+      endpoints.forEach(ep => {
+        const match = (
+          ep.name.toLowerCase().includes(lower) ||
+          ep.path.toLowerCase().includes(lower) ||
+          ep.method.toLowerCase().includes(lower) ||
+          (ep.permission && ep.permission.toLowerCase().includes(lower)) ||
+          (ep.usecase && ep.usecase.toLowerCase().includes(lower)) ||
+          ep.section.toLowerCase().includes(lower)
+        );
+        const selector = `.endpoint .endpoint-url`;
+        // not ideal to tie back ep -> DOM, so we'll just re-scan by path & name
+      });
+
+      // simple text-based filtering on DOM only:
+      cards.forEach(card => {
+        const txt = card.innerText.toLowerCase();
+        card.classList.toggle("hidden", !txt.includes(lower));
+      });
+    }
+
+    // Init
+    const groups = groupBySection(endpoints);
+    renderNav(groups);
+    renderSections(groups);
+
+    // Expand first section's first endpoint
+    const firstCard = document.querySelector(".endpoint");
+    if (firstCard) {
+      const header = firstCard.querySelector(".endpoint-header");
+      header?.click();
+    }
+
+    searchInput.addEventListener("input", e => {
+      applySearch(e.target.value);
+    });
+
+    // Copy base URL
+    document.getElementById("copyBase").addEventListener("click", () => {
+      navigator.clipboard?.writeText(BASE_URL).then(() => {
+        const btn = document.getElementById("copyBase");
+        const old = btn.textContent;
+        btn.textContent = "copied";
+        setTimeout(() => { btn.textContent = "copy"; }, 700);
+      });
+    });
+  </script>
 </body>
 </html>

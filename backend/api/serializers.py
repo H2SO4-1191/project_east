@@ -446,7 +446,6 @@ class JobApplicationSerializer(serializers.ModelSerializer):
         model = JobApplication
         fields = ["id", "message", "created_at"]
 
-
 class StaffCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Staff
@@ -500,14 +499,6 @@ class StaffDetailSerializer(serializers.ModelSerializer):
             "salary",
             "is_active",
         ]
-
-
-
-
-
-
-
-
 
 class LecturerSelfProfileSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source="user.first_name")
@@ -640,8 +631,6 @@ class LecturerGradeViewSerializer(serializers.ModelSerializer):
         model = Grade
         fields = ["student_id", "student_name", "score", "max_score"]
 
-
-
 class StudentSelfProfileSerializer(serializers.ModelSerializer):
     studying_level = serializers.CharField(source="student.studying_level")
     interesting_keywords = serializers.CharField(source="student.interesting_keywords")
@@ -747,20 +736,16 @@ class ExamSerializer(serializers.ModelSerializer):
         model = Exam
         fields = ["id", "title", "date", "max_score"]
 
-
 class GradeCreateSerializer(serializers.Serializer):
     student_id = serializers.IntegerField()
     score = serializers.FloatField()
 
-
 class GradeBulkCreateSerializer(serializers.Serializer):
     grades = GradeCreateSerializer(many=True)
-
 
 class AttendanceRecordSerializer(serializers.Serializer):
     student_id = serializers.IntegerField()
     status = serializers.ChoiceField(choices=["present", "absent", "late"])
-
 
 class AttendanceCreateSerializer(serializers.Serializer):
     lecture_number = serializers.IntegerField()
@@ -802,7 +787,6 @@ class SearchStudentSerializer(serializers.ModelSerializer):
     def get_name(self, obj):
         return f"{obj.user.first_name} {obj.user.last_name}"
 
-
 class SearchLecturerSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     city = serializers.CharField(source="user.city")
@@ -815,7 +799,6 @@ class SearchLecturerSerializer(serializers.ModelSerializer):
     def get_name(self, obj):
         return f"{obj.user.first_name} {obj.user.last_name}"
 
-
 class SearchInstitutionSerializer(serializers.ModelSerializer):
     title = serializers.CharField()
     city = serializers.CharField(source="user.city")
@@ -824,7 +807,6 @@ class SearchInstitutionSerializer(serializers.ModelSerializer):
         model = Institution
         fields = ["id", "title", "location", "city"]
 
-
 class SearchCourseSerializer(serializers.ModelSerializer):
     institution = serializers.CharField(source="institution.title")
     city = serializers.CharField(source="institution.user.city")
@@ -832,7 +814,6 @@ class SearchCourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = ["id", "title", "about", "institution", "city"]
-
 
 class SearchJobSerializer(serializers.ModelSerializer):
     institution = serializers.CharField(source="institution.title")
