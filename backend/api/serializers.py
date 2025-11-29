@@ -3,6 +3,20 @@ from .models import *
 from django.utils import timezone
 from datetime import timedelta
 
+class FeedItemSerializer(serializers.Serializer):
+    type = serializers.CharField()
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    description = serializers.CharField(allow_null=True)
+    image = serializers.CharField(allow_null=True)
+    created_at = serializers.DateTimeField(allow_null=True)
+
+class FeedCourseSerializer(serializers.ModelSerializer):
+    institution = serializers.CharField(source='institution.user.username')
+    class Meta:
+        model = Course
+        fields = ['id', 'title', 'about', 'starting_date', 'ending_date', 'price', 'level', 'institution']
+
 class SignupSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -246,6 +260,589 @@ class CourseSerializer(serializers.ModelSerializer):
             setattr(instance, key, value)
         instance.save()
         return instance
+
+class InstitutionSelfProfileSerializer(serializers.ModelSerializer):
+    title = serializers.CharField(source="institution.title")
+    location = serializers.CharField(source="institution.location")
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "city",
+            "phone_number",
+            "about",
+            "profile_image",
+            "idcard_back",
+            "idcard_front",
+            "residence_front",
+            "residence_back",
+            "is_verified",
+
+            "title",
+            "location",
+        ]
+
+class InstitutionPublicProfileSerializer(serializers.ModelSerializer):
+    title = serializers.CharField(source="institution.title")
+    location = serializers.CharField(source="institution.location")
+
+    class Meta:
+        model = User
+        fields = [
+            "username",
+            "first_name",
+            "last_name",
+            "city",
+            "about",
+            "profile_image",
+            "title",
+            "location",
+        ]
+
+class InstitutionCourseListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Course
+        fields = [
+            "id",
+            "title",
+            "about",
+            "course_image",
+            "starting_date",
+            "ending_date",
+            "level",
+            "price",
+        ]
+
+class InstitutionPostListSerializer(serializers.ModelSerializer):
+    images = PostImageSerializer(many=True)
+
+    class Meta:
+        model = Post
+        fields = [
+            "id",
+            "title",
+            "description",
+            "created_at",
+            "images",
+        ]
+
+class InstitutionViewStudentSerializer(serializers.ModelSerializer):
+    studying_level = serializers.CharField(source="student.studying_level")
+    interesting_keywords = serializers.CharField(source="student.interesting_keywords")
+    responsible_phone = serializers.CharField(source="student.responsible_phone")
+    responsible_email = serializers.EmailField(source="student.responsible_email")
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "city",
+            "phone_number",
+            "about",
+            "profile_image",
+            "idcard_back",
+            "idcard_front",
+            "residence_front",
+            "residence_back",
+
+            # student specific
+            "studying_level",
+            "interesting_keywords",
+            "responsible_phone",
+            "responsible_email",
+        ]
+
+class InstitutionViewLecturerSerializer(serializers.ModelSerializer):
+    academic_achievement = serializers.CharField(source="lecturer.academic_achievement")
+    specialty = serializers.CharField(source="lecturer.specialty")
+    skills = serializers.CharField(source="lecturer.skills")
+    experience = serializers.IntegerField(source="lecturer.experience")
+    free_time = serializers.CharField(source="lecturer.free_time")
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "city",
+            "phone_number",
+            "about",
+            "profile_image",
+            "idcard_back",
+            "idcard_front",
+            "residence_front",
+            "residence_back",
+
+            # lecturer fields
+            "academic_achievement",
+            "specialty",
+            "skills",
+            "experience",
+            "free_time",
+        ]
+
+class CourseDetailSerializer(serializers.ModelSerializer):
+    lecturer_name = serializers.SerializerMethodField()
+    institution_name = serializers.CharField(source="institution.title")
+    institution_username = serializers.CharField(source="institution.user.username")
+
+    class Meta:
+        model = Course
+        fields = [
+            "id",
+            "title",
+            "about",
+            "course_image",
+            "starting_date",
+            "ending_date",
+            "level",
+            "price",
+            "days",
+            "start_time",
+            "end_time",
+
+            "lecturer",
+            "lecturer_name",
+            "institution_name",
+            "institution_username",
+        ]
+
+    def get_lecturer_name(self, obj):
+        u = obj.lecturer.user
+        return f"{u.first_name} {u.last_name}"
+
+class JobPostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobPost
+        fields = [
+            "id",
+            "title",
+            "description",
+            "specialty",
+            "experience_required",
+            "skills_required",
+            "salary_offer",
+            "created_at"
+        ]
+
+    def create(self, validated_data):
+        institution = self.context["request"].user.institution
+        return JobPost.objects.create(institution=institution, **validated_data)
+
+class JobApplicationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobApplication
+        fields = ["id", "message", "created_at"]
+
+
+class StaffCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Staff
+        fields = [
+            "first_name",
+            "last_name",
+            "phone_number",
+            "personal_image",
+            "idcard_front",
+            "idcard_back",
+            "residence_front",
+            "residence_back",
+            "duty",
+            "salary",
+        ]
+
+    def create(self, validated_data):
+        institution = self.context["request"].user.institution
+        return Staff.objects.create(institution=institution, **validated_data)
+
+class StaffEditSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Staff
+        fields = [
+            "first_name",
+            "last_name",
+            "phone_number",
+            "personal_image",
+            "idcard_front",
+            "idcard_back",
+            "residence_front",
+            "residence_back",
+            "duty",
+            "salary",
+        ]
+
+class StaffDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Staff
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "phone_number",
+            "personal_image",
+            "idcard_front",
+            "idcard_back",
+            "residence_front",
+            "residence_back",
+            "duty",
+            "salary",
+            "is_active",
+        ]
+
+
+
+
+
+
+
+
+
+class LecturerSelfProfileSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(source="user.first_name")
+    last_name = serializers.CharField(source="user.last_name")
+    email = serializers.EmailField(source="user.email")
+    city = serializers.CharField(source="user.city")
+    phone_number = serializers.CharField(source="user.phone_number")
+    about = serializers.CharField(source="user.about")
+    profile_image = serializers.ImageField(source="user.profile_image")
+
+    idcard_back = serializers.ImageField(source="user.idcard_back")
+    idcard_front = serializers.ImageField(source="user.idcard_front")
+    residence_front = serializers.ImageField(source="user.residence_front")
+    residence_back = serializers.ImageField(source="user.residence_back")
+
+    institutions = serializers.StringRelatedField(many=True)
+
+    class Meta:
+        model = Lecturer
+        fields = [
+            "id",
+
+            "first_name",
+            "last_name",
+            "email",
+            "city",
+            "phone_number",
+            "about",
+            "profile_image",
+            "idcard_back",
+            "idcard_front",
+            "residence_front",
+            "residence_back",
+
+            "academic_achievement",
+            "specialty",
+            "skills",
+            "experience",
+            "free_time",
+            "institutions",
+        ]
+
+class LecturerPublicProfileSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(source="user.first_name")
+    last_name = serializers.CharField(source="user.last_name")
+    city = serializers.CharField(source="user.city")
+    profile_image = serializers.ImageField(source="user.profile_image")
+
+    institutions = serializers.StringRelatedField(many=True)
+
+    class Meta:
+        model = Lecturer
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "city",
+            "profile_image",
+            "specialty",
+            "experience",
+            "academic_achievement",
+            "institutions",
+            "free_time",
+        ]
+
+class LecturerCourseListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Course
+        fields = [
+            "id",
+            "title",
+            "about",
+            "course_image",
+            "starting_date",
+            "ending_date",
+            "level",
+            "price",
+        ]
+
+class LecturerEditProfileSerializer(serializers.ModelSerializer):
+    academic_achievement = serializers.CharField(source="lecturer.academic_achievement", required=False)
+    specialty = serializers.CharField(source="lecturer.specialty", required=False)
+    skills = serializers.CharField(source="lecturer.skills", required=False)
+    experience = serializers.IntegerField(source="lecturer.experience", required=False)
+    free_time = serializers.CharField(source="lecturer.free_time", required=False)
+
+    class Meta:
+        model = User
+        fields = [
+            "username",
+            "first_name",
+            "last_name",
+            "city",
+            "phone_number",
+            "about",
+            "profile_image",
+            "idcard_back",
+            "idcard_front",
+            "residence_front",
+            "residence_back",
+
+            "academic_achievement",
+            "specialty",
+            "skills",
+            "experience",
+            "free_time",
+        ]
+
+    def update(self, instance, validated_data):
+        lecturer_data = validated_data.pop("lecturer", {})
+        lecturer = instance.lecturer
+
+        for k, v in lecturer_data.items():
+            setattr(lecturer, k, v)
+        lecturer.save()
+
+        for k, v in validated_data.items():
+            setattr(instance, k, v)
+
+        instance.save()
+        return instance
+
+class LecturerGradeViewSerializer(serializers.ModelSerializer):
+    student_id = serializers.IntegerField(source="student.id")
+    student_name = serializers.CharField(source="student.user.get_full_name")
+    score = serializers.FloatField()
+    max_score = serializers.IntegerField(source="exam.max_score")
+
+    class Meta:
+        model = Grade
+        fields = ["student_id", "student_name", "score", "max_score"]
+
+
+
+class StudentSelfProfileSerializer(serializers.ModelSerializer):
+    studying_level = serializers.CharField(source="student.studying_level")
+    interesting_keywords = serializers.CharField(source="student.interesting_keywords")
+    responsible_phone = serializers.CharField(source="student.responsible_phone")
+    responsible_email = serializers.EmailField(source="student.responsible_email")
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "city",
+            "phone_number",
+            "about",
+            "profile_image",
+            "idcard_back",
+            "idcard_front",
+            "residence_front",
+            "residence_back",
+            "is_verified",
+
+            "studying_level",
+            "interesting_keywords",
+            "responsible_phone",
+            "responsible_email",
+        ]
+
+class StudentPublicProfileSerializer(serializers.ModelSerializer):
+    studying_level = serializers.CharField(source="student.studying_level")
+
+    class Meta:
+        model = User
+        fields = [
+            "username",
+            "first_name",
+            "last_name",
+            "city",
+            "about",
+            "profile_image",
+            "studying_level",
+        ]
+
+class StudentCourseListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Course
+        fields = [
+            "id",
+            "title",
+            "about",
+            "course_image",
+            "starting_date",
+            "ending_date",
+            "level",
+            "price",
+        ]
+
+class StudentEditProfileSerializer(serializers.ModelSerializer):
+    studying_level = serializers.CharField(source="student.studying_level", required=False)
+    interesting_keywords = serializers.CharField(source="student.interesting_keywords", required=False)
+    responsible_phone = serializers.CharField(source="student.responsible_phone", required=False)
+    responsible_email = serializers.EmailField(source="student.responsible_email", required=False)
+
+    class Meta:
+        model = User
+        fields = [
+            "username",
+            "first_name",
+            "last_name",
+            "city",
+            "phone_number",
+            "about",
+            "profile_image",
+            "idcard_back",
+            "idcard_front",
+            "residence_front",
+            "residence_back",
+
+            "studying_level",
+            "interesting_keywords",
+            "responsible_phone",
+            "responsible_email",
+        ]
+
+    def update(self, instance, validated_data):
+        student_data = validated_data.pop("student", {})
+        student = instance.student
+
+        for k, v in student_data.items():
+            setattr(student, k, v)
+        student.save()
+
+        for k, v in validated_data.items():
+            setattr(instance, k, v)
+
+        instance.save()
+        return instance
+
+class ExamSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Exam
+        fields = ["id", "title", "date", "max_score"]
+
+
+class GradeCreateSerializer(serializers.Serializer):
+    student_id = serializers.IntegerField()
+    score = serializers.FloatField()
+
+
+class GradeBulkCreateSerializer(serializers.Serializer):
+    grades = GradeCreateSerializer(many=True)
+
+
+class AttendanceRecordSerializer(serializers.Serializer):
+    student_id = serializers.IntegerField()
+    status = serializers.ChoiceField(choices=["present", "absent", "late"])
+
+
+class AttendanceCreateSerializer(serializers.Serializer):
+    lecture_number = serializers.IntegerField()
+    records = AttendanceRecordSerializer(many=True)
+
+class StudentGradeSerializer(serializers.ModelSerializer):
+    score = serializers.FloatField()
+    exam_title = serializers.CharField(source="exam.title")
+    exam_date = serializers.DateField(source="exam.date")
+    max_score = serializers.IntegerField(source="exam.max_score")
+
+    class Meta:
+        model = Grade
+        fields = ["exam_title", "exam_date", "score", "max_score"]
+
+class WeeklyScheduleItemSerializer(serializers.Serializer):
+    course_id = serializers.IntegerField()
+    course_title = serializers.CharField()
+    day = serializers.CharField()
+    start_time = serializers.CharField()
+    end_time = serializers.CharField()
+    lecturer = serializers.CharField(required=False)
+    institution = serializers.CharField(required=False)
+
+class CourseProgressSerializer(serializers.Serializer):
+    course_title = serializers.CharField()
+    total_lectures = serializers.IntegerField()
+    completed_lectures = serializers.IntegerField()
+    progress_percentage = serializers.FloatField()
+
+class SearchStudentSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+    city = serializers.CharField(source="user.city")
+
+    class Meta:
+        model = Student
+        fields = ["id", "name", "city"]
+
+    def get_name(self, obj):
+        return f"{obj.user.first_name} {obj.user.last_name}"
+
+
+class SearchLecturerSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+    city = serializers.CharField(source="user.city")
+    specialty = serializers.CharField()
+
+    class Meta:
+        model = Lecturer
+        fields = ["id", "name", "city", "specialty"]
+
+    def get_name(self, obj):
+        return f"{obj.user.first_name} {obj.user.last_name}"
+
+
+class SearchInstitutionSerializer(serializers.ModelSerializer):
+    title = serializers.CharField()
+    city = serializers.CharField(source="user.city")
+
+    class Meta:
+        model = Institution
+        fields = ["id", "title", "location", "city"]
+
+
+class SearchCourseSerializer(serializers.ModelSerializer):
+    institution = serializers.CharField(source="institution.title")
+    city = serializers.CharField(source="institution.user.city")
+
+    class Meta:
+        model = Course
+        fields = ["id", "title", "about", "institution", "city"]
+
+
+class SearchJobSerializer(serializers.ModelSerializer):
+    institution = serializers.CharField(source="institution.title")
+    city = serializers.CharField(source="institution.user.city")
+
+    class Meta:
+        model = JobPost
+        fields = ["id", "title", "description", "institution", "city"]
+
+
 
 
 

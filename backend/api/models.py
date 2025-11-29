@@ -4,6 +4,7 @@ from django.db.models import JSONField
 from django.core.validators import RegexValidator
 from django.contrib.postgres.fields import ArrayField
 from datetime import time
+from decimal import Decimal
 
 phone_validator = RegexValidator(
     regex=r'^\+?\d{9,15}$',
@@ -65,7 +66,7 @@ class User(AbstractUser):
     last_name = models.CharField(max_length=100, blank=False, null=False)
     email = models.EmailField(max_length=250, unique=True, null=False, blank=False)
     user_type = models.CharField(max_length=20, choices=USER_TYPES, null=False, blank=False)
-    city = models.CharField(max_length=255, choices=CITY_CHOICES)
+    city = models.CharField(max_length=255, choices=CITY_CHOICES, default='baghdad')
     phone_number = models.CharField(max_length=15, blank=True, null=True, validators=[phone_validator])
     about = models.CharField(max_length=1000, blank=True, null=True)
     profile_image = models.ImageField(upload_to=upload_path, blank=True, null=True)
@@ -82,6 +83,8 @@ class User(AbstractUser):
     otp_generated = models.DateTimeField(blank=True, null=True)
     REQUIRED_FIELDS=['first_name', 'last_name', 'email', 'city','user_type']
     def save(self, *args, **kwargs):
+        if self.email:
+            self.email = self.email.lower()
         if not self.password:
             self.set_unusable_password()
         super().save(*args, **kwargs)
@@ -115,8 +118,8 @@ class Course(models.Model):
     course_image = models.ImageField(upload_to=upload_course_path, blank=True, null=True)
     starting_date = models.DateField()
     ending_date = models.DateField()
-    level = models.CharField(max_length=255, choices=COURSE_LEVEL_CHOICES)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    level = models.CharField(max_length=255, choices=COURSE_LEVEL_CHOICES, default='beginner')
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal(0))
 
     DAYS = [
         ('monday', 'Monday'),
@@ -134,6 +137,9 @@ class Course(models.Model):
 
     institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='courses')
     lecturer = models.ForeignKey(Lecturer, on_delete=models.CASCADE, related_name='courses')
+
+    capacity = models.PositiveIntegerField(default=0)  # 0 = unlimited
+    total_lectures = models.PositiveIntegerField(default=0)  # number of sessions for this course
 
 class Student(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -182,6 +188,64 @@ class PostImage(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='images')
     image = models.ImageField(upload_to=upload_post_path)
 
+class JobPost(models.Model):
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name="jobs")
 
+    title = models.CharField(max_length=255)
+    description = models.CharField(max_length=2000, blank=True, null=True)
 
+    specialty = models.CharField(max_length=255)
+    experience_required = models.PositiveIntegerField(default=0)
+    skills_required = models.CharField(max_length=1000, blank=True, null=True)
 
+    salary_offer = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title
+
+class JobApplication(models.Model):
+    job = models.ForeignKey(JobPost, on_delete=models.CASCADE, related_name="applications")
+    lecturer = models.ForeignKey(Lecturer, on_delete=models.CASCADE, related_name="applications")
+    message = models.CharField(max_length=2000, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("job", "lecturer")
+
+    def __str__(self):
+        return f"{self.lecturer.user.username} → {self.job.title}"
+
+class Attendance(models.Model):
+    STATUS_CHOICES = (
+        ('present', 'Present'),
+        ('absent', 'Absent'),
+        ('late', 'Late'),
+    )
+
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="attendances")
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="attendances")
+    lecture_number = models.PositiveIntegerField()  # 1 .. total_lectures
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES)
+    marked_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("course", "student", "lecture_number")
+
+class Exam(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="exams")
+    title = models.CharField(max_length=255)
+    date = models.DateField()
+    max_score = models.PositiveIntegerField(default=100)
+
+    def __str__(self):
+        return f"{self.course.title} - {self.title}"
+
+class Grade(models.Model):
+    exam = models.ForeignKey(Exam, on_delete=models.CASCADE, related_name="grades")
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="grades")
+    score = models.FloatField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("exam", "student")

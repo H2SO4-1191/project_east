@@ -11,6 +11,141 @@ from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.generics import ListAPIView
 from ai.predict_doc import classify_document
+from rest_framework.pagination import PageNumberPagination
+from django.db.models import Q
+
+
+class FeedPagination(PageNumberPagination):
+    page_size = 20
+
+class HomeFeedView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        user = request.user if request.user.is_authenticated else None
+        city = None
+        keywords = []
+
+        if user:
+            city = user.city
+            if user.user_type == "student":
+                k = user.student.interesting_keywords
+                if k:
+                    keywords = [x.strip().lower() for x in k.split(",")]
+            elif user.user_type == "lecturer":
+                k = user.lecturer.skills
+                if k:
+                    keywords = [x.strip().lower() for x in k.split(",")]
+
+        # --- GET POSTS ---
+        posts = Post.objects.all()
+        if city:
+            posts_city = posts.filter(user__city=city)
+        else:
+            posts_city = posts.none()
+
+        posts_global = posts.exclude(id__in=posts_city.values_list("id", flat=True))
+
+        # --- GET COURSES ---
+        courses = Course.objects.select_related("institution", "lecturer__user")
+        if city:
+            courses_city = courses.filter(institution__user__city=city)
+        else:
+            courses_city = courses.none()
+
+        # keyword match (student only)
+        courses_kw = courses.none()
+        if user and user.user_type == "student" and keywords:
+            for kw in keywords:
+                courses_kw = courses_kw | courses.filter(title__icontains=kw)
+
+        courses_global = courses.exclude(id__in=courses_city.values_list("id", flat=True))
+
+        # --- GET JOBS ---
+        jobs = JobPost.objects.select_related("institution__user")
+        if city:
+            jobs_city = jobs.filter(institution__user__city=city)
+        else:
+            jobs_city = jobs.none()
+
+        jobs_kw = jobs.none()
+        if user and user.user_type == "lecturer" and keywords:
+            for kw in keywords:
+                jobs_kw = jobs_kw | jobs.filter(
+                    models.Q(title__icontains=kw) |
+                    models.Q(description__icontains=kw) |
+                    models.Q(skills_required__icontains=kw)
+                )
+
+        jobs_global = jobs.exclude(id__in=jobs_city.values_list("id", flat=True))
+
+        # --- WEIGHT LOGIC ---
+        if not user:
+            post_pick = posts.order_by("?")[:10]
+            course_pick = courses.order_by("?")[:10]
+            job_pick = jobs.order_by("?")[:10]
+
+        else:
+            if user.user_type == "student":
+                post_pick = list(posts_city[:5]) + list(posts_global[:3])
+                course_pick = list(courses_kw[:10]) + list(courses_city[:8])
+                job_pick = list(jobs_global[:2])
+
+            elif user.user_type == "lecturer":
+                post_pick = list(posts_city[:4]) + list(posts_global[:3])
+                course_pick = list(courses_global[:4])
+                job_pick = list(jobs_kw[:10]) + list(jobs_city[:6])
+
+            else:  # institution
+                post_pick = list(posts_city[:12]) + list(posts_global[:6])
+                course_pick = list(courses_city[:4])
+                job_pick = list(jobs_global[:3])
+
+        # combine
+        feed = []
+
+        # normalize POSTS
+        for p in post_pick:
+            feed.append({
+                "type": "post",
+                "id": p.id,
+                "title": p.title,
+                "description": p.description,
+                "image": p.images.first().image.url if p.images.exists() else None,
+                "created_at": p.created_at,
+            })
+
+        # normalize COURSES
+        for c in course_pick:
+            feed.append({
+                "type": "course",
+                "id": c.id,
+                "title": c.title,
+                "description": c.about,
+                "image": c.course_image.url if c.course_image else None,
+                "created_at": c.starting_date,
+            })
+
+        # normalize JOBS
+        for j in job_pick:
+            feed.append({
+                "type": "job",
+                "id": j.id,
+                "title": j.title,
+                "description": j.description,
+                "image": None,
+                "created_at": j.created_at,
+            })
+
+        # SHUFFLE
+        random.shuffle(feed)
+
+        # PAGINATE
+        paginator = FeedPagination()
+        page = paginator.paginate_queryset(feed, request)
+
+        serializer = FeedItemSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 class SignupView(APIView):
     def post(self, request, *args, **kwargs):
@@ -397,6 +532,1056 @@ class InstitutionEditCourseView(APIView):
 
         return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
+class InstitutionSelfProfileView(APIView):
+    permission_classes = [IsInstitution]
+
+    def get(self, request):
+        serializer = InstitutionSelfProfileSerializer(request.user)
+        return Response({"success": True, "data": serializer.data})
+
+class InstitutionPublicProfileView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, username):
+        try:
+            user = User.objects.get(username=username, user_type="institution")
+        except User.DoesNotExist:
+            return Response({"success": False, "message": "Institution not found"}, status=404)
+
+        serializer = InstitutionPublicProfileSerializer(user)
+        return Response({"success": True, "data": serializer.data})
+
+class InstitutionCoursesView(ListAPIView):
+    serializer_class = InstitutionCourseListSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        try:
+            user = User.objects.get(username=self.kwargs["username"], user_type="institution")
+        except User.DoesNotExist:
+            return Course.objects.none()
+
+        institution = user.institution
+        return institution.courses.all().order_by("-id")
+
+class InstitutionPostsView(ListAPIView):
+    serializer_class = InstitutionPostListSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        try:
+            user = User.objects.get(username=self.kwargs["username"], user_type="institution")
+        except User.DoesNotExist:
+            return Post.objects.none()
+
+        return Post.objects.filter(user=user).order_by("-id")
+
+class InstitutionViewStudentProfile(APIView):
+    permission_classes = [IsInstitution]
+
+    def get(self, request, student_id):
+        institution = request.user.institution
+
+        try:
+            student = Student.objects.get(
+                id=student_id,
+                courses__institution=institution
+            )
+        except Student.DoesNotExist:
+            return Response({"success": False, "message": "Student not found or not enrolled in your courses."}, status=404)
+
+        serializer = InstitutionViewStudentSerializer(student.user)
+        return Response({"success": True, "data": serializer.data})
+
+class InstitutionViewLecturerProfile(APIView):
+    permission_classes = [IsInstitution]
+
+    def get(self, request, lecturer_id):
+        institution = request.user.institution
+
+        try:
+            lecturer = Lecturer.objects.get(
+                id=lecturer_id,
+                courses__institution=institution
+            )
+        except Lecturer.DoesNotExist:
+            return Response({"success": False, "message": "Lecturer not found or not teaching in your institution."}, status=404)
+
+        serializer = InstitutionViewLecturerSerializer(lecturer.user)
+        return Response({"success": True, "data": serializer.data})
+
+class CourseDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, course_id):
+        try:
+            course = Course.objects.get(id=course_id)
+        except Course.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Course not found."
+            }, status=404)
+
+        serializer = CourseDetailSerializer(course)
+        return Response({"success": True, "data": serializer.data})
+
+class InstitutionCreateJobView(APIView):
+    permission_classes = [IsInstitution, IsVerified]
+
+    def post(self, request):
+        serializer = JobPostSerializer(data=request.data, context={"request": request})
+        if serializer.is_valid():
+            job = serializer.save()
+            return Response({
+                "success": True,
+                "message": "Job post created successfully.",
+                "job_id": job.id
+            }, status=201)
+
+        return Response({"success": False, "errors": serializer.errors}, status=400)
+
+class InstitutionJobsListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, username):
+        try:
+            user = User.objects.get(username=username, user_type="institution")
+        except User.DoesNotExist:
+            return Response({"success": False, "message": "Institution not found"}, status=404)
+
+        jobs = user.institution.jobs.order_by("-created_at")
+        serializer = JobPostSerializer(jobs, many=True)
+        return Response({"success": True, "data": serializer.data})
+
+class JobDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, job_id):
+        try:
+            job = JobPost.objects.get(id=job_id)
+        except JobPost.DoesNotExist:
+            return Response({"success": False, "message": "Job not found"}, status=404)
+
+        serializer = JobPostSerializer(job)
+        return Response({"success": True, "data": serializer.data})
+
+class InstitutionJobApplicationsView(APIView):
+    permission_classes = [IsInstitution, IsVerified]
+
+    def get(self, request, job_id):
+        institution = request.user.institution
+
+        try:
+            job = JobPost.objects.get(id=job_id, institution=institution)
+        except JobPost.DoesNotExist:
+            return Response({"success": False, "message": "Job not found."}, status=404)
+
+        applications = job.applications.select_related("lecturer", "lecturer__user")
+
+        data = []
+        for app in applications:
+            lec = app.lecturer.user
+            data.append({
+                "application_id": app.id,
+                "lecturer_id": app.lecturer.id,
+                "first_name": lec.first_name,
+                "last_name": lec.last_name,
+                "email": lec.email,
+                "phone_number": lec.phone_number,
+                "specialty": app.lecturer.specialty,
+                "experience": app.lecturer.experience,
+                "skills": app.lecturer.skills,
+                "message": app.message,
+                "applied_at": app.created_at,
+            })
+
+        return Response({"success": True, "applications": data})
+
+class InstitutionCourseAttendanceSummaryView(APIView):
+    permission_classes = [IsInstitution]
+
+    def get(self, request, course_id):
+        institution = request.user.institution
+
+        try:
+            course = Course.objects.get(id=course_id, institution=institution)
+        except Course.DoesNotExist:
+            return Response({"success": False, "message": "Course not found."}, status=404)
+
+        students = Student.objects.filter(courses=course).select_related("user")
+
+        summary = []
+
+        for student in students:
+            student_atts = Attendance.objects.filter(course=course, student=student)
+
+            present = student_atts.filter(status="present").count()
+            absent  = student_atts.filter(status="absent").count()
+            late    = student_atts.filter(status="late").count()
+
+            percentage = (present / course.total_lectures) * 100 if course.total_lectures else 0
+
+            summary.append({
+                "student_id": student.id,
+                "name": f"{student.user.first_name} {student.user.last_name}",
+                "present": present,
+                "absent": absent,
+                "late": late,
+                "percentage": round(percentage, 2)
+            })
+
+        return Response({
+            "success": True,
+            "course": course.title,
+            "total_lectures": course.total_lectures,
+            "students": summary
+        })
 
 
+class StaffCreateView(APIView):
+    permission_classes = [IsInstitution]
+
+    def post(self, request):
+        serializer = StaffCreateSerializer(
+            data=request.data,
+            context={"request": request}
+        )
+
+        if serializer.is_valid():
+            staff = serializer.save()
+            return Response({
+                "success": True,
+                "message": "Staff member added successfully.",
+                "staff_id": staff.id
+            }, status=201)
+
+        return Response({"success": False, "errors": serializer.errors}, status=400)
+
+class StaffEditView(APIView):
+    permission_classes = [IsInstitution]
+
+    def put(self, request, staff_id):
+        try:
+            staff = Staff.objects.get(id=staff_id, institution=request.user.institution)
+        except Staff.DoesNotExist:
+            return Response({"success": False, "message": "Staff not found."}, status=404)
+
+        serializer = StaffEditSerializer(staff, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"success": True, "message": "Staff updated successfully."})
+
+        return Response({"success": False, "errors": serializer.errors}, status=400)
+
+class StaffDeleteView(APIView):
+    permission_classes = [IsInstitution]
+
+    def delete(self, request, staff_id):
+        try:
+            staff = Staff.objects.get(id=staff_id, institution=request.user.institution)
+        except Staff.DoesNotExist:
+            return Response({"success": False, "message": "Staff not found."}, status=404)
+
+        staff.delete()
+        return Response({"success": True, "message": "Staff deleted successfully."})
+
+class StaffDetailView(APIView):
+    permission_classes = [IsInstitution]
+
+    def get(self, request, staff_id):
+        try:
+            staff = Staff.objects.get(id=staff_id, institution=request.user.institution)
+        except Staff.DoesNotExist:
+            return Response({"success": False, "message": "Staff not found."}, status=404)
+
+        serializer = StaffDetailSerializer(staff)
+        return Response({"success": True, "data": serializer.data})
+
+
+
+
+
+
+
+
+
+class LecturerCoursesListView(ListAPIView):
+    serializer_class = LecturerCourseListSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        try:
+            user = User.objects.get(username=self.kwargs["username"], user_type="lecturer")
+        except User.DoesNotExist:
+            return Course.objects.none()
+
+        lecturer = user.lecturer
+        return Course.objects.filter(lecturer=lecturer).order_by("-id")
+
+class LecturerSelfProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.user_type != "lecturer":
+            return Response({"success": False, "message": "Not a lecturer account"}, status=403)
+
+        serializer = LecturerSelfProfileSerializer(request.user.lecturer)
+        return Response({"success": True, "data": serializer.data})
+
+class LecturerPublicProfileView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, username):
+        try:
+            user = User.objects.get(username=username, user_type="lecturer")
+        except User.DoesNotExist:
+            return Response({"success": False, "message": "Lecturer not found"}, status=404)
+
+        serializer = LecturerPublicProfileSerializer(user.lecturer)
+        return Response({"success": True, "data": serializer.data})
+
+class LecturerEditProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        if request.user.user_type != "lecturer":
+            return Response({
+                "success": False,
+                "message": "Not a lecturer account."
+            }, status=403)
+
+        serializer = LecturerEditProfileSerializer(
+            request.user,
+            data=request.data,
+            partial=True
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "success": True,
+                "message": "Lecturer profile updated successfully."
+            })
+
+        return Response({
+            "success": False,
+            "errors": serializer.errors
+        }, status=400)
+
+class LecturerApplyJobView(APIView):
+    permission_classes = [IsLecturer, IsVerified]
+
+    def post(self, request, job_id):
+        lecturer = request.user.lecturer
+
+        try:
+            job = JobPost.objects.get(id=job_id)
+        except JobPost.DoesNotExist:
+            return Response({"success": False, "message": "Job not found."}, status=404)
+
+        if timezone.now() - job.created_at > timedelta(days=7):
+            return Response({
+                "success": False,
+                "message": "This job post is no longer accepting applications."
+            }, status=400)
+
+        if JobApplication.objects.filter(job=job, lecturer=lecturer).exists():
+            return Response({"success": False, "message": "You already applied for this job."}, status=400)
+
+        serializer = JobApplicationSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(job=job, lecturer=lecturer)
+            return Response({"success": True, "message": "Application submitted successfully."})
+
+        return Response({"success": False, "errors": serializer.errors}, status=400)
+
+class LecturerCreateExamView(APIView):
+    permission_classes = [IsLecturer, IsVerified]
+
+    def post(self, request, course_id):
+        lecturer = request.user.lecturer
+
+        try:
+            course = Course.objects.get(id=course_id, lecturer=lecturer)
+        except Course.DoesNotExist:
+            return Response({"success": False, "message": "Course not found."}, status=404)
+
+        serializer = ExamSerializer(data=request.data)
+        if serializer.is_valid():
+            exam = serializer.save(course=course)
+            return Response({
+                "success": True,
+                "message": "Exam created successfully.",
+                "exam_id": exam.id
+            }, status=201)
+
+        return Response({"success": False, "errors": serializer.errors}, status=400)
+
+class LecturerAddGradesView(APIView):
+    permission_classes = [IsLecturer, IsVerified]
+
+    def post(self, request, exam_id):
+        lecturer = request.user.lecturer
+
+        try:
+            exam = Exam.objects.select_related("course").get(id=exam_id, course__lecturer=lecturer)
+        except Exam.DoesNotExist:
+            return Response({"success": False, "message": "Exam not found."}, status=404)
+
+        serializer = GradeBulkCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({"success": False, "errors": serializer.errors}, status=400)
+
+        grades_data = serializer.validated_data["grades"]
+        course = exam.course
+        max_score = exam.max_score
+
+        for item in grades_data:
+            student_id = item["student_id"]
+            score = item["score"]
+
+            if score < 0 or score > max_score:
+                continue
+
+            try:
+                student = Student.objects.get(id=student_id, courses=course)
+            except Student.DoesNotExist:
+                continue
+
+            grade, _ = Grade.objects.update_or_create(
+                exam=exam,
+                student=student,
+                defaults={"score": score}
+            )
+
+            user = student.user
+            subject = f"Grade for {exam.title} - {course.title}"
+            msg = (
+                f"Dear {user.first_name},\n\n"
+                f"Your score for exam '{exam.title}' in course '{course.title}' is {score}/{max_score}.\n\n"
+                f"Best regards."
+            )
+
+            recipients = [user.email]
+            if student.responsible_email:
+                recipients.append(student.responsible_email)
+
+            send_mail(
+                subject=subject,
+                message=msg,
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=recipients,
+                fail_silently=True,
+            )
+
+        return Response({"success": True, "message": "Grades processed and emails sent."})
+
+class LecturerMarkAttendanceView(APIView):
+    permission_classes = [IsLecturer, IsVerified]
+
+    def post(self, request, course_id):
+        lecturer = request.user.lecturer
+
+        try:
+            course = Course.objects.get(id=course_id, lecturer=lecturer)
+        except Course.DoesNotExist:
+            return Response({"success": False, "message": "Course not found."}, status=404)
+
+        serializer = AttendanceCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({"success": False, "errors": serializer.errors}, status=400)
+
+        lecture_number = serializer.validated_data["lecture_number"]
+        records = serializer.validated_data["records"]
+
+        if lecture_number < 1 or lecture_number > course.total_lectures:
+            return Response({
+                "success": False,
+                "message": "Invalid lecture number."
+            }, status=400)
+
+        for rec in records:
+            student_id = rec["student_id"]
+            status_val = rec["status"]
+
+            try:
+                student = Student.objects.get(id=student_id, courses=course)
+            except Student.DoesNotExist:
+                continue
+
+            Attendance.objects.update_or_create(
+                course=course,
+                student=student,
+                lecture_number=lecture_number,
+                defaults={"status": status_val}
+            )
+
+        return Response({"success": True, "message": "Attendance saved successfully."})
+
+class LecturerViewLectureAttendanceView(APIView):
+    permission_classes = [IsLecturer, IsVerified]
+
+    def get(self, request, course_id, lecture_number):
+        lecturer = request.user.lecturer
+
+        try:
+            course = Course.objects.get(id=course_id, lecturer=lecturer)
+        except Course.DoesNotExist:
+            return Response({"success": False, "message": "Course not found."}, status=404)
+
+        if lecture_number < 1 or lecture_number > course.total_lectures:
+            return Response({"success": False, "message": "Invalid lecture number."}, status=400)
+
+        attendances = Attendance.objects.filter(course=course, lecture_number=lecture_number)
+
+        data = [
+            {
+                "student_id": att.student.id,
+                "name": f"{att.student.user.first_name} {att.student.user.last_name}",
+                "status": att.status
+            }
+            for att in attendances
+        ]
+
+        return Response({
+            "success": True,
+            "course": course.title,
+            "lecture_number": lecture_number,
+            "records": data
+        })
+
+class LecturerWeeklyScheduleView(APIView):
+    permission_classes = [IsLecturer, IsVerified]
+
+    def get(self, request):
+        lecturer = request.user.lecturer
+        courses = lecturer.courses.select_related("institution")
+
+        schedule = []
+
+        for course in courses:
+            for day in course.days:
+                schedule.append({
+                    "course_id": course.id,
+                    "course_title": course.title,
+                    "day": day,
+                    "start_time": course.start_time.strftime("%H:%M"),
+                    "end_time": course.end_time.strftime("%H:%M"),
+                    "institution": course.institution.title,
+                })
+
+        # sort schedule
+        day_order = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]
+        schedule.sort(key=lambda x: (day_order.index(x["day"]), x["start_time"]))
+
+        return Response({
+            "success": True,
+            "schedule": schedule
+        })
+
+class LecturerViewGradesView(APIView):
+    permission_classes = [IsLecturer, IsVerified]
+
+    def get(self, request, exam_id):
+        lecturer = request.user.lecturer
+
+        try:
+            exam = Exam.objects.select_related("course").get(
+                id=exam_id,
+                course__lecturer=lecturer
+            )
+        except Exam.DoesNotExist:
+            return Response({"success": False, "message": "Exam not found."}, status=404)
+
+        grades = Grade.objects.filter(exam=exam).select_related("student__user")
+
+        data = LecturerGradeViewSerializer(grades, many=True).data
+
+        return Response({
+            "success": True,
+            "exam_title": exam.title,
+            "course": exam.course.title,
+            "max_score": exam.max_score,
+            "grades": data
+        })
+
+class LecturerEditGradesView(APIView):
+    permission_classes = [IsLecturer, IsVerified]
+
+    def put(self, request, exam_id):
+        lecturer = request.user.lecturer
+
+        try:
+            exam = Exam.objects.select_related("course").get(
+                id=exam_id,
+                course__lecturer=lecturer
+            )
+        except Exam.DoesNotExist:
+            return Response({"success": False, "message": "Exam not found."}, status=404)
+
+        serializer = GradeBulkCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({"success": False, "errors": serializer.errors}, status=400)
+
+        grades_data = serializer.validated_data["grades"]
+        course = exam.course
+        max_score = exam.max_score
+
+        for item in grades_data:
+            student_id = item["student_id"]
+            score = item["score"]
+
+            # Validate score
+            if score < 0 or score > max_score:
+                continue
+
+            try:
+                student = Student.objects.get(id=student_id, courses=course)
+            except Student.DoesNotExist:
+                continue
+
+            Grade.objects.update_or_create(
+                exam=exam,
+                student=student,
+                defaults={"score": score}
+            )
+
+        return Response({
+            "success": True,
+            "message": "Grades updated successfully."
+        })
+
+
+
+class StudentSelfProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.user_type != "student":
+            return Response({"success": False, "message": "Not a student account"}, status=403)
+
+        serializer = StudentSelfProfileSerializer(request.user)
+        return Response({"success": True, "data": serializer.data})
+
+class StudentPublicProfileView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, username):
+        try:
+            user = User.objects.get(username=username, user_type="student")
+        except User.DoesNotExist:
+            return Response({"success": False, "message": "Student not found"}, status=404)
+
+        serializer = StudentPublicProfileSerializer(user)
+        return Response({"success": True, "data": serializer.data})
+
+class StudentCoursesListView(ListAPIView):
+    serializer_class = StudentCourseListSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        try:
+            user = User.objects.get(username=self.kwargs["username"], user_type="student")
+        except User.DoesNotExist:
+            return Course.objects.none()
+
+        student = user.student
+        return student.courses.all().order_by("-id")
+
+class StudentEditProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        if request.user.user_type != "student":
+            return Response({
+                "success": False,
+                "message": "Not a student account."
+            }, status=403)
+
+        serializer = StudentEditProfileSerializer(
+            request.user,
+            data=request.data,
+            partial=True
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "success": True,
+                "message": "Student profile updated successfully."
+            })
+
+        return Response({
+            "success": False,
+            "errors": serializer.errors
+        }, status=400)
+
+class StudentEnrollCourseView(APIView):
+    permission_classes = [IsStudent, IsVerified]
+
+    def post(self, request, course_id):
+        user = request.user
+
+        if user.user_type != "student":
+            return Response({"success": False, "message": "Only students can enroll."}, status=403)
+
+        student = user.student
+
+        try:
+            course = Course.objects.get(id=course_id)
+        except Course.DoesNotExist:
+            return Response({"success": False, "message": "Course not found."}, status=404)
+
+        if course.students.count() >= course.capacity:
+            return Response({"success": False, "message": "Course capacity is full."}, status=400)
+        
+        student.courses.add(course)
+        student.institutions.add(course.institution)
+
+        return Response({"success": True, "message": "Enrolled successfully."})
+
+class StudentViewAttendanceView(APIView):
+    permission_classes = [IsStudent, IsVerified]
+
+    def get(self, request, course_id):
+        student = request.user.student
+
+        try:
+            course = Course.objects.get(id=course_id, students=student)
+        except Course.DoesNotExist:
+            return Response({"success": False, "message": "Course not found."}, status=404)
+
+        records = Attendance.objects.filter(course=course, student=student).order_by("lecture_number")
+
+        data = [
+            {
+                "lecture_number": rec.lecture_number,
+                "status": rec.status
+            }
+            for rec in records
+        ]
+
+        total = course.total_lectures
+        present = records.filter(status="present").count()
+
+        percentage = round((present / total) * 100, 2) if total > 0 else 0
+
+        return Response({
+            "success": True,
+            "course": course.title,
+            "total_lectures": total,
+            "attendance_percentage": percentage,
+            "records": data
+        })
+
+class StudentViewGradesView(APIView):
+    permission_classes = [IsStudent, IsVerified]
+
+    def get(self, request, course_id):
+        student = request.user.student
+
+        try:
+            course = Course.objects.get(id=course_id, students=student)
+        except Course.DoesNotExist:
+            return Response({"success": False, "message": "Course not found."}, status=404)
+
+        grades = Grade.objects.filter(
+            exam__course=course,
+            student=student
+        ).select_related("exam")
+
+        data = StudentGradeSerializer(grades, many=True).data
+
+        return Response({
+            "success": True,
+            "course": course.title,
+            "grades": data
+        })
+
+class StudentWeeklyScheduleView(APIView):
+    permission_classes = [IsStudent, IsVerified]
+
+    def get(self, request):
+        student = request.user.student
+        courses = student.courses.select_related("lecturer__user", "institution")
+
+        schedule = []
+
+        for course in courses:
+            for day in course.days:
+                schedule.append({
+                    "course_id": course.id,
+                    "course_title": course.title,
+                    "day": day,
+                    "start_time": course.start_time.strftime("%H:%M"),
+                    "end_time": course.end_time.strftime("%H:%M"),
+                    "lecturer": f"{course.lecturer.user.first_name} {course.lecturer.user.last_name}",
+                    "institution": course.institution.title,
+                })
+
+        # sort by day order & time
+        day_order = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]
+        schedule.sort(key=lambda x: (day_order.index(x["day"]), x["start_time"]))
+
+        return Response({
+            "success": True,
+            "schedule": schedule
+        })
+
+class CourseProgressView(APIView):
+    permission_classes = []  # anyone can access
+
+    def get(self, request, course_id):
+        try:
+            course = Course.objects.get(id=course_id)
+        except Course.DoesNotExist:
+            return Response({"success": False, "message": "Course not found."}, status=404)
+
+        total_lectures = course.total_lectures
+
+        # If total lectures = 0 → progress is 0
+        if total_lectures == 0:
+            return Response({
+                "success": True,
+                "progress": {
+                    "course_title": course.title,
+                    "total_lectures": 0,
+                    "completed_lectures": 0,
+                    "progress_percentage": 0
+                }
+            })
+
+        user = request.user if request.user.is_authenticated else None
+
+        # STUDENT personal progress
+        if user and user.user_type == "student" and hasattr(user, "student"):
+            student = user.student
+
+            # must be enrolled
+            if not student.courses.filter(id=course.id).exists():
+                return Response({"success": False, "message": "You are not enrolled in this course."}, status=403)
+
+            present = Attendance.objects.filter(
+                course=course,
+                student=student,
+                status="present"
+            ).count()
+
+            percentage = round((present / total_lectures) * 100, 2)
+
+            return Response({
+                "success": True,
+                "progress": {
+                    "course_title": course.title,
+                    "total_lectures": total_lectures,
+                    "completed_lectures": present,
+                    "progress_percentage": percentage
+                }
+            })
+
+        # LECTURER / INSTITUTION / VISITOR → OVERALL AVERAGE PROGRESS
+        students = Student.objects.filter(courses=course)
+
+        if not students.exists():
+            return Response({
+                "success": True,
+                "progress": {
+                    "course_title": course.title,
+                    "total_lectures": total_lectures,
+                    "completed_lectures": 0,
+                    "progress_percentage": 0
+                }
+            })
+
+        total_present = 0
+
+        for st in students:
+            total_present += Attendance.objects.filter(
+                course=course,
+                student=st,
+                status="present"
+            ).count()
+
+        # average = total present / (#students × total lectures)
+        avg_percentage = round(
+            (total_present / (students.count() * total_lectures)) * 100,
+            2
+        )
+
+        return Response({
+            "success": True,
+            "progress": {
+                "course_title": course.title,
+                "total_lectures": total_lectures,
+                "completed_lectures": None,  # not personal
+                "progress_percentage": avg_percentage
+            }
+        })
+
+class NotificationsView(APIView):
+    permission_classes = [IsAuthenticated] 
+
+    def get(self, request):
+        user = request.user
+
+        tomorrow = timezone.now().date() + timedelta(days=1)
+        tomorrow_day = tomorrow.strftime("%A").lower()
+
+        notifications = []
+
+        if user.user_type == "student":
+            student = user.student
+            courses = student.courses.all()
+
+            for course in courses:
+                if tomorrow_day in course.days:
+                    notifications.append({
+                        "type": "lecture_reminder",
+                        "course_title": course.title,
+                        "message": f"You have '{course.title}' tomorrow at {course.start_time.strftime('%H:%M')}.",
+                        "day": tomorrow_day,
+                        "time": course.start_time.strftime("%H:%M")
+                    })
+
+   
+        elif user.user_type == "lecturer":
+            lecturer = user.lecturer
+            courses = lecturer.courses.all()
+
+            for course in courses:
+                if tomorrow_day in course.days:
+                    notifications.append({
+                        "type": "lecture_reminder",
+                        "course_title": course.title,
+                        "message": f"You are teaching '{course.title}' tomorrow at {course.start_time.strftime('%H:%M')}.",
+                        "day": tomorrow_day,
+                        "time": course.start_time.strftime("%H:%M")
+                    })
+
+        return Response({
+            "success": True,
+            "notifications": notifications
+        })
+
+
+class ExploreSearchView(APIView):
+    permission_classes = []  # public search
+
+    def get(self, request):
+        q = request.query_params.get("q", "").strip().lower()
+        filter_type = request.query_params.get("filter", "").lower()
+
+        # Get user city (if logged in)
+        user_city = None
+        if request.user.is_authenticated:
+            user_city = request.user.city.lower()
+
+        # Helper: prioritize results by city
+        def prioritize_city(queryset, city_field):
+            if not user_city:
+                return queryset  # no prioritization
+            return sorted(
+                queryset,
+                key=lambda item: 0 if city_field(item).lower() == user_city else 1
+            )
+
+        # -------------------------
+        # FETCHERS FOR EACH MODEL
+        # -------------------------
+
+        # STUDENTS
+        def fetch_students():
+            qs = Student.objects.filter(
+                Q(user__first_name__icontains=q) |
+                Q(user__last_name__icontains=q) |
+                Q(interesting_keywords__icontains=q)
+            ).select_related("user")
+            return prioritize_city(qs, lambda x: x.user.city)
+
+        # LECTURERS
+        def fetch_lecturers():
+            qs = Lecturer.objects.filter(
+                Q(user__first_name__icontains=q) |
+                Q(user__last_name__icontains=q) |
+                Q(specialty__icontains=q) |
+                Q(skills__icontains=q)
+            ).select_related("user")
+            return prioritize_city(qs, lambda x: x.user.city)
+
+        # INSTITUTIONS
+        def fetch_institutions():
+            qs = Institution.objects.filter(
+                Q(title__icontains=q) |
+                Q(location__icontains=q) |
+                Q(user__city__icontains=q)
+            ).select_related("user")
+            return prioritize_city(qs, lambda x: x.user.city)
+
+        # COURSES
+        def fetch_courses():
+            qs = Course.objects.filter(
+                Q(title__icontains=q) |
+                Q(about__icontains=q)
+            ).select_related("institution__user")
+            return prioritize_city(qs, lambda x: x.institution.user.city)
+
+        # JOBS
+        def fetch_jobs():
+            qs = JobPost.objects.filter(
+                Q(title__icontains=q) |
+                Q(requirements__icontains=q) |
+                Q(description__icontains=q)
+            ).select_related("institution__user")
+            return prioritize_city(qs, lambda x: x.institution.user.city)
+
+        # -------------------------------
+        # APPLY FILTER (if provided)
+        # -------------------------------
+        if filter_type:
+            if filter_type == "students":
+                return Response({
+                    "success": True,
+                    "students": SearchStudentSerializer(fetch_students(), many=True).data
+                })
+
+            if filter_type == "lecturers":
+                return Response({
+                    "success": True,
+                    "lecturers": SearchLecturerSerializer(fetch_lecturers(), many=True).data
+                })
+
+            if filter_type == "institutions":
+                return Response({
+                    "success": True,
+                    "institutions": SearchInstitutionSerializer(fetch_institutions(), many=True).data
+                })
+
+            if filter_type == "courses":
+                return Response({
+                    "success": True,
+                    "courses": SearchCourseSerializer(fetch_courses(), many=True).data
+                })
+
+            if filter_type == "jobs":
+                return Response({
+                    "success": True,
+                    "jobs": SearchJobSerializer(fetch_jobs(), many=True).data
+                })
+
+            return Response({"success": False, "message": "Invalid filter."}, status=400)
+
+        # -------------------------------
+        # NO FILTER → RETURN GROUPED
+        # -------------------------------
+        return Response({
+            "success": True,
+            "results": {
+                "students": SearchStudentSerializer(fetch_students(), many=True).data,
+                "lecturers": SearchLecturerSerializer(fetch_lecturers(), many=True).data,
+                "institutions": SearchInstitutionSerializer(fetch_institutions(), many=True).data,
+                "courses": SearchCourseSerializer(fetch_courses(), many=True).data,
+                "jobs": SearchJobSerializer(fetch_jobs(), many=True).data,
+            }
+        })
 
