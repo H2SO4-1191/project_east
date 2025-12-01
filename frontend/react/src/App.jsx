@@ -13,7 +13,7 @@ import EnhancedSignup from './pages/EnhancedSignup';
 import StudentSignup from './pages/StudentSignup';
 import LecturerSignup from './pages/LecturerSignup';
 import AboutUs from './pages/AboutUs';
-import Courses from './pages/Courses';
+import Explore from './pages/Explore';
 import StudentSchedule from './pages/student/StudentSchedule';
 import StudentCourses from './pages/student/StudentCourses';
 import LecturerSchedule from './pages/lecturer/LecturerSchedule';
@@ -34,7 +34,7 @@ function AnimatedRoutes() {
         <Route path="/signup/lecturer" element={<LecturerSignup />} />
         <Route path="/verify-otp" element={<OTPVerification />} />
         <Route path="/about" element={<AboutUs />} />
-        <Route path="/courses" element={<Courses />} />
+        <Route path="/explore" element={<Explore />} />
         <Route 
           path="/dashboard/*" 
           element={

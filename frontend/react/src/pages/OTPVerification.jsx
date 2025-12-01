@@ -274,8 +274,8 @@ const OTPVerification = () => {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             onClick={() => navigate('/login')}
-            className="flex items-center gap-2 text-primary-600 dark:text-teal-400 hover:text-primary-700 dark:hover:text-teal-300 mb-8 transition-colors font-medium"
-            whileHover={{ x: -5 }}
+            className="flex items-center gap-2 text-primary-600 dark:text-teal-400 hover:text-primary-700 dark:hover:text-teal-300 mb-8 transition-colors font-medium cursor-pointer"
+            whileTap={{ scale: 0.95 }}
           >
             <FaArrowLeft />
             {t('otp.backToLogin')}
@@ -372,9 +372,6 @@ const OTPVerification = () => {
 
               {/* Resend Code */}
               <div className="text-center">
-                <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">
-                  {t('otp.resend')}
-                </p>
                 <motion.button
                   type="button"
                   onClick={handleResendCode}

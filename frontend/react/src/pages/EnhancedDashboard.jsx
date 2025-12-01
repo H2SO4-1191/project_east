@@ -5,13 +5,15 @@ import { useTranslation } from 'react-i18next';
 import { 
   FaHome, FaUsers, FaChalkboardTeacher, FaBriefcase, 
   FaCalendarAlt, FaDollarSign, FaCog, FaBars, FaTimes,
-  FaMoon, FaSun, FaSignOutAlt, FaGlobe, FaPlus, FaEdit, FaBook, FaClock, FaBell, FaNewspaper
+  FaMoon, FaSun, FaSignOutAlt, FaGlobe, FaPlus, FaEdit, FaBook, FaClock, FaBell, FaNewspaper, FaUserCircle
 } from 'react-icons/fa';
 import { useInstitute } from '../context/InstituteContext';
 import { useTheme } from '../context/ThemeContext';
+import { authService } from '../services/authService';
 import Modal from '../components/Modal';
 import AnimatedButton from '../components/AnimatedButton';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import ProfileModal from '../components/ProfileModal';
 import toast from 'react-hot-toast';
 import Overview from './dashboard/Overview';
 import Students from './dashboard/Students';
@@ -24,7 +26,7 @@ import Settings from './dashboard/Settings';
 const EnhancedDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { instituteData, clearInstituteData } = useInstitute();
+  const { instituteData, clearInstituteData, updateInstituteData } = useInstitute();
   const { isDark, toggleTheme } = useTheme();
   const { t } = useTranslation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -40,6 +42,23 @@ const EnhancedDashboard = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef(null);
   const [showNewPostModal, setShowNewPostModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileImage, setProfileImage] = useState(null);
+  const [institutionTitle, setInstitutionTitle] = useState(null);
+  const [username, setUsername] = useState(null);
+  const [isCreatingPost, setIsCreatingPost] = useState(false);
+  const [isCreatingCourse, setIsCreatingCourse] = useState(false);
+  const [isUpdatingCourse, setIsUpdatingCourse] = useState(false);
+  
+  // Helper function to convert relative image URLs to full URLs
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'https://projecteastapi.ddns.net';
+    return `${baseUrl}${imagePath.startsWith('/') ? '' : '/'}${imagePath}`;
+  };
   
   // Demo notifications
   const [notifications] = useState([
@@ -77,26 +96,41 @@ const EnhancedDashboard = () => {
     },
   ]);
   
+  // Create post form state
+  const [postForm, setPostForm] = useState({
+    title: '',
+    description: '',
+    images: [],
+  });
+
   // Create course form state
   const [createForm, setCreateForm] = useState({
     title: '',
-    code: '',
-    credits: '',
-    duration: '',
-    capacity: '',
+    about: '',
+    starting_date: '',
+    ending_date: '',
+    level: 'beginner',
     price: '',
-    description: '',
+    days: [],
+    start_time: '',
+    end_time: '',
+    lecturer: '',
+    course_image: null,
   });
 
   // Edit course form state
   const [editForm, setEditForm] = useState({
     title: '',
-    code: '',
-    credits: '',
-    duration: '',
-    capacity: '',
+    about: '',
+    starting_date: '',
+    ending_date: '',
+    level: 'beginner',
     price: '',
-    description: '',
+    days: [],
+    start_time: '',
+    end_time: '',
+    lecturer: '',
+    course_image: null,
   });
 
   const menuItems = [
@@ -120,6 +154,43 @@ const EnhancedDashboard = () => {
     navigate(path);
     setIsSidebarOpen(false);
   };
+
+  // Fetch institution profile on mount
+  useEffect(() => {
+    const fetchInstitutionProfile = async () => {
+      if (!instituteData.isAuthenticated || !instituteData.accessToken) {
+        return;
+      }
+
+      try {
+        const data = await authService.getInstitutionProfile(instituteData.accessToken, {
+          refreshToken: instituteData.refreshToken,
+          onTokenRefreshed: (tokens) => {
+            // Token refreshed, but we don't update context here to avoid loop
+          },
+          onSessionExpired: () => {
+            console.log('Session expired');
+          },
+        });
+
+        if (data?.success && data?.data) {
+          if (data.data.profile_image) {
+            setProfileImage(getImageUrl(data.data.profile_image));
+          }
+          if (data.data.title) {
+            setInstitutionTitle(data.data.title);
+          }
+          if (data.data.username) {
+            setUsername(data.data.username);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching institution profile:', err);
+      }
+    };
+
+    fetchInstitutionProfile();
+  }, [instituteData.isAuthenticated, instituteData.accessToken]);
 
   // Close notifications when clicking outside
   useEffect(() => {
@@ -189,43 +260,185 @@ const EnhancedDashboard = () => {
     }, 100);
   };
 
+  // Post form handlers
+  const handlePostChange = (e) => {
+    const { name, value } = e.target;
+    setPostForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePostImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    setPostForm(prev => ({ ...prev, images: [...prev.images, ...files] }));
+  };
+
+  const handleRemovePostImage = (index) => {
+    setPostForm(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+  };
+
   // Course management handlers
   const handleCreateChange = (e) => {
-    const { name, value } = e.target;
-    setCreateForm(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    if (type === 'checkbox') {
+      // Handle days checkbox
+      setCreateForm(prev => ({
+        ...prev,
+        days: checked
+          ? [...prev.days, value]
+          : prev.days.filter(day => day !== value)
+      }));
+    } else if (type === 'file') {
+      setCreateForm(prev => ({ ...prev, [name]: e.target.files[0] }));
+    } else {
+      setCreateForm(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleEditChange = (e) => {
-    const { name, value } = e.target;
-    setEditForm(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    if (type === 'checkbox') {
+      // Handle days checkbox
+      setEditForm(prev => ({
+        ...prev,
+        days: checked
+          ? [...prev.days, value]
+          : prev.days.filter(day => day !== value)
+      }));
+    } else if (type === 'file') {
+      setEditForm(prev => ({ ...prev, [name]: e.target.files[0] }));
+    } else {
+      setEditForm(prev => ({ ...prev, [name]: value }));
+    }
   };
 
-  const handleCreateCourse = (e) => {
+  const handleCreatePost = async (e) => {
     e.preventDefault();
     
-    if (!createForm.title || !createForm.code || !createForm.price) {
-      toast.error('Please fill in all required fields');
+    if (!postForm.title.trim()) {
+      toast.error(t('dashboard.postTitleRequired') || 'Post title is required');
       return;
     }
 
-    const newCourse = {
-      id: Date.now(),
-      ...createForm,
-      createdAt: new Date().toISOString(),
-    };
+    setIsCreatingPost(true);
+    
+    try {
+      const options = {
+        refreshToken: instituteData.refreshToken,
+        onTokenRefreshed: (tokens) => {
+          updateInstituteData({
+            accessToken: tokens.access,
+            refreshToken: tokens.refresh || instituteData.refreshToken,
+          });
+        },
+        onSessionExpired: () => {
+          toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+        },
+      };
 
-    setCourses(prev => [...prev, newCourse]);
-    toast.success(t('dashboard.courseCreated'));
-    setShowCreateCourseModal(false);
-    setCreateForm({
-      title: '',
-      code: '',
-      credits: '',
-      duration: '',
-      capacity: '',
-      price: '',
-      description: '',
-    });
+      const result = await authService.createInstitutionPost(
+        instituteData.accessToken,
+        {
+          title: postForm.title,
+          description: postForm.description || '',
+          images: postForm.images,
+        },
+        options
+      );
+
+      if (result?.success) {
+        toast.success(result.message || t('dashboard.postCreated') || 'Post created successfully!');
+        setShowNewPostModal(false);
+        setPostForm({
+          title: '',
+          description: '',
+          images: [],
+        });
+      }
+    } catch (error) {
+      console.error('Error creating post:', error);
+      const errorMessage = error?.data?.errors
+        ? Object.values(error.data.errors).flat().join(', ')
+        : error?.message || t('dashboard.postCreateError') || 'Failed to create post';
+      toast.error(errorMessage);
+    } finally {
+      setIsCreatingPost(false);
+    }
+  };
+
+  const handleCreateCourse = async (e) => {
+    e.preventDefault();
+    
+    // Validate required fields
+    if (!createForm.title || !createForm.about || !createForm.starting_date || 
+        !createForm.ending_date || !createForm.level || !createForm.price ||
+        !createForm.days.length || !createForm.start_time || !createForm.end_time ||
+        !createForm.lecturer) {
+      toast.error(t('dashboard.fillRequiredFields') || 'Please fill in all required fields');
+      return;
+    }
+
+    setIsCreatingCourse(true);
+    
+    try {
+      const options = {
+        refreshToken: instituteData.refreshToken,
+        onTokenRefreshed: (tokens) => {
+          updateInstituteData({
+            accessToken: tokens.access,
+            refreshToken: tokens.refresh || instituteData.refreshToken,
+          });
+        },
+        onSessionExpired: () => {
+          toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+        },
+      };
+
+      const result = await authService.createInstitutionCourse(
+        instituteData.accessToken,
+        {
+          title: createForm.title,
+          about: createForm.about,
+          starting_date: createForm.starting_date,
+          ending_date: createForm.ending_date,
+          level: createForm.level,
+          price: parseFloat(createForm.price),
+          days: createForm.days,
+          start_time: createForm.start_time,
+          end_time: createForm.end_time,
+          lecturer: parseInt(createForm.lecturer),
+          course_image: createForm.course_image,
+        },
+        options
+      );
+
+      if (result?.success) {
+        toast.success(result.message || t('dashboard.courseCreated') || 'Course created successfully!');
+        setShowCreateCourseModal(false);
+        setCreateForm({
+          title: '',
+          about: '',
+          starting_date: '',
+          ending_date: '',
+          level: 'beginner',
+          price: '',
+          days: [],
+          start_time: '',
+          end_time: '',
+          lecturer: '',
+          course_image: null,
+        });
+      }
+    } catch (error) {
+      console.error('Error creating course:', error);
+      const errorMessage = error?.data?.errors
+        ? Object.values(error.data.errors).flat().join(', ')
+        : error?.message || t('dashboard.courseCreateError') || 'Failed to create course';
+      toast.error(errorMessage);
+    } finally {
+      setIsCreatingCourse(false);
+    }
   };
 
   const handleEditCourse = (course) => {
@@ -233,24 +446,77 @@ const EnhancedDashboard = () => {
     setEditForm(course);
   };
 
-  const handleUpdateCourse = (e) => {
+  const handleUpdateCourse = async (e) => {
     e.preventDefault();
     
-    setCourses(prev => prev.map(c => 
-      c.id === selectedCourse.id ? { ...c, ...editForm } : c
-    ));
+    if (!selectedCourse || !selectedCourse.id) {
+      toast.error(t('dashboard.noCourseSelected') || 'No course selected');
+      return;
+    }
+
+    setIsUpdatingCourse(true);
     
-    toast.success(t('dashboard.courseUpdated'));
-    setSelectedCourse(null);
-    setEditForm({
-      title: '',
-      code: '',
-      credits: '',
-      duration: '',
-      capacity: '',
-      price: '',
-      description: '',
-    });
+    try {
+      const options = {
+        refreshToken: instituteData.refreshToken,
+        onTokenRefreshed: (tokens) => {
+          updateInstituteData({
+            accessToken: tokens.access,
+            refreshToken: tokens.refresh || instituteData.refreshToken,
+          });
+        },
+        onSessionExpired: () => {
+          toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+        },
+      };
+
+      // Prepare payload with only changed fields
+      const payload = {};
+      if (editForm.title) payload.title = editForm.title;
+      if (editForm.about) payload.about = editForm.about;
+      if (editForm.starting_date) payload.starting_date = editForm.starting_date;
+      if (editForm.ending_date) payload.ending_date = editForm.ending_date;
+      if (editForm.level) payload.level = editForm.level;
+      if (editForm.price !== '' && editForm.price !== undefined) payload.price = parseFloat(editForm.price);
+      if (editForm.days && editForm.days.length > 0) payload.days = editForm.days;
+      if (editForm.start_time) payload.start_time = editForm.start_time;
+      if (editForm.end_time) payload.end_time = editForm.end_time;
+      if (editForm.lecturer) payload.lecturer = parseInt(editForm.lecturer);
+      if (editForm.course_image) payload.course_image = editForm.course_image;
+
+      const result = await authService.editInstitutionCourse(
+        instituteData.accessToken,
+        selectedCourse.id,
+        payload,
+        options
+      );
+
+      if (result?.success) {
+        toast.success(result.message || t('dashboard.courseUpdated') || 'Course updated successfully!');
+        setSelectedCourse(null);
+        setEditForm({
+          title: '',
+          about: '',
+          starting_date: '',
+          ending_date: '',
+          level: 'beginner',
+          price: '',
+          days: [],
+          start_time: '',
+          end_time: '',
+          lecturer: '',
+          course_image: null,
+        });
+      }
+    } catch (error) {
+      console.error('Error updating course:', error);
+      const errorMessage = error?.data?.errors
+        ? Object.values(error.data.errors).flat().join(', ')
+        : error?.message || t('dashboard.courseUpdateError') || 'Failed to update course';
+      toast.error(errorMessage);
+    } finally {
+      setIsUpdatingCourse(false);
+    }
   };
 
   const handleDeleteCourse = (courseId) => {
@@ -261,10 +527,10 @@ const EnhancedDashboard = () => {
     }
   };
 
-  const displayName = instituteData.name || instituteData.username || instituteData.email || 'Institution';
-  const displayEmail = instituteData.email || 'No email on file';
+  const displayName = username || instituteData.username || instituteData.name || institutionTitle || 'Institution';
+  const displayUsername = username || instituteData.username || instituteData.name || 'User';
   const avatarLetter = displayName.charAt(0)?.toUpperCase() || 'I';
-  const greetingName = instituteData.firstName || instituteData.name || instituteData.username || 'there';
+  const greetingName = instituteData.firstName || username || instituteData.username || instituteData.name || 'there';
   const subscriptionLabel = instituteData.subscriptionLabel || instituteData.subscription || 'Active Plan';
 
   return (
@@ -335,6 +601,17 @@ const EnhancedDashboard = () => {
 
         {/* Theme Toggle & Logout */}
         <div className="p-4 border-t border-gray-200 dark:border-navy-700 space-y-2">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setShowProfileModal(true)}
+            className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 transition-all duration-300 ease-in-out`}
+            title={t('profile.myProfile') || 'My Profile'}
+          >
+            <FaUserCircle className="w-5 h-5 flex-shrink-0" />
+            {isSidebarExpanded && <span className="font-medium whitespace-nowrap">{t('profile.myProfile') || 'My Profile'}</span>}
+          </motion.button>
+
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -433,6 +710,17 @@ const EnhancedDashboard = () => {
               {/* Theme Toggle & Logout */}
               <div className="p-4 border-t border-gray-200 dark:border-navy-700 space-y-2">
                 <button
+                  onClick={() => {
+                    setShowProfileModal(true);
+                    setIsSidebarOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 transition-all"
+                >
+                  <FaUserCircle className="w-5 h-5" />
+                  <span className="font-medium">{t('profile.myProfile') || 'My Profile'}</span>
+                </button>
+
+                <button
                   onClick={() => navigate('/')}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 transition-all"
                 >
@@ -484,7 +772,7 @@ const EnhancedDashboard = () => {
                   <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
                     {displayName}
                   </h1>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{displayEmail}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{displayUsername}</p>
                 </div>
               </div>
 
@@ -591,14 +879,29 @@ const EnhancedDashboard = () => {
                   </AnimatePresence>
                 </div>
 
-                <motion.div
+                <motion.button
                   whileHover={{ scale: 1.1, rotate: 5 }}
-                  className="w-12 h-12 bg-gradient-to-br from-primary-600 to-teal-500 rounded-full flex items-center justify-center shadow-lg cursor-pointer"
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowProfileModal(true)}
+                  className="w-12 h-12 bg-gradient-to-br from-primary-600 to-teal-500 rounded-full flex items-center justify-center shadow-lg cursor-pointer overflow-hidden"
+                  title={t('profile.myProfile') || 'My Profile'}
                 >
-                  <span className="text-white font-bold text-lg">
-                    {avatarLetter}
-                  </span>
-                </motion.div>
+                  {profileImage ? (
+                    <img
+                      src={profileImage}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        setProfileImage(null);
+                      }}
+                    />
+                  ) : (
+                    <span className="text-white font-bold text-lg">
+                      {avatarLetter}
+                    </span>
+                  )}
+                </motion.button>
               </div>
             </div>
           </div>
@@ -1042,25 +1345,98 @@ const EnhancedDashboard = () => {
         onClose={() => setShowNewPostModal(false)}
         title={t('dashboard.createNewPost')}
       >
-        <div className="space-y-6">
-          <p className="text-gray-600 dark:text-gray-400">
-            {t('dashboard.newPostMessage')}
-          </p>
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <p className="text-sm text-blue-800 dark:text-blue-300">
-              <strong>{t('dashboard.newPostNote')}</strong> {t('dashboard.newPostNoteMessage')}
-            </p>
+        <form onSubmit={handleCreatePost} className="space-y-4">
+          <div>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+              {t('dashboard.postTitle') || 'Post Title'} *
+            </label>
+            <input
+              type="text"
+              name="title"
+              value={postForm.title}
+              onChange={handlePostChange}
+              className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+              placeholder={t('dashboard.postTitlePlaceholder') || 'Enter post title...'}
+              required
+            />
           </div>
+
+          <div>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+              {t('dashboard.description') || 'Description'}
+            </label>
+            <textarea
+              name="description"
+              value={postForm.description}
+              onChange={handlePostChange}
+              rows={4}
+              className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white resize-none"
+              placeholder={t('dashboard.descriptionPlaceholder') || 'Enter post description...'}
+            />
+          </div>
+
+          <div>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+              {t('dashboard.images') || 'Images'} (Optional)
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handlePostImageChange}
+              className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+            />
+            {postForm.images.length > 0 && (
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {postForm.images.map((image, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={URL.createObjectURL(image)}
+                      alt={`Preview ${index + 1}`}
+                      className="w-full h-24 object-cover rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePostImage(index)}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-3 pt-4">
             <AnimatedButton
-              onClick={() => setShowNewPostModal(false)}
+              type="submit"
               className="flex-1"
+              disabled={isCreatingPost}
             >
-              {t('common.close')}
+              {isCreatingPost ? (t('common.saving') || 'Saving...') : (t('dashboard.createPost') || 'Create Post')}
+            </AnimatedButton>
+            <AnimatedButton
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setShowNewPostModal(false);
+                setPostForm({ title: '', description: '', images: [] });
+              }}
+              className="flex-1"
+              disabled={isCreatingPost}
+            >
+              {t('common.cancel')}
             </AnimatedButton>
           </div>
-        </div>
+        </form>
       </Modal>
+
+      {/* Profile Modal */}
+      <ProfileModal 
+        isOpen={showProfileModal} 
+        onClose={() => setShowProfileModal(false)} 
+      />
     </div>
   );
 };

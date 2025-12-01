@@ -11,11 +11,33 @@ import LanguageSwitcher from '../components/LanguageSwitcher';
 import toast from 'react-hot-toast';
 import { authService } from '../services/authService';
 
+const CITIES = [
+  'baghdad',
+  'basra',
+  'maysan',
+  'dhi_qar',
+  'muthanna',
+  'qadisiyyah',
+  'najaf',
+  'karbala',
+  'babel',
+  'wasit',
+  'anbar',
+  'salah_al_din',
+  'kirkuk',
+  'diyala',
+  'mosul',
+  'erbil',
+  'duhok',
+  'sulaymaniyah',
+];
+
 const initialState = {
   username: '',
   email: '',
   first_name: '',
   last_name: '',
+  city: '',
 };
 
 const LecturerSignup = () => {
@@ -61,6 +83,10 @@ const LecturerSignup = () => {
       nextErrors.last_name = t('signup.lastNameRequired');
     }
 
+    if (!formValues.city.trim()) {
+      nextErrors.city = t('signup.cityRequired');
+    }
+
     setErrors(nextErrors);
 
     return Object.keys(nextErrors).length === 0;
@@ -97,6 +123,7 @@ const LecturerSignup = () => {
       username: formValues.username.trim(),
       first_name: formValues.first_name.trim(),
       last_name: formValues.last_name.trim(),
+      city: formValues.city.trim(),
       user_type: 'lecturer',
     };
 
@@ -152,17 +179,14 @@ const LecturerSignup = () => {
     <AnimatedBackground>
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="w-full max-w-2xl">
-          {/* Language Switcher */}
-          <div className="fixed top-6 right-6 rtl:left-6 rtl:right-auto z-50">
+          {/* Language Switcher & Theme Toggle */}
+          <div className="fixed top-6 right-6 rtl:left-6 rtl:right-auto z-50 flex items-center gap-3">
             <LanguageSwitcher />
-          </div>
-
-          {/* Theme Toggle */}
           <motion.button
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             onClick={toggleTheme}
-            className="fixed top-6 right-20 rtl:left-20 rtl:right-auto p-3 bg-white/80 dark:bg-navy-800/80 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-all z-50"
+              className="p-3 bg-white/80 dark:bg-navy-800/80 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-all"
             whileHover={{ scale: 1.1, rotate: 180 }}
             whileTap={{ scale: 0.9 }}
           >
@@ -172,13 +196,14 @@ const LecturerSignup = () => {
               <FaMoon className="w-6 h-6 text-navy-700" />
             )}
           </motion.button>
+          </div>
 
           <motion.button
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-primary-600 dark:text-teal-400 hover:text-primary-700 dark:hover:text-teal-300 mb-8 transition-colors font-medium"
-            whileHover={{ x: -5 }}
+            className="flex items-center gap-2 text-primary-600 dark:text-teal-400 hover:text-primary-700 dark:hover:text-teal-300 mb-8 transition-colors font-medium cursor-pointer"
+            whileTap={{ scale: 0.95 }}
           >
             <FaArrowLeft />
             {t('common.back')}
@@ -231,7 +256,6 @@ const LecturerSignup = () => {
                     value={formValues.first_name}
                     onChange={handleChange}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                    placeholder={t('signup.firstNamePlaceholder')}
                     autoComplete="given-name"
                   />
                   {errors.first_name && (
@@ -250,7 +274,6 @@ const LecturerSignup = () => {
                     value={formValues.last_name}
                     onChange={handleChange}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                    placeholder={t('signup.lastNamePlaceholder')}
                     autoComplete="family-name"
                   />
                   {errors.last_name && (
@@ -270,7 +293,6 @@ const LecturerSignup = () => {
                   value={formValues.username}
                   onChange={handleChange}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                  placeholder={t('signup.usernamePlaceholder')}
                   autoComplete="username"
                 />
                 {errors.username && (
@@ -289,14 +311,30 @@ const LecturerSignup = () => {
                   value={formValues.email}
                   onChange={handleChange}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                  placeholder={t('signup.emailPlaceholder')}
                   autoComplete="email"
                 />
                 {errors.email && <p className="mt-2 text-sm text-red-500">{errors.email}</p>}
               </div>
 
-              <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-400 px-4 py-3 rounded-lg text-sm">
-                <strong>{t('signup.accountType')}</strong> {t('home.lecturer')} ({t('signup.accountTypeInstitution').split('(')[1] || 'auto-selected'})
+              <div>
+                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                  {t('signup.city')}
+                </label>
+                <motion.select
+                  whileFocus={{ scale: 1.01 }}
+                  name="city"
+                  value={formValues.city}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                >
+                  <option value="">{t('signup.citySelect')}</option>
+                  {CITIES.map((cityKey) => (
+                    <option key={cityKey} value={cityKey}>
+                      {t(`signup.cities.${cityKey}`)}
+                    </option>
+                  ))}
+                </motion.select>
+                {errors.city && <p className="mt-2 text-sm text-red-500">{errors.city}</p>}
               </div>
 
               {formError && (
