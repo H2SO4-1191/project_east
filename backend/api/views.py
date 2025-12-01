@@ -1517,10 +1517,13 @@ class ExploreSearchView(APIView):
         def fetch_jobs():
             qs = JobPost.objects.filter(
                 Q(title__icontains=q) |
-                Q(requirements__icontains=q) |
-                Q(description__icontains=q)
+                Q(description__icontains=q) |
+                Q(skills_required__icontains=q) |
+                Q(experience_required__icontains=q) |
+                Q(specialty__icontains=q)
             ).select_related("institution__user")
             return prioritize_city(qs, lambda x: x.institution.user.city)
+
 
         # -------------------------------
         # APPLY FILTER (if provided)
