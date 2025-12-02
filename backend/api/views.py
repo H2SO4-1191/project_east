@@ -1575,3 +1575,118 @@ class ExploreSearchView(APIView):
             }
         })
 
+class StudentVerificationView(APIView):
+    permission_classes = [IsStudent]
+
+    def put(self, request):
+        user = request.user
+        serializer = StudentVerificationSerializer(
+            user,
+            data=request.data,
+            partial=False
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "success": True,
+                "message": "Student account verified successfully.",
+                "is_verified": True
+            })
+
+        return Response({"success": False, "errors": serializer.errors}, status=400)
+
+class LecturerVerificationView(APIView):
+    permission_classes = [IsLecturer]
+
+    def put(self, request):
+        user = request.user
+        serializer = LecturerVerificationSerializer(
+            user,
+            data=request.data,
+            partial=False
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "success": True,
+                "message": "Lecturer account verified successfully.",
+                "is_verified": True
+            })
+
+        return Response({"success": False, "errors": serializer.errors}, status=400)
+
+def find_conflict(existing_courses, days, start_time, end_time):
+    for course in existing_courses:
+        for day in course.days:
+            if day in days:
+                if not (end_time <= course.start_time or start_time >= course.end_time):
+                    return {
+                        "course_id": course.id,
+                        "course_title": course.title,
+                        "institution": course.institution.title,
+                        "institution_username": course.institution.user.username,
+                        "day": day,
+                        "time": f"{course.start_time.strftime('%H:%M')} - {course.end_time.strftime('%H:%M')}"
+                    }
+    return None
+
+class StudentScheduleCheckView(APIView):
+    permission_classes = [IsVerified, IsStudent]
+
+    def post(self, request, course_id):
+        user = request.user
+
+        try:
+            new_course = Course.objects.get(id=course_id)
+        except Course.DoesNotExist:
+            return Response({"success": False, "message": "Course not found."}, status=404)
+
+        student = user.student
+        existing_courses = student.courses.all()
+
+        conflict = find_conflict(
+            existing_courses,
+            new_course.days,
+            new_course.start_time,
+            new_course.end_time
+        )
+
+        if conflict:
+            return Response({"success": False, "contradiction": conflict})
+
+        return Response({"success": True, "contradiction": None})
+
+class LecturerScheduleCheckView(APIView):
+    permission_classes = [IsVerified & IsInstitution]
+
+    def post(self, request, lecturer_id):
+        try:
+            lecturer = Lecturer.objects.get(id=lecturer_id)
+        except Lecturer.DoesNotExist:
+            return Response({"success": False, "message": "Lecturer not found."}, status=404)
+
+        days = request.data.get("days", [])
+        start_time = request.data.get("start_time")
+        end_time = request.data.get("end_time")
+
+        if not days or not start_time or not end_time:
+            return Response({"success": False, "message": "days, start_time, end_time required."}, status=400)
+
+        # Convert times
+        from datetime import time
+        h1, m1 = map(int, start_time.split(":"))
+        h2, m2 = map(int, end_time.split(":"))
+        start_time = time(h1, m1)
+        end_time = time(h2, m2)
+
+        existing_courses = lecturer.courses.all()
+
+        conflict = find_conflict(existing_courses, days, start_time, end_time)
+
+        if conflict:
+            return Response({"success": False, "contradiction": conflict})
+
+        return Response({"success": True, "contradiction": None})
+

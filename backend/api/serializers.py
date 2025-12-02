@@ -823,7 +823,119 @@ class SearchJobSerializer(serializers.ModelSerializer):
         model = JobPost
         fields = ["id", "title", "description", "institution", "city"]
 
+class StudentVerificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            'phone_number',
+            'about',
+            'profile_image',
+            'idcard_back',
+            'idcard_front',
+            'residence_front',
+            'residence_back',
+            'studying_level',
+            'responsible_phone',
+            'responsible_email',
+        ]
 
+    def validate(self, data):
+        required_user_fields = [
+            'phone_number',
+            'about',
+            'profile_image',
+            'idcard_back',
+            'idcard_front',
+            'residence_front',
+            'residence_back',
+        ]
+
+        required_student_fields = [
+            'studying_level',
+        ]
+
+        for field in required_user_fields + required_student_fields:
+            if field not in data or not data[field]:
+                raise serializers.ValidationError({field: "This field is required."})
+
+        return data
+
+    def update(self, instance, validated_data):
+        student = instance.student 
+
+        student.studying_level = validated_data.pop('studying_level')
+        student.responsible_phone = validated_data.pop('responsible_phone', student.responsible_phone)
+        student.responsible_email = validated_data.pop('responsible_email', student.responsible_email)
+        student.save()
+
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+
+        instance.is_verified = True
+        instance.save()
+
+        return instance
+
+class LecturerVerificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            'phone_number',
+            'about',
+            'profile_image',
+            'idcard_back',
+            'idcard_front',
+            'residence_front',
+            'residence_back',
+            'academic_achievement',
+            'specialty',
+            'skills',
+            'experience',
+            'free_time',
+        ]
+
+    def validate(self, data):
+        required_user_fields = [
+            'phone_number',
+            'about',
+            'profile_image',
+            'idcard_back',
+            'idcard_front',
+            'residence_front',
+            'residence_back',
+        ]
+
+        required_lecturer_fields = [
+            'academic_achievement',
+            'specialty',
+            'skills',
+            'experience',
+            'free_time',
+        ]
+
+        for field in required_user_fields + required_lecturer_fields:
+            if field not in data or not data[field]:
+                raise serializers.ValidationError({field: "This field is required."})
+
+        return data
+
+    def update(self, instance, validated_data):
+        lecturer = instance.lecturer
+
+        lecturer.academic_achievement = validated_data.pop('academic_achievement')
+        lecturer.specialty = validated_data.pop('specialty')
+        lecturer.skills = validated_data.pop('skills')
+        lecturer.experience = validated_data.pop('experience')
+        lecturer.free_time = validated_data.pop('free_time')
+        lecturer.save()
+
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+
+        instance.is_verified = True
+        instance.save()
+
+        return instance
 
 
 

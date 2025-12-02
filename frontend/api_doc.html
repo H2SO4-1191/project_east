@@ -1602,6 +1602,42 @@ Response 200:
       },
       {
         section: "Institution · Posts & Courses",
+        name: "Is lecturer free",
+        method: "POST",
+        path: "/institution/is-lecturer-free/<int:lecturer_id>/",
+        usecase: "Check if a lecturer is free before asigning them to a course.",
+        permission: "Institution + IsVerified.",
+        jwt: "Required",
+        requestBody: `Content-Type: application/json
+
+{
+  "days": ["Monday", "Wednesday"],
+  "start_time": "09:00",
+  "end_time": "11:00"
+}
+`,
+        successExample: `Response 200:
+{
+  "success": true,
+  "contradiction": null
+}
+`,
+        errorsExample: `200:
+{
+  "success": false,
+  "contradiction": {
+    "course_id": 8,
+    "course_title": "Data Structures",
+    "institution": "Tech Academy",
+    "institution_username": "tech_academy",
+    "day": "Wednesday",
+    "time": "09:00 - 11:00"
+  }
+}
+`
+      },
+      {
+        section: "Institution · Posts & Courses",
         name: "Create Post",
         method: "POST",
         path: "/institution/create-post/",
@@ -1669,30 +1705,36 @@ course_image`,
 }`
       },
       {
-        section: "Institution · Posts & Courses",
-        name: "Edit Course",
-        method: "PUT",
-        path: "/institution/edit-course/",
-        usecase: "Update an existing course (backend expects course_id, currently mismatch in path—check backend).",
-        permission: "Institution + IsVerified.",
-        jwt: "Required",
-        requestBody: `Note: view expects course_id in URL: /institution/edit-course/<course_id>/
-Current urls.py has no <course_id> in path, so FE & BE need to agree on final path.
+  section: "Institution · Posts & Courses",
+  name: "Edit Course",
+  method: "PUT",
+  path: "/institution/edit-course/<course_id>/",
+  usecase: "Update an existing course by ID.",
+  permission: "Institution + IsVerified.",
+  jwt: "Required",
 
-Body: partial CourseSerializer fields (same as create-course).`,
-        successExample: `Response 200:
+  requestBody: `Body: Partial CourseSerializer fields (same fields used in create-course).
+Only include fields you want to update.`,
+
+  successExample: `200 OK:
 {
   "success": true,
   "message": "Course updated successfully."
 }`,
-        errorsExample: `404:
+
+  errorsExample: `404:
 {
   "success": false,
   "message": "Course not found."
 }
 
-400 on validation errors.`
-      },
+400:
+{
+  "success": false,
+  "errors": { ...serializer validation errors... }
+}`
+}
+,
       {
         section: "Institution · Students & Lecturers",
         name: "View Specific Student Profile (Institution view)",
@@ -2007,6 +2049,55 @@ salary_offer       (int)`,
       },
 
       /* LECTURER */
+      {
+        section: "Lecturer · Profiles & Courses",
+        name: "Verify lecturer.",
+        method: "PUT",
+        path: "/lecturer/verify/",
+        usecase: "Verify lecturer account with more information.",
+        permission: "Authenticated; must be lecturer.",
+        jwt: "Required",
+        requestBody: `Content-Type: application/json
+
+{
+  "phone_number": "+9647700000000",
+  "about": "I am a lecturer with 5 years of experience.",
+  "profile_image": <file>,
+  "idcard_back": <file>,
+  "idcard_front": <file>,
+  "residence_front": <file>,
+  "residence_back": <file>,
+  "academic_achievement": "bachelors",
+  "specialty": "Artificial Intelligence",
+  "skills": "Python, Machine Learning, Deep Learning",
+  "experience": "5",
+  "free_time": "14:00 - 19:00"
+}
+`,
+        successExample: `Response 200:
+{
+  "success": True,
+  "message": "Lecturer account verified successfully.",
+  "is_verified": True
+}`,
+        errorsExample: `400:
+{
+  "phone_number": ["This field is required."],
+  "about": ["This field is required."],
+  "profile_image": ["This field is required."],
+  "idcard_back": ["This field is required."],
+  "idcard_front": ["This field is required."],
+  "residence_front": ["This field is required."],
+  "residence_back": ["This field is required."],
+  "academic_achievement": ["This field is required."],
+  "specialty": ["This field is required."],
+  "skills": ["This field is required."],
+  "experience": ["This field is required."],
+  "free_time": ["This field is required."]
+}
+`
+      },
+
       {
         section: "Lecturer · Profiles & Courses",
         name: "Lecturer Self Profile",
@@ -2345,6 +2436,47 @@ Invalid students are silently skipped.`
       /* STUDENT */
       {
         section: "Student · Profiles & Courses",
+        name: "Verify student",
+        method: "PUT",
+        path: "/student/verify/",
+        usecase: "Verify a student's account with information",
+        permission: "Authenticated; must be student.",
+        jwt: "Required",
+        requestBody: `Content-Type: application/json
+
+{
+  "phone_number": "+9647712345678",
+  "about": "Final year student interested in programming and AI.",
+  "profile_image": "<file>",
+  "idcard_back": "<file>",
+  "idcard_front": "<file>",
+  "residence_front": "<file>",
+  "residence_back": "<file>",
+  "studying_level": "bachelors",
+  "responsible_phone": "+9647700000000", //optional
+  "responsible_email": "parent@example.com" //optional
+}`,
+        successExample: `Response 200:
+{
+  "success": True,
+  "message": "Student account verified successfully.",
+  "is_verified": True
+}`,
+        errorsExample: `400:
+{
+  "phone_number": ["This field is required."],
+  "about": ["This field is required."],
+  "profile_image": ["This field is required."],
+  "idcard_back": ["This field is required."],
+  "idcard_front": ["This field is required."],
+  "residence_front": ["This field is required."],
+  "residence_back": ["This field is required."],
+  "studying_level": ["This field is required."]
+}
+`
+      },
+      {
+        section: "Student · Profiles & Courses",
         name: "Student Self Profile",
         method: "GET",
         path: "/student/profile/self/",
@@ -2512,6 +2644,43 @@ studying_level, interesting_keywords, responsible_phone, responsible_email`,
   "success": false,
   "message": "Course not found."
 }`
+      },
+      {
+        section: "Student · Schedule",
+        name: "Is student free",
+        method: "POST",
+        path: "/student/is-student-free/<int:course_id>/",
+        usecase: "Check if a student is free before enrolling to a course.",
+        permission: "Student + IsVerified.",
+        jwt: "Required",
+        requestBody: null,
+        successExample: `Response 200:
+{
+  "success": true,
+  "contradiction": null
+}
+`,
+        errorsExample: `
+200:
+{
+  "success": false,
+  "contradiction": {
+    "course_id": 12,
+    "course_title": "Algorithms",
+    "institution": "Tech Academy",
+    "institution_username": "tech_academy",
+    "day": "Monday",
+    "time": "10:00 - 12:00"
+  }
+},
+
+400:
+{
+  "success": false,
+  "message": "Course not found."
+}
+
+`
       },
       {
         section: "Student · Schedule",

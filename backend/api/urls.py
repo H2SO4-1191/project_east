@@ -15,6 +15,7 @@ urlpatterns = [
     path('registration/is-verified/', IsVerifiedView.as_view()),
     path('registration/refresh/', TokenRefreshView.as_view()),
 
+    path('institution/verify/', InstitutionVerificationView.as_view()),
     path('institution/total-students/', InstitutionTotalStudentsView.as_view()),
     path('institution/total-lecturers/', InstitutionTotalLecturersView.as_view()),
     path('institution/total-staff/', InstitutionTotalStaffView.as_view()),
@@ -25,11 +26,10 @@ urlpatterns = [
     path('institution/lecturers-list/', InstitutionLecturersListView.as_view()),
     path('institution/staff-list/', InstitutionStaffListView.as_view()),
     path('institution/schedule/', InstitutionWeeklyScheduleView.as_view()),
-    path('institution/verify/', InstitutionVerificationView.as_view()),
     path('institution/edit/', InstitutionEditProfileView.as_view()),
     path('institution/create-post/', InstitiutionCreatePostView.as_view()),
     path('institution/create-course/', InstitutionCreateCourseView.as_view()),
-    path('institution/edit-course/', InstitutionEditCourseView.as_view()),
+    path('institution/edit-course/<int:course_id>/', InstitutionEditCourseView.as_view()),
     path("institution/profile/self/", InstitutionSelfProfileView.as_view()),
     path("institution/profile/<str:username>/", InstitutionPublicProfileView.as_view()),
     path("institution/<str:username>/posts/", InstitutionPostsView.as_view()),
@@ -46,7 +46,10 @@ urlpatterns = [
     path("institution/job/<int:job_id>/", JobDetailView.as_view()),
     path("institution/job/<int:job_id>/applications/", InstitutionJobApplicationsView.as_view()),
     path("institution/course/<int:course_id>/attendance/", InstitutionCourseAttendanceSummaryView.as_view()),
+    path("institution/is-lecturer-free/<int:lecturer_id>/", LecturerScheduleCheckView.as_view()),
 
+
+    path("lecturer/verify/", LecturerVerificationView.as_view()),
     path("lecturer/profile/self/", LecturerSelfProfileView.as_view()),
     path("lecturer/profile/<str:username>/", LecturerPublicProfileView.as_view()),
     path("lecturer/<str:username>/courses/", LecturerCoursesListView.as_view()),
@@ -60,6 +63,7 @@ urlpatterns = [
     path("lecturer/exam/<int:exam_id>/grades/view/", LecturerViewGradesView.as_view()),
     path("lecturer/exam/<int:exam_id>/grades/edit/", LecturerEditGradesView.as_view()),
 
+    path("student/verify/", StudentVerificationView.as_view()),
     path("student/profile/self/", StudentSelfProfileView.as_view()),
     path("student/profile/<str:username>/", StudentPublicProfileView.as_view()),
     path("student/<str:username>/courses/", StudentCoursesListView.as_view()),
@@ -67,5 +71,5 @@ urlpatterns = [
     path("student/course/<int:course_id>/attendance/", StudentViewAttendanceView.as_view()),
     path("student/course/<int:course_id>/grades/", StudentViewGradesView.as_view()),
     path("student/schedule/", StudentWeeklyScheduleView.as_view()),
-    
+    path("student/is-student-free/<int:course_id>/", StudentScheduleCheckView.as_view()),
 ]
