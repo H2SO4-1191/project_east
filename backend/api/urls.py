@@ -53,7 +53,7 @@ urlpatterns = [
     path("lecturer/profile/self/", LecturerSelfProfileView.as_view()),
     path("lecturer/profile/<str:username>/", LecturerPublicProfileView.as_view()),
     path("lecturer/<str:username>/courses/", LecturerCoursesListView.as_view()),
-    path("lecturer/profile/edit/", LecturerEditProfileView.as_view()),
+    path("lecturer/edit-profile/", LecturerEditProfileView.as_view()),
     path("lecturer/job/<int:job_id>/apply/", LecturerApplyJobView.as_view()),
     path("lecturer/course/<int:course_id>/exam/create/", LecturerCreateExamView.as_view()),
     path("lecturer/exam/<int:exam_id>/grades/", LecturerAddGradesView.as_view()),
