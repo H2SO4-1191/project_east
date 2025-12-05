@@ -28,7 +28,7 @@ def upload_course_path(instance, file_name):
     return f"media/{instance.institution.username}/courses/{file_name}"
 
 def upload_post_path(instance, file_name):
-    return f"media/{instance.institution.username}/posts/{file_name}"
+    return f"media/{instance.post.user.username}/posts/{file_name}"
 
 def upload_staff_path(instance, file_name):
     first = instance.first_name.replace(" ", "_").lower()
@@ -131,7 +131,7 @@ class Course(models.Model):
         ('sunday', 'Sunday'),
     ]
 
-    days = ArrayField(models.CharField(max_length=10, choices=DAYS), default=list())
+    days = ArrayField(models.CharField(max_length=10, choices=DAYS), default=list)
     start_time = models.TimeField(default=time(9, 0))
     end_time = models.TimeField(default=time(10, 0))
 

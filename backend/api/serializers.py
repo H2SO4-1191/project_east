@@ -10,12 +10,9 @@ class FeedItemSerializer(serializers.Serializer):
     description = serializers.CharField(allow_null=True)
     image = serializers.CharField(allow_null=True)
     created_at = serializers.DateTimeField(allow_null=True)
-
-class FeedCourseSerializer(serializers.ModelSerializer):
-    institution = serializers.CharField(source='institution.user.username')
-    class Meta:
-        model = Course
-        fields = ['id', 'title', 'about', 'starting_date', 'ending_date', 'price', 'level', 'institution']
+    publisher_id = serializers.IntegerField(allow_null=True)
+    publisher_username = serializers.CharField(allow_null=True)
+    publisher_profile_image = serializers.CharField(allow_null=True)
 
 class SignupSerializer(serializers.ModelSerializer):
     class Meta:
@@ -302,6 +299,7 @@ class InstitutionPublicProfileSerializer(serializers.ModelSerializer):
             "profile_image",
             "title",
             "location",
+            "is_verified",
         ]
 
 class InstitutionCourseListSerializer(serializers.ModelSerializer):
@@ -353,6 +351,7 @@ class InstitutionViewStudentSerializer(serializers.ModelSerializer):
             "idcard_front",
             "residence_front",
             "residence_back",
+            "is_verified",
 
             # student specific
             "studying_level",
@@ -384,6 +383,8 @@ class InstitutionViewLecturerSerializer(serializers.ModelSerializer):
             "idcard_front",
             "residence_front",
             "residence_back",
+            "is_verified",
+
 
             # lecturer fields
             "academic_achievement",
@@ -508,6 +509,7 @@ class LecturerSelfProfileSerializer(serializers.ModelSerializer):
     phone_number = serializers.CharField(source="user.phone_number")
     about = serializers.CharField(source="user.about")
     profile_image = serializers.ImageField(source="user.profile_image")
+    is_verified = serializers.BooleanField(source="user.is_verified")
 
     idcard_back = serializers.ImageField(source="user.idcard_back")
     idcard_front = serializers.ImageField(source="user.idcard_front")
@@ -532,6 +534,8 @@ class LecturerSelfProfileSerializer(serializers.ModelSerializer):
             "idcard_front",
             "residence_front",
             "residence_back",
+            "is_verified",
+
 
             "academic_achievement",
             "specialty",
@@ -546,6 +550,7 @@ class LecturerPublicProfileSerializer(serializers.ModelSerializer):
     last_name = serializers.CharField(source="user.last_name")
     city = serializers.CharField(source="user.city")
     profile_image = serializers.ImageField(source="user.profile_image")
+    is_verified = serializers.BooleanField(source="user.is_verified")
 
     institutions = serializers.StringRelatedField(many=True)
 
@@ -562,6 +567,7 @@ class LecturerPublicProfileSerializer(serializers.ModelSerializer):
             "academic_achievement",
             "institutions",
             "free_time",
+            "is_verified",
         ]
 
 class LecturerCourseListSerializer(serializers.ModelSerializer):
@@ -674,6 +680,7 @@ class StudentPublicProfileSerializer(serializers.ModelSerializer):
             "about",
             "profile_image",
             "studying_level",
+            "is_verified",
         ]
 
 class StudentCourseListSerializer(serializers.ModelSerializer):
@@ -779,51 +786,124 @@ class CourseProgressSerializer(serializers.Serializer):
 class SearchStudentSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     city = serializers.CharField(source="user.city")
+    username = serializers.CharField(source="user.username")
+    profile_image = serializers.SerializerMethodField()
+    studying_level = serializers.CharField()
 
     class Meta:
         model = Student
-        fields = ["id", "name", "city"]
+        fields = [
+            "id", 
+            "name", 
+            "city",
+            "username",
+            "profile_image",
+            "studying_level",
+        ]
 
     def get_name(self, obj):
         return f"{obj.user.first_name} {obj.user.last_name}"
+
+    def get_profile_image(self, obj):
+        return obj.user.profile_image.url if obj.user.profile_image else None
 
 class SearchLecturerSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     city = serializers.CharField(source="user.city")
-    specialty = serializers.CharField()
+    username = serializers.CharField(source="user.username")
+    profile_image = serializers.SerializerMethodField()
+    institutions = serializers.SerializerMethodField()  # list of institution titles
 
     class Meta:
         model = Lecturer
-        fields = ["id", "name", "city", "specialty"]
+        fields = [
+            "id",
+            "name",
+            "city",
+            "specialty",
+            "username",
+            "profile_image",
+            "institutions",
+        ]
 
     def get_name(self, obj):
         return f"{obj.user.first_name} {obj.user.last_name}"
 
+    def get_profile_image(self, obj):
+        return obj.user.profile_image.url if obj.user.profile_image else None
+
+    def get_institutions(self, obj):
+        return [inst.title for inst in obj.institutions.all()]
+
 class SearchInstitutionSerializer(serializers.ModelSerializer):
     title = serializers.CharField()
     city = serializers.CharField(source="user.city")
+    username = serializers.CharField(source="user.username")
+    profile_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Institution
-        fields = ["id", "title", "location", "city"]
+        fields = [
+            "id",
+            "title",
+            "location",
+            "city",
+            "username",
+            "profile_image",
+        ]
+
+    def get_profile_image(self, obj):
+        return obj.user.profile_image.url if obj.user.profile_image else None
 
 class SearchCourseSerializer(serializers.ModelSerializer):
     institution = serializers.CharField(source="institution.title")
     city = serializers.CharField(source="institution.user.city")
+    publisher_username = serializers.CharField(source="institution.user.username")
+    publisher_profile_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
-        fields = ["id", "title", "about", "institution", "city"]
+        fields = [
+            "id",
+            "title",
+            "about",
+            "institution",
+            "city",
+            "publisher_username",
+            "publisher_profile_image",
+        ]
+
+    def get_publisher_profile_image(self, obj):
+        user = obj.institution.user
+        return user.profile_image.url if user.profile_image else None
 
 class SearchJobSerializer(serializers.ModelSerializer):
     institution = serializers.CharField(source="institution.title")
     city = serializers.CharField(source="institution.user.city")
+    publisher_username = serializers.CharField(source="institution.user.username")
+    publisher_profile_image = serializers.SerializerMethodField()
 
     class Meta:
         model = JobPost
-        fields = ["id", "title", "description", "institution", "city"]
+        fields = [
+            "id",
+            "title",
+            "description",
+            "institution",
+            "city",
+            "publisher_username",
+            "publisher_profile_image",
+        ]
+
+    def get_publisher_profile_image(self, obj):
+        user = obj.institution.user
+        return user.profile_image.url if user.profile_image else None
 
 class StudentVerificationSerializer(serializers.ModelSerializer):
+    studying_level = serializers.CharField()
+    responsible_phone = serializers.CharField(required=False, allow_null=True)
+    responsible_email = serializers.CharField(required=False, allow_null=True)
+
     class Meta:
         model = User
         fields = [
@@ -834,6 +914,8 @@ class StudentVerificationSerializer(serializers.ModelSerializer):
             'idcard_front',
             'residence_front',
             'residence_back',
+
+            # student fields (manually added)
             'studying_level',
             'responsible_phone',
             'responsible_email',
@@ -861,7 +943,7 @@ class StudentVerificationSerializer(serializers.ModelSerializer):
         return data
 
     def update(self, instance, validated_data):
-        student = instance.student 
+        student = instance.student
 
         student.studying_level = validated_data.pop('studying_level')
         student.responsible_phone = validated_data.pop('responsible_phone', student.responsible_phone)
@@ -877,6 +959,12 @@ class StudentVerificationSerializer(serializers.ModelSerializer):
         return instance
 
 class LecturerVerificationSerializer(serializers.ModelSerializer):
+    academic_achievement = serializers.CharField()
+    specialty = serializers.CharField()
+    skills = serializers.CharField()
+    experience = serializers.IntegerField()
+    free_time = serializers.CharField()
+
     class Meta:
         model = User
         fields = [
@@ -887,6 +975,8 @@ class LecturerVerificationSerializer(serializers.ModelSerializer):
             'idcard_front',
             'residence_front',
             'residence_back',
+
+            # lecturer-only fields
             'academic_achievement',
             'specialty',
             'skills',
@@ -936,6 +1026,7 @@ class LecturerVerificationSerializer(serializers.ModelSerializer):
         instance.save()
 
         return instance
+
 
 
 

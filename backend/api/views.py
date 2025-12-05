@@ -52,7 +52,6 @@ class HomeFeedView(APIView):
         else:
             courses_city = courses.none()
 
-        # keyword match (student only)
         courses_kw = courses.none()
         if user and user.user_type == "student" and keywords:
             for kw in keywords:
@@ -100,7 +99,7 @@ class HomeFeedView(APIView):
                 course_pick = list(courses_city[:4])
                 job_pick = list(jobs_global[:3])
 
-        # combine
+        # --- COMBINE ---
         feed = []
 
         # normalize POSTS
@@ -112,6 +111,12 @@ class HomeFeedView(APIView):
                 "description": p.description,
                 "image": p.images.first().image.url if p.images.exists() else None,
                 "created_at": p.created_at,
+
+                "publisher_id": p.user.id,
+                "publisher_username": p.user.username,
+                "publisher_profile_image": (
+                    p.user.profile_image.url if p.user.profile_image else None
+                ),
             })
 
         # normalize COURSES
@@ -123,6 +128,12 @@ class HomeFeedView(APIView):
                 "description": c.about,
                 "image": c.course_image.url if c.course_image else None,
                 "created_at": c.starting_date,
+
+                "publisher_id": c.institution.user.id,
+                "publisher_username": c.institution.user.username,
+                "publisher_profile_image": (
+                    c.institution.user.profile_image.url if c.institution.user.profile_image else None
+                ),
             })
 
         # normalize JOBS
@@ -134,6 +145,12 @@ class HomeFeedView(APIView):
                 "description": j.description,
                 "image": None,
                 "created_at": j.created_at,
+
+                "publisher_id": j.institution.user.id,
+                "publisher_username": j.institution.user.username,
+                "publisher_profile_image": (
+                    j.institution.user.profile_image.url if j.institution.user.profile_image else None
+                ),
             })
 
         # SHUFFLE
@@ -142,8 +159,8 @@ class HomeFeedView(APIView):
         # PAGINATE
         paginator = FeedPagination()
         page = paginator.paginate_queryset(feed, request)
-
         serializer = FeedItemSerializer(page, many=True)
+
         return paginator.get_paginated_response(serializer.data)
 
 class SignupView(APIView):
