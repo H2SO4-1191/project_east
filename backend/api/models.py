@@ -93,6 +93,9 @@ class Institution(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
     location = models.CharField(max_length=255)
+    marked_lecturers = models.ManyToManyField("Lecturer", related_name="marked_by_institutions", blank=True)
+
+
     def __str__(self):
         return self.title
 

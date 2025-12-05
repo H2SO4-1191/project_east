@@ -626,6 +626,46 @@ class InstitutionViewLecturerProfile(APIView):
         serializer = InstitutionViewLecturerSerializer(lecturer.user)
         return Response({"success": True, "data": serializer.data})
 
+class InstitutionAddMarkerView(APIView):
+    permission_classes = [IsInstitution, IsVerified]
+
+    def post(self, request):
+        institution = request.user.institution
+        lecturer_id = request.data.get("lecturer_id")
+
+        if not lecturer_id:
+            return Response({"success": False, "message": "lecturer_id required"}, status=400)
+
+        try:
+            lecturer = Lecturer.objects.get(id=lecturer_id)
+        except Lecturer.DoesNotExist:
+            return Response({"success": False, "message": "Lecturer not found"}, status=404)
+
+        institution.marked_lecturers.add(lecturer)
+
+        return Response({"success": True, "message": "Lecturer marked successfully."})
+
+class InstitutionMarkedLecturersView(APIView):
+    permission_classes = [IsInstitution, IsVerified]
+
+    def get(self, request):
+        institution = request.user.institution
+
+        # Lecturers who teach in institution courses
+        course_lecturers = Lecturer.objects.filter(
+            courses__institution=institution
+        ).distinct()
+
+        # Lecturers manually marked
+        marked = institution.marked_lecturers.all()
+
+        # Merge both sets
+        lecturers = (course_lecturers | marked).distinct()
+
+        serializer = LecturerSimpleSerializer(lecturers, many=True)
+        return Response({"success": True, "lecturers": serializer.data})
+
+
 class CourseDetailView(APIView):
     permission_classes = [AllowAny]
 

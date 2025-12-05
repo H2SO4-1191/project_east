@@ -46,6 +46,8 @@ urlpatterns = [
     path("institution/job/<int:job_id>/applications/", InstitutionJobApplicationsView.as_view()),
     path("institution/course/<int:course_id>/attendance/", InstitutionCourseAttendanceSummaryView.as_view()),
     path("institution/is-lecturer-free/<int:lecturer_id>/", LecturerScheduleCheckView.as_view()),
+    path("institution/mark-lecturer/", InstitutionAddMarkerView.as_view()),
+    path("institution/marked-lecturers/", InstitutionMarkedLecturersView.as_view()),
 
 
     path("lecturer/verify/", LecturerVerificationView.as_view()),

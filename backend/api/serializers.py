@@ -329,6 +329,22 @@ class InstitutionPostListSerializer(serializers.ModelSerializer):
             "images",
         ]
 
+class LecturerSimpleSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username")
+    full_name = serializers.SerializerMethodField()
+    profile_image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Lecturer
+        fields = ["id", "username", "full_name", "profile_image"]
+
+    def get_full_name(self, obj):
+        return f"{obj.user.first_name} {obj.user.last_name}"
+
+    def get_profile_image(self, obj):
+        return obj.user.profile_image.url if obj.user.profile_image else None
+
+
 class InstitutionViewStudentSerializer(serializers.ModelSerializer):
     studying_level = serializers.CharField(source="student.studying_level")
     interesting_keywords = serializers.CharField(source="student.interesting_keywords")
