@@ -22,19 +22,19 @@ keywords_validator = RegexValidator(
 )
 
 def upload_path(instance, file_name):
-    return f"media/{instance.username}/{file_name}"
+    return f"{instance.username}/{file_name}"
 
 def upload_course_path(instance, file_name):
-    return f"media/{instance.institution.username}/courses/{file_name}"
+    return f"{instance.institution.username}/courses/{file_name}"
 
 def upload_post_path(instance, file_name):
-    return f"media/{instance.post.user.username}/posts/{file_name}"
+    return f"{instance.post.user.username}/posts/{file_name}"
 
 def upload_staff_path(instance, file_name):
     first = instance.first_name.replace(" ", "_").lower()
     last = instance.last_name.replace(" ", "_").lower()
     staff_folder = f"{first}_{last}"
-    return f"media/{instance.institution.user.username}/staff/{staff_folder}/{file_name}"
+    return f"{instance.institution.user.username}/staff/{staff_folder}/{file_name}"
 
 class User(AbstractUser):
     USER_TYPES = (
