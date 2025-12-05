@@ -32,6 +32,8 @@ const Settings = () => {
   // Edit profile form state
   const [editForm, setEditForm] = useState({
     username: '',
+    first_name: '',
+    last_name: '',
     title: '',
     location: '',
     phone_number: '',
@@ -361,6 +363,8 @@ const Settings = () => {
       // Reset form
       setEditForm({
         username: '',
+        first_name: '',
+        last_name: '',
         title: '',
         location: '',
         phone_number: '',
@@ -696,6 +700,38 @@ const Settings = () => {
               />
               {editErrors.title && (
                 <p className="text-red-500 text-xs mt-1">{editErrors.title[0]}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                {t('dashboard.settingsPage.firstName') || 'First Name'}
+              </label>
+              <input
+                type="text"
+                value={editForm.first_name}
+                onChange={(e) => setEditForm(prev => ({ ...prev, first_name: e.target.value }))}
+                placeholder={t('dashboard.settingsPage.enterFirstName') || 'Enter first name'}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+              />
+              {editErrors.first_name && (
+                <p className="text-red-500 text-xs mt-1">{editErrors.first_name[0]}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                {t('dashboard.settingsPage.lastName') || 'Last Name'}
+              </label>
+              <input
+                type="text"
+                value={editForm.last_name}
+                onChange={(e) => setEditForm(prev => ({ ...prev, last_name: e.target.value }))}
+                placeholder={t('dashboard.settingsPage.enterLastName') || 'Enter last name'}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+              />
+              {editErrors.last_name && (
+                <p className="text-red-500 text-xs mt-1">{editErrors.last_name[0]}</p>
               )}
             </div>
 

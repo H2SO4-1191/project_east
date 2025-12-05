@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -8,116 +8,127 @@ import {
   FaMapMarkerAlt, 
   FaUser,
   FaMoon,
-  FaSun
+  FaSun,
+  FaSpinner
 } from 'react-icons/fa';
 import { useTheme } from '../../context/ThemeContext';
 import { useInstitute } from '../../context/InstituteContext';
+import { authService } from '../../services/authService';
+import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 
 const StudentSchedule = () => {
   const navigate = useNavigate();
   const { isDark, toggleTheme } = useTheme();
-  const { instituteData } = useInstitute();
-
-  // Demo schedule data
-  const [schedule] = useState({
-    Monday: [
-      {
-        id: 1,
-        course: 'Introduction to Programming',
-        code: 'CS101',
-        time: '09:00 AM - 11:00 AM',
-        instructor: 'Dr. Sarah Khan',
-        location: 'Room 201, Computer Lab',
-        type: 'Lecture',
-      },
-      {
-        id: 2,
-        course: 'Calculus I',
-        code: 'MATH101',
-        time: '02:00 PM - 03:30 PM',
-        instructor: 'Prof. Karim Saleh',
-        location: 'Room 105, Mathematics Building',
-        type: 'Lecture',
-      },
-    ],
-    Tuesday: [
-      {
-        id: 3,
-        course: 'Data Structures',
-        code: 'CS201',
-        time: '10:00 AM - 12:00 PM',
-        instructor: 'Dr. Sarah Khan',
-        location: 'Room 202, Computer Lab',
-        type: 'Lab',
-      },
-    ],
-    Wednesday: [
-      {
-        id: 4,
-        course: 'Introduction to Programming',
-        code: 'CS101',
-        time: '09:00 AM - 11:00 AM',
-        instructor: 'Dr. Sarah Khan',
-        location: 'Room 201, Computer Lab',
-        type: 'Lecture',
-      },
-      {
-        id: 5,
-        course: 'English Composition',
-        code: 'ENG101',
-        time: '01:00 PM - 02:30 PM',
-        instructor: 'Prof. Ahmed Ali',
-        location: 'Room 301, Arts Building',
-        type: 'Lecture',
-      },
-    ],
-    Thursday: [
-      {
-        id: 6,
-        course: 'Data Structures',
-        code: 'CS201',
-        time: '10:00 AM - 12:00 PM',
-        instructor: 'Dr. Sarah Khan',
-        location: 'Room 202, Computer Lab',
-        type: 'Lab',
-      },
-      {
-        id: 7,
-        course: 'Physics I',
-        code: 'PHY101',
-        time: '03:00 PM - 04:30 PM',
-        instructor: 'Dr. Omar Hassan',
-        location: 'Room 150, Science Building',
-        type: 'Lecture',
-      },
-    ],
-    Friday: [
-      {
-        id: 8,
-        course: 'Calculus I',
-        code: 'MATH101',
-        time: '09:00 AM - 10:30 AM',
-        instructor: 'Prof. Karim Saleh',
-        location: 'Room 105, Mathematics Building',
-        type: 'Tutorial',
-      },
-    ],
+  const { instituteData, updateInstituteData, clearInstituteData } = useInstitute();
+  const { t } = useTranslation();
+  
+  const [schedule, setSchedule] = useState({
+    Monday: [],
+    Tuesday: [],
+    Wednesday: [],
+    Thursday: [],
+    Friday: [],
+    Saturday: [],
+    Sunday: [],
   });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-  const [selectedDay, setSelectedDay] = useState('Monday');
+  const days = [
+    { key: 'monday', label: 'Monday' },
+    { key: 'tuesday', label: 'Tuesday' },
+    { key: 'wednesday', label: 'Wednesday' },
+    { key: 'thursday', label: 'Thursday' },
+    { key: 'friday', label: 'Friday' },
+    { key: 'saturday', label: 'Saturday' },
+    { key: 'sunday', label: 'Sunday' },
+  ];
+  const [selectedDay, setSelectedDay] = useState('monday');
 
-  const getTypeColor = (type) => {
-    switch (type) {
-      case 'Lecture':
-        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300';
-      case 'Lab':
-        return 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300';
-      case 'Tutorial':
-        return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300';
-      default:
-        return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300';
-    }
+  // Fetch schedule from API
+  useEffect(() => {
+    const fetchSchedule = async () => {
+      if (!instituteData.accessToken || instituteData.userType !== 'student') {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await authService.getStudentSchedule(instituteData.accessToken, {
+          refreshToken: instituteData.refreshToken,
+          onTokenRefreshed: (tokens) => {
+            updateInstituteData({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh,
+            });
+          },
+          onSessionExpired: () => {
+            clearInstituteData();
+            navigate('/login');
+            toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+          },
+        });
+
+        if (response?.success && response?.schedule) {
+          // Transform API response to grouped by day
+          const groupedSchedule = {
+            Monday: [],
+            Tuesday: [],
+            Wednesday: [],
+            Thursday: [],
+            Friday: [],
+            Saturday: [],
+            Sunday: [],
+          };
+
+          response.schedule.forEach((item) => {
+            const dayKey = item.day 
+              ? item.day.charAt(0).toUpperCase() + item.day.slice(1).toLowerCase()
+              : 'Monday';
+            
+            if (groupedSchedule[dayKey]) {
+              groupedSchedule[dayKey].push({
+                id: item.course_id,
+                course: item.course_title || 'Untitled Course',
+                time: `${item.start_time || '09:00'} - ${item.end_time || '10:00'}`,
+                instructor: item.lecturer || 'TBA',
+                institution: item.institution || 'N/A',
+                course_id: item.course_id,
+                start_time: item.start_time,
+                end_time: item.end_time,
+              });
+            }
+          });
+
+          setSchedule(groupedSchedule);
+        } else {
+          setError(t('schedule.noSchedule') || 'No schedule data available');
+        }
+      } catch (err) {
+        console.error('Error fetching schedule:', err);
+        setError(err?.message || t('schedule.fetchError') || 'Failed to load schedule');
+        toast.error(err?.message || t('schedule.fetchError') || 'Failed to load schedule');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSchedule();
+  }, [instituteData.accessToken, instituteData.refreshToken, instituteData.userType, navigate, updateInstituteData, clearInstituteData, t]);
+
+  // Get schedule for selected day
+  const getSelectedDayKey = () => {
+    const day = days.find(d => d.key === selectedDay);
+    return day ? day.label : 'Monday';
+  };
+
+  const getSelectedDaySchedule = () => {
+    const dayKey = getSelectedDayKey();
+    return schedule[dayKey] || [];
   };
 
   return (
@@ -135,9 +146,9 @@ const StudentSchedule = () => {
                 className="flex items-center gap-2 px-4 py-2 text-primary-600 dark:text-teal-400 hover:bg-gray-100 dark:hover:bg-navy-700 rounded-lg transition-colors"
               >
                 <FaArrowLeft />
-                <span>Back to Feed</span>
+                <span>{t('common.back') || 'Back to Feed'}</span>
               </motion.button>
-              <h1 className="text-xl font-bold text-gray-800 dark:text-white">My Schedule</h1>
+              <h1 className="text-xl font-bold text-gray-800 dark:text-white">{t('schedule.title') || 'My Schedule'}</h1>
             </div>
 
             {/* Theme Toggle */}
@@ -171,9 +182,9 @@ const StudentSchedule = () => {
             </div>
             <div>
               <h2 className="text-3xl font-bold">
-                Welcome, {instituteData.firstName || instituteData.username || 'Student'}!
+                {t('schedule.welcome', { name: instituteData.firstName || instituteData.username || 'Student' }) || `Welcome, ${instituteData.firstName || instituteData.username || 'Student'}!`}
               </h2>
-              <p className="text-white/90 mt-1">Here's your weekly schedule</p>
+              <p className="text-white/90 mt-1">{t('schedule.subtitle') || "Here's your weekly schedule"}</p>
             </div>
           </div>
         </motion.div>
@@ -188,17 +199,17 @@ const StudentSchedule = () => {
           <div className="flex flex-wrap gap-3">
             {days.map((day) => (
               <motion.button
-                key={day}
+                key={day.key}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setSelectedDay(day)}
+                onClick={() => setSelectedDay(day.key)}
                 className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-                  selectedDay === day
+                  selectedDay === day.key
                     ? 'bg-primary-600 text-white shadow-md'
                     : 'bg-gray-100 dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-navy-600'
                 }`}
               >
-                {day}
+                {day.label}
               </motion.button>
             ))}
           </div>
@@ -206,10 +217,39 @@ const StudentSchedule = () => {
 
         {/* Schedule Cards */}
         <div className="space-y-4">
-          {schedule[selectedDay] && schedule[selectedDay].length > 0 ? (
-            schedule[selectedDay].map((session, index) => (
+          {isLoading ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="bg-white dark:bg-navy-800 rounded-xl shadow-lg p-12 text-center"
+            >
+              <div className="w-20 h-20 bg-gray-100 dark:bg-navy-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FaSpinner className="text-4xl text-primary-600 dark:text-primary-400 animate-spin" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+                {t('schedule.loading') || 'Loading schedule...'}
+              </h3>
+            </motion.div>
+          ) : error ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="bg-white dark:bg-navy-800 rounded-xl shadow-lg p-12 text-center"
+            >
+              <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FaCalendarAlt className="text-4xl text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+                {t('schedule.error') || 'Error Loading Schedule'}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                {error}
+              </p>
+            </motion.div>
+          ) : getSelectedDaySchedule().length > 0 ? (
+            getSelectedDaySchedule().map((session, index) => (
               <motion.div
-                key={session.id}
+                key={session.id || session.course_id || index}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
@@ -222,13 +262,7 @@ const StudentSchedule = () => {
                         <h3 className="text-xl font-bold text-gray-800 dark:text-white">
                           {session.course}
                         </h3>
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getTypeColor(session.type)}`}>
-                          {session.type}
-                        </span>
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 font-mono">
-                        {session.code}
-                      </p>
                     </div>
                   </div>
 
@@ -238,7 +272,7 @@ const StudentSchedule = () => {
                         <FaClock className="text-blue-600 dark:text-blue-400" />
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-500">Time</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-500">{t('schedule.time') || 'Time'}</p>
                         <p className="font-semibold">{session.time}</p>
                       </div>
                     </div>
@@ -248,7 +282,7 @@ const StudentSchedule = () => {
                         <FaUser className="text-purple-600 dark:text-purple-400" />
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-500">Instructor</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-500">{t('schedule.instructor') || 'Instructor'}</p>
                         <p className="font-semibold">{session.instructor}</p>
                       </div>
                     </div>
@@ -258,8 +292,8 @@ const StudentSchedule = () => {
                         <FaMapMarkerAlt className="text-green-600 dark:text-green-400" />
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-500">Location</p>
-                        <p className="font-semibold">{session.location}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-500">{t('schedule.institution') || 'Institution'}</p>
+                        <p className="font-semibold">{session.institution}</p>
                       </div>
                     </div>
                   </div>
@@ -276,10 +310,10 @@ const StudentSchedule = () => {
                 <FaCalendarAlt className="text-4xl text-gray-400 dark:text-gray-500" />
               </div>
               <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
-                No Classes Today
+                {t('schedule.noClasses') || 'No Classes Today'}
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                Enjoy your day off!
+                {t('schedule.enjoyDayOff') || 'Enjoy your day off!'}
               </p>
             </motion.div>
           )}
@@ -290,4 +324,3 @@ const StudentSchedule = () => {
 };
 
 export default StudentSchedule;
-

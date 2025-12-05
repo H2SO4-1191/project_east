@@ -46,7 +46,7 @@ function AnimatedRoutes() {
         <Route 
           path="/student/schedule" 
           element={
-            <ProtectedRoute requireInstitution={false}>
+            <ProtectedRoute requireInstitution={false} requireVerified={true}>
               <StudentSchedule />
             </ProtectedRoute>
           } 
@@ -54,7 +54,7 @@ function AnimatedRoutes() {
         <Route 
           path="/student/courses" 
           element={
-            <ProtectedRoute requireInstitution={false}>
+            <ProtectedRoute requireInstitution={false} requireVerified={true}>
               <StudentCourses />
             </ProtectedRoute>
           } 
