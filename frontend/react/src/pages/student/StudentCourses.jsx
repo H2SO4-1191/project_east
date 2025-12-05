@@ -1,115 +1,126 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
   FaArrowLeft, 
   FaBook, 
-  FaUser, 
   FaClock,
-  FaCheckCircle,
-  FaHourglassHalf,
   FaMoon,
   FaSun,
-  FaChartLine
+  FaChartLine,
+  FaCalendarAlt,
+  FaDollarSign,
+  FaGraduationCap,
+  FaSpinner
 } from 'react-icons/fa';
 import { useTheme } from '../../context/ThemeContext';
 import { useInstitute } from '../../context/InstituteContext';
+import { authService } from '../../services/authService';
+import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 
 const StudentCourses = () => {
   const navigate = useNavigate();
   const { isDark, toggleTheme } = useTheme();
   const { instituteData } = useInstitute();
+  const { t } = useTranslation();
+  const [courses, setCourses] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Demo courses data
-  const [courses] = useState([
-    {
-      id: 1,
-      title: 'Introduction to Programming',
-      code: 'CS101',
-      instructor: 'Dr. Sarah Khan',
-      credits: 3,
-      progress: 75,
-      grade: 'A',
-      status: 'In Progress',
-      nextClass: 'Monday, 09:00 AM',
-      assignments: {
-        completed: 8,
-        total: 10,
-      },
-    },
-    {
-      id: 2,
-      title: 'Calculus I',
-      code: 'MATH101',
-      instructor: 'Prof. Karim Saleh',
-      credits: 4,
-      progress: 60,
-      grade: 'B+',
-      status: 'In Progress',
-      nextClass: 'Monday, 02:00 PM',
-      assignments: {
-        completed: 5,
-        total: 8,
-      },
-    },
-    {
-      id: 3,
-      title: 'Data Structures',
-      code: 'CS201',
-      instructor: 'Dr. Sarah Khan',
-      credits: 3,
-      progress: 45,
-      grade: 'A-',
-      status: 'In Progress',
-      nextClass: 'Tuesday, 10:00 AM',
-      assignments: {
-        completed: 4,
-        total: 10,
-      },
-    },
-    {
-      id: 4,
-      title: 'English Composition',
-      code: 'ENG101',
-      instructor: 'Prof. Ahmed Ali',
-      credits: 3,
-      progress: 80,
-      grade: 'A',
-      status: 'In Progress',
-      nextClass: 'Wednesday, 01:00 PM',
-      assignments: {
-        completed: 7,
-        total: 8,
-      },
-    },
-    {
-      id: 5,
-      title: 'Physics I',
-      code: 'PHY101',
-      instructor: 'Dr. Omar Hassan',
-      credits: 4,
-      progress: 50,
-      grade: 'B',
-      status: 'In Progress',
-      nextClass: 'Thursday, 03:00 PM',
-      assignments: {
-        completed: 4,
-        total: 9,
-      },
-    },
-  ]);
-
-  const totalCredits = courses.reduce((sum, course) => sum + course.credits, 0);
-  const averageProgress = Math.round(
-    courses.reduce((sum, course) => sum + course.progress, 0) / courses.length
-  );
-
-  const getGradeColor = (grade) => {
-    if (grade.startsWith('A')) return 'text-green-600 dark:text-green-400';
-    if (grade.startsWith('B')) return 'text-blue-600 dark:text-blue-400';
-    if (grade.startsWith('C')) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-gray-600 dark:text-gray-400';
+  // Helper function to get full image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
+    // Ensure imagePath starts with / and doesn't have duplicate /media/
+    let cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+    // Remove duplicate /media/ if present
+    cleanPath = cleanPath.replace(/^\/media\/media\//, '/media/');
+    return `${baseUrl}${cleanPath}`;
   };
+
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+
+  // Get level badge color
+  const getLevelColor = (level) => {
+    switch (level?.toLowerCase()) {
+      case 'beginner':
+        return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400';
+      case 'intermediate':
+        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
+      case 'advanced':
+        return 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400';
+      default:
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400';
+    }
+  };
+
+  // Fetch enrolled courses
+  useEffect(() => {
+    const fetchCourses = async () => {
+      if (!instituteData.username) {
+        setError('Username not found');
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await authService.getStudentCourses(instituteData.username);
+        
+        if (response?.results) {
+          setCourses(response.results);
+        } else if (response?.data) {
+          setCourses(Array.isArray(response.data) ? response.data : []);
+        } else {
+          setCourses([]);
+        }
+      } catch (err) {
+        console.error('Error fetching courses:', err);
+        setError(err?.message || 'Failed to load courses');
+        toast.error(err?.message || 'Failed to load courses');
+        setCourses([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCourses();
+  }, [instituteData.username]);
+
+  const totalCourses = courses.length;
+  const totalPrice = courses.reduce((sum, course) => {
+    const price = parseFloat(course.price) || 0;
+    return sum + price;
+  }, 0);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-navy-900 transition-colors flex items-center justify-center">
+        <div className="text-center">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+            className="w-12 h-12 border-4 border-primary-200 dark:border-primary-800 border-t-primary-600 dark:border-t-teal-400 rounded-full mx-auto mb-4"
+          />
+          <p className="text-gray-600 dark:text-gray-400">{t('common.loading') || 'Loading courses...'}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-navy-900 transition-colors">
@@ -126,9 +137,11 @@ const StudentCourses = () => {
                 className="flex items-center gap-2 px-4 py-2 text-primary-600 dark:text-teal-400 hover:bg-gray-100 dark:hover:bg-navy-700 rounded-lg transition-colors"
               >
                 <FaArrowLeft />
-                <span>Back to Feed</span>
+                <span>{t('common.back') || 'Back to Feed'}</span>
               </motion.button>
-              <h1 className="text-xl font-bold text-gray-800 dark:text-white">Current Courses</h1>
+              <h1 className="text-xl font-bold text-gray-800 dark:text-white">
+                {t('studentCourses.myCourses') || 'My Courses'}
+              </h1>
             </div>
 
             {/* Theme Toggle */}
@@ -159,170 +172,228 @@ const StudentCourses = () => {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-3xl font-bold mb-2">
-                Hello, {instituteData.firstName || instituteData.username || 'Student'}!
+                {t('studentCourses.hello') || 'Hello'}, {instituteData.firstName || instituteData.username || 'Student'}!
               </h2>
-              <p className="text-white/90">You're enrolled in {courses.length} courses this semester</p>
+              <p className="text-white/90">
+                {totalCourses === 0 
+                  ? (t('studentCourses.noCourses') || "You're not enrolled in any courses yet")
+                  : `${t('studentCourses.enrolledIn') || "You're enrolled in"} ${totalCourses} ${totalCourses === 1 ? (t('studentCourses.course') || 'course') : (t('studentCourses.courses') || 'courses')}`
+                }
+              </p>
             </div>
-            <div className="hidden md:block">
-              <div className="text-right">
-                <p className="text-white/80 text-sm">Total Credits</p>
-                <p className="text-4xl font-bold">{totalCredits}</p>
+            {totalCourses > 0 && (
+              <div className="hidden md:block">
+                <div className="text-right">
+                  <p className="text-white/80 text-sm">{t('studentCourses.totalCourses') || 'Total Courses'}</p>
+                  <p className="text-4xl font-bold">{totalCourses}</p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </motion.div>
 
+        {/* Error State */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-8"
+          >
+            <p className="text-red-600 dark:text-red-400">{error}</p>
+          </motion.div>
+        )}
+
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white dark:bg-navy-800 rounded-xl shadow-lg p-6"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                <FaBook className="text-2xl text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Enrolled Courses</p>
-                <p className="text-2xl font-bold text-gray-800 dark:text-white">{courses.length}</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white dark:bg-navy-800 rounded-xl shadow-lg p-6"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                <FaChartLine className="text-2xl text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Average Progress</p>
-                <p className="text-2xl font-bold text-gray-800 dark:text-white">{averageProgress}%</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-white dark:bg-navy-800 rounded-xl shadow-lg p-6"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                <FaCheckCircle className="text-2xl text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Credits</p>
-                <p className="text-2xl font-bold text-gray-800 dark:text-white">{totalCredits}</p>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Course Cards */}
-        <div className="space-y-6">
-          {courses.map((course, index) => (
+        {totalCourses > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <motion.div
-              key={course.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden"
+              transition={{ delay: 0.1 }}
+              className="bg-white dark:bg-navy-800 rounded-xl shadow-lg p-6"
             >
-              <div className="p-6">
-                {/* Course Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-                        {course.title}
-                      </h3>
-                      <span className="px-3 py-1 bg-gray-100 dark:bg-navy-700 text-gray-600 dark:text-gray-400 rounded-full text-xs font-semibold">
-                        {course.code}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                      <div className="flex items-center gap-2">
-                        <FaUser />
-                        <span>{course.instructor}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <FaClock />
-                        <span>{course.nextClass}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-3xl font-bold ${getGradeColor(course.grade)}`}>
-                      {course.grade}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">Current Grade</p>
-                  </div>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                  <FaBook className="text-2xl text-blue-600 dark:text-blue-400" />
                 </div>
-
-                {/* Progress Bar */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Course Progress
-                    </span>
-                    <span className="text-sm font-bold text-primary-600 dark:text-teal-400">
-                      {course.progress}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 dark:bg-navy-700 rounded-full h-3 overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${course.progress}%` }}
-                      transition={{ duration: 1, delay: index * 0.1 }}
-                      className="h-full bg-gradient-to-r from-primary-600 to-teal-500 rounded-full"
-                    />
-                  </div>
-                </div>
-
-                {/* Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200 dark:border-navy-700">
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">Credits</p>
-                    <p className="text-lg font-bold text-gray-800 dark:text-white">{course.credits}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">Status</p>
-                    <div className="flex items-center justify-center gap-1">
-                      <FaHourglassHalf className="text-yellow-500" />
-                      <p className="text-sm font-semibold text-gray-800 dark:text-white">
-                        {course.status}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">Assignments</p>
-                    <p className="text-lg font-bold text-gray-800 dark:text-white">
-                      {course.assignments.completed}/{course.assignments.total}
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">Completion</p>
-                    <p className="text-lg font-bold text-green-600 dark:text-green-400">
-                      {Math.round((course.assignments.completed / course.assignments.total) * 100)}%
-                    </p>
-                  </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {t('studentCourses.enrolledCourses') || 'Enrolled Courses'}
+                  </p>
+                  <p className="text-2xl font-bold text-gray-800 dark:text-white">{totalCourses}</p>
                 </div>
               </div>
             </motion.div>
-          ))}
-        </div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white dark:bg-navy-800 rounded-xl shadow-lg p-6"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                  <FaDollarSign className="text-2xl text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {t('studentCourses.totalPrice') || 'Total Price'}
+                  </p>
+                  <p className="text-2xl font-bold text-gray-800 dark:text-white">
+                    ${totalPrice.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-white dark:bg-navy-800 rounded-xl shadow-lg p-6"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
+                  <FaGraduationCap className="text-2xl text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {t('studentCourses.levels') || 'Levels'}
+                  </p>
+                  <p className="text-2xl font-bold text-gray-800 dark:text-white">
+                    {[...new Set(courses.map(c => c.level))].length}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Course Cards */}
+        {totalCourses === 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white dark:bg-navy-800 rounded-xl shadow-lg p-12 text-center"
+          >
+            <FaBook className="text-6xl text-gray-400 dark:text-gray-600 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
+              {t('studentCourses.noCoursesTitle') || 'No Courses Yet'}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              {t('studentCourses.noCoursesMessage') || "You haven't enrolled in any courses yet. Explore available courses and enroll to get started!"}
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('/explore')}
+              className="px-6 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-semibold transition-colors"
+            >
+              {t('studentCourses.exploreCourses') || 'Explore Courses'}
+            </motion.button>
+          </motion.div>
+        ) : (
+          <div className="space-y-6">
+            {courses.map((course, index) => (
+              <motion.div
+                key={course.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden"
+              >
+                <div className="md:flex">
+                  {/* Course Image */}
+                  {course.course_image && (
+                    <div className="md:w-64 h-48 md:h-auto bg-gray-200 dark:bg-navy-700 overflow-hidden">
+                      <img
+                        src={getImageUrl(course.course_image)}
+                        alt={course.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(course.title || 'Course')}&background=0D9488&color=fff&size=256`;
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Course Details */}
+                  <div className="flex-1 p-6">
+                    {/* Course Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2 flex-wrap">
+                          <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+                            {course.title}
+                          </h3>
+                          {course.level && (
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getLevelColor(course.level)}`}>
+                              {course.level}
+                            </span>
+                          )}
+                        </div>
+                        {course.about && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
+                            {course.about}
+                          </p>
+                        )}
+                      </div>
+                      {course.price && (
+                        <div className="text-right ml-4">
+                          <p className="text-2xl font-bold text-primary-600 dark:text-teal-400">
+                            ${parseFloat(course.price).toFixed(2)}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-500">
+                            {t('studentCourses.price') || 'Price'}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Course Info */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-navy-700">
+                      {course.starting_date && (
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                            <FaCalendarAlt className="text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {t('studentCourses.startDate') || 'Start Date'}
+                            </p>
+                            <p className="text-sm font-semibold text-gray-800 dark:text-white">
+                              {formatDate(course.starting_date)}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {course.ending_date && (
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
+                            <FaCalendarAlt className="text-red-600 dark:text-red-400" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {t('studentCourses.endDate') || 'End Date'}
+                            </p>
+                            <p className="text-sm font-semibold text-gray-800 dark:text-white">
+                              {formatDate(course.ending_date)}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 export default StudentCourses;
-

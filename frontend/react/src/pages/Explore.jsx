@@ -64,8 +64,18 @@ const Explore = () => {
   const [students, setStudents] = useState([]);
   const [lecturers, setLecturers] = useState([]);
   const [positions, setPositions] = useState([]);
+  const [institutionJobPosts, setInstitutionJobPosts] = useState([]); // Job posts from institutions
+  const [institutions, setInstitutions] = useState([]); // Institutions from search
   const [courses, setCourses] = useState([]);
   const [allResults, setAllResults] = useState([]); // Mixed results for "All" tab
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [isLoadingCourse, setIsLoadingCourse] = useState(false);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [isLoadingJob, setIsLoadingJob] = useState(false);
+  const [showApplyJobModal, setShowApplyJobModal] = useState(false);
+  const [applyJobMessage, setApplyJobMessage] = useState('');
+  const [isApplying, setIsApplying] = useState(false);
 
   // Demo courses data (fallback)
   const [demoCourses] = useState([
@@ -446,8 +456,69 @@ const Explore = () => {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'https://projecteastapi.ddns.net';
-    return `${baseUrl}${imagePath.startsWith('/') ? '' : '/'}${imagePath}`;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
+    // Ensure imagePath starts with / and doesn't have duplicate /media/
+    let cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+    // Remove duplicate /media/ if present
+    cleanPath = cleanPath.replace(/^\/media\/media\//, '/media/');
+    return `${baseUrl}${cleanPath}`;
+  };
+
+  // Fetch job posts from institutions
+  const fetchInstitutionJobPosts = async (institutionUsernames = []) => {
+    if (institutionUsernames.length === 0) {
+      // Try to get institution usernames from feed
+      try {
+        const accessToken = instituteData.accessToken || null;
+        const refreshToken = instituteData.refreshToken || null;
+        const feedData = await authService.getFeed(accessToken, {
+          refreshToken,
+          onTokenRefreshed: (tokens) => {
+            updateInstituteData({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh || refreshToken,
+            });
+          },
+        });
+
+        if (feedData?.success && feedData?.data) {
+          const usernames = new Set();
+          feedData.data.forEach((item) => {
+            if (item.institution_username) usernames.add(item.institution_username);
+            if (item.institution?.username) usernames.add(item.institution.username);
+            if (item.username && item.type === 'institution') usernames.add(item.username);
+          });
+          institutionUsernames = Array.from(usernames);
+        }
+      } catch (error) {
+        console.error('Error fetching feed for institution usernames:', error);
+      }
+    }
+
+    if (institutionUsernames.length === 0) {
+      return [];
+    }
+
+    // Fetch job posts from all institutions
+    const jobPostPromises = institutionUsernames.map(async (username) => {
+      try {
+        const jobData = await authService.getInstitutionJobs(username);
+        if (jobData?.success && jobData?.data) {
+          return jobData.data.map((job) => ({
+            ...job,
+            institution_username: username,
+            itemType: 'institution_job',
+          }));
+        }
+        return [];
+      } catch (error) {
+        console.error(`Error fetching jobs for ${username}:`, error);
+        return [];
+      }
+    });
+
+    const allJobPosts = await Promise.all(jobPostPromises);
+    return allJobPosts.flat();
   };
 
   // Search API integration
@@ -476,6 +547,7 @@ const Explore = () => {
         else if (activeTab === 'lecturers') filter = 'lecturers';
         else if (activeTab === 'positions') filter = 'jobs';
         else if (activeTab === 'courses') filter = 'courses';
+        // Note: 'institutions' filter can be added if needed
 
         const searchData = await authService.exploreSearch(searchQuery, filter, accessToken, {
           refreshToken,
@@ -491,6 +563,23 @@ const Explore = () => {
         });
 
         if (searchData?.success) {
+          // Fetch institution job posts if positions tab is active or all tab
+          let institutionJobs = [];
+          if (activeTab === 'positions' || activeTab === 'all') {
+            try {
+              // Extract institution usernames from search results if available
+              const institutionUsernames = [];
+              if (searchData.results?.institutions) {
+                searchData.results.institutions.forEach(inst => {
+                  if (inst.username) institutionUsernames.push(inst.username);
+                });
+              }
+              institutionJobs = await fetchInstitutionJobPosts(institutionUsernames);
+            } catch (error) {
+              console.error('Error fetching institution job posts:', error);
+            }
+          }
+
           if (activeTab === 'all') {
             // Mixed results for "All" tab
             const mixed = [];
@@ -500,8 +589,16 @@ const Explore = () => {
             if (searchData.results?.lecturers) {
               mixed.push(...searchData.results.lecturers.map(l => ({ ...l, itemType: 'lecturer' })));
             }
+            if (searchData.results?.institutions) {
+              mixed.push(...searchData.results.institutions.map(i => ({ ...i, itemType: 'institution' })));
+              setInstitutions(searchData.results.institutions);
+            }
             if (searchData.results?.jobs) {
-              mixed.push(...searchData.results.jobs.map(j => ({ ...j, itemType: 'position' })));
+              mixed.push(...searchData.results.jobs.map(j => ({ ...j, itemType: 'job' })));
+            }
+            // Add institution job posts
+            if (institutionJobs.length > 0) {
+              mixed.push(...institutionJobs);
             }
             if (searchData.results?.courses) {
               mixed.push(...searchData.results.courses.map(c => ({ ...c, itemType: 'course' })));
@@ -510,6 +607,7 @@ const Explore = () => {
             setStudents([]);
             setLecturers([]);
             setPositions([]);
+            setInstitutionJobPosts(institutionJobs);
             setCourses([]);
           } else {
             // Filtered results
@@ -517,16 +615,21 @@ const Explore = () => {
               setStudents(searchData.students || searchData.results?.students || []);
               setLecturers([]);
               setPositions([]);
+              setInstitutionJobPosts([]);
               setCourses([]);
               setAllResults([]);
             } else if (activeTab === 'lecturers') {
               setLecturers(searchData.lecturers || searchData.results?.lecturers || []);
               setStudents([]);
               setPositions([]);
+              setInstitutionJobPosts([]);
               setCourses([]);
               setAllResults([]);
             } else if (activeTab === 'positions') {
-              setPositions(searchData.jobs || searchData.results?.jobs || []);
+              // Jobs from search API
+              const jobsFromSearch = searchData.jobs || searchData.results?.jobs || [];
+              setPositions(jobsFromSearch);
+              setInstitutionJobPosts(institutionJobs);
               setStudents([]);
               setLecturers([]);
               setCourses([]);
@@ -536,6 +639,7 @@ const Explore = () => {
               setStudents([]);
               setLecturers([]);
               setPositions([]);
+              setInstitutionJobPosts([]);
               setAllResults([]);
             }
           }
@@ -543,6 +647,7 @@ const Explore = () => {
           setStudents([]);
           setLecturers([]);
           setPositions([]);
+          setInstitutionJobPosts([]);
           setCourses([]);
           setAllResults([]);
         }
@@ -570,14 +675,31 @@ const Explore = () => {
 
   // Load initial data (demo data when no search)
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setStudents(demoStudents);
-      setLecturers(demoLecturers);
-      setPositions(demoPositions);
-      setCourses(demoCourses);
-      setAllResults([]);
-    }
-  }, [demoStudents, demoLecturers, demoPositions, demoCourses, searchQuery]);
+    const loadInitialData = async () => {
+      if (!searchQuery.trim()) {
+        setStudents(demoStudents);
+        setLecturers(demoLecturers);
+        setPositions(demoPositions);
+        setCourses(demoCourses);
+        setAllResults([]);
+        
+        // Fetch institution job posts if positions tab is active
+        if (activeTab === 'positions' || activeTab === 'all') {
+          try {
+            const institutionJobs = await fetchInstitutionJobPosts();
+            setInstitutionJobPosts(institutionJobs);
+          } catch (error) {
+            console.error('Error fetching initial institution job posts:', error);
+            setInstitutionJobPosts([]);
+          }
+        } else {
+          setInstitutionJobPosts([]);
+        }
+      }
+    };
+    
+    loadInitialData();
+  }, [demoStudents, demoLecturers, demoPositions, demoCourses, searchQuery, activeTab]);
 
   // Fetch Notifications for Students and Lecturers
   useEffect(() => {
@@ -672,14 +794,148 @@ const Explore = () => {
     window.location.reload();
   };
 
-  const handleViewProfile = (profile, type) => {
-    setSelectedProfile(profile);
-    setProfileType(type);
+  const handleViewProfile = async (profile, type) => {
+    setIsLoadingProfile(true);
+    try {
+      let profileData = null;
+      
+      // If profile has username, fetch full profile from API
+      if (profile.username) {
+        try {
+          if (type === 'student') {
+            const response = await authService.getStudentPublicProfile(profile.username);
+            if (response?.success && response?.data) {
+              profileData = {
+                ...response.data,
+                name: `${response.data.first_name || ''} ${response.data.last_name || ''}`.trim() || response.data.username,
+                username: response.data.username,
+                image: getImageUrl(response.data.profile_image),
+                bio: response.data.about,
+                major: response.data.studying_level,
+                isVerified: false, // Public profiles don't show verification status
+              };
+            }
+          } else if (type === 'lecturer') {
+            const response = await authService.getLecturerPublicProfile(profile.username);
+            if (response?.success && response?.data) {
+              profileData = {
+                ...response.data,
+                name: `${response.data.first_name || ''} ${response.data.last_name || ''}`.trim() || response.data.username,
+                username: response.data.username,
+                image: getImageUrl(response.data.profile_image),
+                bio: response.data.about || '',
+                specialty: response.data.specialty,
+                experience: response.data.experience ? `${response.data.experience} years` : '',
+                university: response.data.institutions?.[0] || '',
+                isVerified: false,
+              };
+            }
+          } else if (type === 'institution') {
+            const response = await authService.getInstitutionPublicProfile(profile.username);
+            if (response?.success && response?.data) {
+              profileData = {
+                ...response.data,
+                name: response.data.title || `${response.data.first_name || ''} ${response.data.last_name || ''}`.trim() || response.data.username,
+                username: response.data.username,
+                first_name: response.data.first_name,
+                last_name: response.data.last_name,
+                image: getImageUrl(response.data.profile_image),
+                profile_image: response.data.profile_image, // Keep original path too
+                bio: response.data.about || '',
+                about: response.data.about, // Keep both
+                title: response.data.title,
+                location: response.data.location,
+                city: response.data.city,
+                isVerified: false,
+              };
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching profile:', error);
+          // Fallback to provided profile data if API fails
+          profileData = profile;
+        }
+      } else {
+        // Use provided profile data if no username
+        profileData = profile;
+      }
+      
+      if (profileData) {
+        setSelectedProfile(profileData);
+        setProfileType(type);
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+      toast.error(t('feed.profileLoadError') || 'Failed to load profile');
+    } finally {
+      setIsLoadingProfile(false);
+    }
   };
 
   const handleCloseProfile = () => {
     setSelectedProfile(null);
     setProfileType(null);
+  };
+
+  const handleViewJob = async (job) => {
+    if (!job.id) {
+      toast.error(t('feed.jobNotFound') || 'Job ID not found');
+      return;
+    }
+
+    setIsLoadingJob(true);
+    setSelectedJob(null);
+
+    try {
+      const response = await authService.getJobDetails(job.id);
+      
+      if (response?.success && response?.data) {
+        setSelectedJob({
+          ...response.data,
+          institution_username: job.institution_username || null,
+        });
+      } else {
+        toast.error(response?.message || t('feed.failedToLoadJob') || 'Failed to load job details');
+      }
+    } catch (error) {
+      console.error('Error fetching job details:', error);
+      toast.error(error?.message || t('feed.failedToLoadJob') || 'Failed to load job details');
+    } finally {
+      setIsLoadingJob(false);
+    }
+  };
+
+  const handleCloseJob = () => {
+    setSelectedJob(null);
+  };
+
+  const handleViewCourse = async (course) => {
+    if (!course.id) {
+      toast.error(t('feed.courseNotFound') || 'Course ID not found');
+      return;
+    }
+
+    setIsLoadingCourse(true);
+    setSelectedCourse(null);
+
+    try {
+      const response = await authService.getCourseDetails(course.id);
+      
+      if (response?.success && response?.data) {
+        setSelectedCourse(response.data);
+      } else {
+        toast.error(response?.message || t('feed.failedToLoadCourse') || 'Failed to load course details');
+      }
+    } catch (error) {
+      console.error('Error fetching course details:', error);
+      toast.error(error?.message || t('feed.failedToLoadCourse') || 'Failed to load course details');
+    } finally {
+      setIsLoadingCourse(false);
+    }
+  };
+
+  const handleCloseCourse = () => {
+    setSelectedCourse(null);
   };
 
   return (
@@ -1618,53 +1874,136 @@ const Explore = () => {
                                 )}
                               </motion.div>
                             );
-                          } else if (item.itemType === 'position') {
+                          } else if (item.itemType === 'job') {
                             return (
                               <motion.div
-                                key={`position-${item.id}`}
+                                key={`job-${item.id}`}
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: index * 0.05 }}
-                                className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all"
+                                onClick={() => handleViewJob(item)}
+                                className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
                               >
-                                <div className="flex items-start gap-4 mb-4">
-                                  <img
-                                    src={getImageUrl(item.lecturer_image) || 'https://i.pravatar.cc/150?img=20'}
-                                    alt={item.lecturer_name}
-                                    className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
-                                  />
-                                  <div className="flex-1">
-                                    <h3 className="font-bold text-gray-800 dark:text-white mb-1">{item.lecturer_name}</h3>
-                                    <p className="text-sm text-primary-600 dark:text-teal-400 mb-1">{item.specialty} • {item.experience}</p>
-                                    {item.location && (
-                                      <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
-                                        <FaMapMarkerAlt className="w-3 h-3" />
-                                        <span>{item.location}</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <FaBriefcase className="text-blue-600 dark:text-blue-400" />
-                                    <span className="font-semibold text-blue-800 dark:text-blue-300">{t('feed.lookingForJob')}</span>
-                                  </div>
-                                  <p className="text-gray-700 dark:text-gray-300">{item.message}</p>
-                                  {item.contact && (
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                                      {t('feed.contact')}: <span className="font-medium">{item.contact}</span>
-                                    </p>
+                                <div className="mb-4">
+                                  <h3 className="font-bold text-gray-800 dark:text-white mb-2 text-lg">{item.title}</h3>
+                                  {item.institution && (
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <FaUniversity className="text-primary-600 dark:text-teal-400" />
+                                      <span className="text-sm text-primary-600 dark:text-teal-400 font-medium">{item.institution}</span>
+                                    </div>
+                                  )}
+                                  {item.city && (
+                                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500 mb-2">
+                                      <FaMapMarkerAlt className="w-3 h-3" />
+                                      <span>{item.city}</span>
+                                    </div>
                                   )}
                                 </div>
-                                {isInstitution && item.contact && (
+                                {item.description && (
+                                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
+                                    {item.description}
+                                  </p>
+                                )}
+                                {/* Apply Button - For all lecturers */}
+                                {instituteData.isAuthenticated && 
+                                 instituteData.userType === 'lecturer' && (
                                   <motion.button
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
-                                    onClick={() => window.location.href = `mailto:${item.contact}`}
-                                    className="w-full px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!instituteData.isVerified) {
+                                        setShowVerificationPopup(true);
+                                      } else {
+                                        setSelectedJob(item);
+                                        setShowApplyJobModal(true);
+                                      }
+                                    }}
+                                    className="w-full px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold text-sm"
                                   >
-                                    {t('feed.contactLecturer')}
+                                    {t('feed.applyJob') || 'Apply'}
                                   </motion.button>
+                                )}
+                              </motion.div>
+                            );
+                          } else if (item.itemType === 'institution_job') {
+                            return (
+                              <motion.div
+                                key={`institution-job-${item.id}`}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.05 }}
+                                onClick={() => handleViewJob(item)}
+                                className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
+                              >
+                                <div className="mb-4">
+                                  <h3 className="font-bold text-gray-800 dark:text-white mb-2 text-lg">{item.title}</h3>
+                                  {item.institution_username && (
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <FaUniversity className="text-primary-600 dark:text-teal-400" />
+                                      <span className="text-sm text-primary-600 dark:text-teal-400 font-medium">{item.institution_username}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                {item.description && (
+                                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
+                                    {item.description}
+                                  </p>
+                                )}
+                                {/* Apply Button - For all lecturers */}
+                                {instituteData.isAuthenticated && 
+                                 instituteData.userType === 'lecturer' && (
+                                  <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!instituteData.isVerified) {
+                                        setShowVerificationPopup(true);
+                                      } else {
+                                        setSelectedJob(item);
+                                        setShowApplyJobModal(true);
+                                      }
+                                    }}
+                                    className="w-full px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold text-sm"
+                                  >
+                                    {t('feed.applyJob') || 'Apply'}
+                                  </motion.button>
+                                )}
+                              </motion.div>
+                            );
+                          } else if (item.itemType === 'institution') {
+                            return (
+                              <motion.div
+                                key={`institution-${item.id || item.username}`}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.05 }}
+                                onClick={() => handleViewProfile(item, 'institution')}
+                                className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
+                              >
+                                <div className="flex items-start gap-4 mb-4">
+                                  <img
+                                    src={getImageUrl(item.profile_image || item.image) || 'https://i.pravatar.cc/150?img=12'}
+                                    alt={item.title || item.name || item.username}
+                                    className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
+                                  />
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <h3 className="font-bold text-gray-800 dark:text-white">{item.title || item.name || item.username}</h3>
+                                    </div>
+                                    <p className="text-sm text-primary-600 dark:text-teal-400 mb-1">{item.username}</p>
+                                    {item.location && (
+                                      <p className="text-xs text-gray-500 dark:text-gray-500">{item.location}</p>
+                                    )}
+                                  </div>
+                                </div>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">{item.about || item.bio}</p>
+                                {item.city && (
+                                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
+                                    <FaMapMarkerAlt className="w-3 h-3" />
+                                    <span>{item.city}</span>
+                                  </div>
                                 )}
                               </motion.div>
                             );
@@ -1675,7 +2014,8 @@ const Explore = () => {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: index * 0.05 }}
-                                className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
+                                onClick={() => handleViewCourse(item)}
+                                className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
                               >
                                 <div className="relative h-32 overflow-hidden">
                                   <img
@@ -1847,6 +2187,58 @@ const Explore = () => {
                                       className="w-full px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold"
                                     >
                                       {t('feed.contactLecturer')}
+                                    </motion.button>
+                                  )}
+                                </motion.div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {institutionJobPosts.length > 0 && (
+                          <div>
+                            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">{t('feed.jobPostings') || 'Job Postings from Institutions'}</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                              {institutionJobPosts.slice(0, 3).map((job, index) => (
+                                <motion.div
+                                  key={`institution-job-${job.id}`}
+                                  initial={{ opacity: 0, y: 20 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: index * 0.1 }}
+                                  onClick={() => handleViewJob(job)}
+                                  className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
+                                >
+                                  <div className="mb-4">
+                                    <h3 className="font-bold text-gray-800 dark:text-white mb-2 text-lg">{job.title}</h3>
+                                    {job.institution_username && (
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <FaUniversity className="text-primary-600 dark:text-teal-400" />
+                                        <span className="text-sm text-primary-600 dark:text-teal-400 font-medium">{job.institution_username}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  {job.description && (
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
+                                      {job.description}
+                                    </p>
+                                  )}
+                                  {/* Apply Button - For all lecturers */}
+                                  {instituteData.isAuthenticated && 
+                                   instituteData.userType === 'lecturer' && (
+                                    <motion.button
+                                      whileHover={{ scale: 1.02 }}
+                                      whileTap={{ scale: 0.98 }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!instituteData.isVerified) {
+                                          setShowVerificationPopup(true);
+                                        } else {
+                                          setSelectedJob(job);
+                                          setShowApplyJobModal(true);
+                                        }
+                                      }}
+                                      className="w-full px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold text-sm"
+                                    >
+                                      {t('feed.applyJob') || 'Apply'}
                                     </motion.button>
                                   )}
                                 </motion.div>
@@ -2061,7 +2453,7 @@ const Explore = () => {
             {/* Positions Tab */}
             {!isLoadingSearch && !searchError && activeTab === 'positions' && (
               <>
-                {positions.length === 0 ? (
+                {positions.length === 0 && institutionJobPosts.length === 0 ? (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -2083,65 +2475,125 @@ const Explore = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="space-y-6"
                   >
-                    {positions.map((position, index) => (
-                  <motion.div
-                    key={position.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all"
-                  >
-                    <div className="flex items-start gap-4 mb-4">
-                      <img
-                        src={position.lecturerImage}
-                        alt={position.lecturerName}
-                        className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
-                      />
-                      <div className="flex-1">
-                        <h3 className="font-bold text-gray-800 dark:text-white mb-1">
-                          {position.lecturerName}
-                        </h3>
-                        <p className="text-sm text-primary-600 dark:text-teal-400 mb-1">
-                          {position.specialty} • {position.experience} {t('feed.experience')}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
-                          <FaMapMarkerAlt className="w-3 h-3" />
-                          <span>{position.location}</span>
+                    {/* Institution Job Posts */}
+                    {institutionJobPosts.length > 0 && (
+                      <div className="mb-8">
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">{t('feed.jobPostings') || 'Job Postings from Institutions'}</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                          {institutionJobPosts.map((job, index) => (
+                            <motion.div
+                              key={`institution-job-${job.id}`}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: index * 0.1 }}
+                              onClick={() => handleViewJob(job)}
+                              className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
+                            >
+                              <div className="mb-4">
+                                <h3 className="font-bold text-gray-800 dark:text-white mb-2 text-lg">{job.title}</h3>
+                                {job.institution_username && (
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <FaUniversity className="text-primary-600 dark:text-teal-400" />
+                                    <span className="text-sm text-primary-600 dark:text-teal-400 font-medium">{job.institution_username}</span>
+                                  </div>
+                                )}
+                              </div>
+                              {job.description && (
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
+                                  {job.description}
+                                </p>
+                              )}
+                              {/* Apply Button - For all lecturers */}
+                              {instituteData.isAuthenticated && 
+                               instituteData.userType === 'lecturer' && (
+                                <motion.button
+                                  whileHover={{ scale: 1.02 }}
+                                  whileTap={{ scale: 0.98 }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!instituteData.isVerified) {
+                                      setShowVerificationPopup(true);
+                                    } else {
+                                      setSelectedJob(job);
+                                      setShowApplyJobModal(true);
+                                    }
+                                  }}
+                                  className="w-full px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold text-sm"
+                                >
+                                  {t('feed.applyJob') || 'Apply'}
+                                </motion.button>
+                              )}
+                            </motion.div>
+                          ))}
                         </div>
                       </div>
-                      <span className="text-xs text-gray-500 dark:text-gray-500">
-                        {position.timestamp}
-                      </span>
-                    </div>
-
-                    <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
-                      <div className="flex items-center gap-2 mb-2">
-                        <FaBriefcase className="text-blue-600 dark:text-blue-400" />
-                        <span className="font-semibold text-blue-800 dark:text-blue-300">
-                          {t('feed.lookingForJob')}
-                        </span>
-                      </div>
-                      <p className="text-gray-700 dark:text-gray-300 mb-2">
-                        {position.message}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {t('feed.contact')}: <span className="font-medium">{position.contact}</span>
-                      </p>
-                    </div>
-
-                    {/* Contact Button for Institutions */}
-                    {isInstitution && (
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => window.location.href = `mailto:${position.contact}`}
-                        className="w-full px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold"
-                      >
-                        {t('feed.contactLecturer')}
-                      </motion.button>
                     )}
-                  </motion.div>
-                    ))}
+                    
+                    {/* Lecturer Positions (Looking for Job) */}
+                    {positions.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">{t('feed.lookingForJob')}</h3>
+                        {positions.map((position, index) => (
+                          <motion.div
+                            key={position.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                            className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all"
+                          >
+                            <div className="flex items-start gap-4 mb-4">
+                              <img
+                                src={position.lecturerImage}
+                                alt={position.lecturerName}
+                                className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
+                              />
+                              <div className="flex-1">
+                                <h3 className="font-bold text-gray-800 dark:text-white mb-1">
+                                  {position.lecturerName}
+                                </h3>
+                                <p className="text-sm text-primary-600 dark:text-teal-400 mb-1">
+                                  {position.specialty} • {position.experience} {t('feed.experience')}
+                                </p>
+                                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
+                                  <FaMapMarkerAlt className="w-3 h-3" />
+                                  <span>{position.location}</span>
+                                </div>
+                              </div>
+                              <span className="text-xs text-gray-500 dark:text-gray-500">
+                                {position.timestamp}
+                              </span>
+                            </div>
+
+                            <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
+                              <div className="flex items-center gap-2 mb-2">
+                                <FaBriefcase className="text-blue-600 dark:text-blue-400" />
+                                <span className="font-semibold text-blue-800 dark:text-blue-300">
+                                  {t('feed.lookingForJob')}
+                                </span>
+                              </div>
+                              <p className="text-gray-700 dark:text-gray-300 mb-2">
+                                {position.message}
+                              </p>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {t('feed.contact')}: <span className="font-medium">{position.contact}</span>
+                              </p>
+                            </div>
+
+                            {/* Contact Button for Institutions */}
+                            {isInstitution && (
+                              <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => window.location.href = `mailto:${position.contact}`}
+                                className="w-full px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold"
+                              >
+                                {t('feed.contactLecturer')}
+                              </motion.button>
+                            )}
+                          </motion.div>
+                        ))}
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </>
@@ -2236,7 +2688,8 @@ const Explore = () => {
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.1 }}
-                          className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
+                          onClick={() => handleViewCourse(course)}
+                          className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
                         >
                           {/* Course Image */}
                           <div className="relative h-48 overflow-hidden">
@@ -2336,17 +2789,23 @@ const Explore = () => {
         <Modal
           isOpen={!!selectedProfile}
           onClose={handleCloseProfile}
-          title={selectedProfile.name}
+          title={selectedProfile.name || selectedProfile.title || selectedProfile.username || 'Profile'}
         >
-          <div className="space-y-6">
-            {/* Profile Header */}
-            <div className="flex items-start gap-6">
-              <div className="relative">
-                <img
-                  src={selectedProfile.image}
-                  alt={selectedProfile.name}
-                  className="w-32 h-32 rounded-full object-cover border-4 border-primary-200 dark:border-primary-800"
-                />
+          {isLoadingProfile ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 dark:border-teal-400"></div>
+              <p className="ml-4 text-gray-600 dark:text-gray-400">{t('common.loading')}</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Profile Header */}
+              <div className="flex items-start gap-6">
+                <div className="relative">
+                  <img
+                    src={selectedProfile.image || getImageUrl(selectedProfile.profile_image) || 'https://i.pravatar.cc/150?img=12'}
+                    alt={selectedProfile.name || selectedProfile.title || selectedProfile.username}
+                    className="w-32 h-32 rounded-full object-cover border-4 border-primary-200 dark:border-primary-800"
+                  />
                 {selectedProfile.isVerified && (
                   <div className="absolute bottom-0 right-0 w-10 h-10 bg-green-500 rounded-full flex items-center justify-center border-4 border-white dark:border-navy-800">
                     <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -2358,7 +2817,9 @@ const Explore = () => {
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-                    {selectedProfile.name}
+                    {profileType === 'institution' 
+                      ? (selectedProfile.title || selectedProfile.name || selectedProfile.username)
+                      : selectedProfile.name}
                   </h2>
                   {selectedProfile.isVerified ? (
                     <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold flex items-center gap-1">
@@ -2373,44 +2834,92 @@ const Explore = () => {
                     </span>
                   )}
                 </div>
-                <p className="text-lg text-primary-600 dark:text-teal-400 mb-1">
-                  {profileType === 'student' ? selectedProfile.major : selectedProfile.specialty}
-                </p>
-                <p className="text-gray-600 dark:text-gray-400">
-                  {profileType === 'student' ? `${selectedProfile.year} • ${selectedProfile.university}` : `${selectedProfile.experience} Experience • ${selectedProfile.university}`}
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-                  {selectedProfile.bio}
-                </p>
+                {profileType === 'institution' ? (
+                  <>
+                    {selectedProfile.title && (
+                      <p className="text-lg text-primary-600 dark:text-teal-400 font-semibold mb-1">
+                        {selectedProfile.title}
+                      </p>
+                    )}
+                    {(selectedProfile.first_name || selectedProfile.last_name) && (
+                      <p className="text-sm text-gray-400 dark:text-gray-500 mb-1">
+                        {selectedProfile.first_name || ''} {selectedProfile.last_name || ''}
+                      </p>
+                    )}
+                    {selectedProfile.username && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                        @{selectedProfile.username}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="text-lg text-primary-600 dark:text-teal-400 mb-1">
+                      {profileType === 'student' ? selectedProfile.major || selectedProfile.studying_level : selectedProfile.specialty}
+                    </p>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      {profileType === 'student' 
+                        ? `${selectedProfile.year || ''} ${selectedProfile.year ? '•' : ''} ${selectedProfile.university || ''}`.trim()
+                        : `${selectedProfile.experience || ''} ${selectedProfile.experience ? 'Experience' : ''} ${selectedProfile.experience && selectedProfile.university ? '•' : ''} ${selectedProfile.university || ''}`.trim()}
+                    </p>
+                  </>
+                )}
+                {(selectedProfile.bio || selectedProfile.about) && (
+                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+                    {selectedProfile.bio || selectedProfile.about}
+                  </p>
+                )}
               </div>
             </div>
 
-            {/* Contact Information */}
-            <div className="bg-gray-50 dark:bg-navy-900 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-800 dark:text-white mb-3">{t('feed.contactInformation')}</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">📧 {t('feed.email')}:</span>
-                  <span className="text-gray-800 dark:text-white">{selectedProfile.email}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">📱 {t('feed.phone')}:</span>
-                  <span className="text-gray-800 dark:text-white">{selectedProfile.phone}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">📍 {t('feed.location')}:</span>
-                  <span className="text-gray-800 dark:text-white">{selectedProfile.location}</span>
+            {/* Contact Information / Location Details */}
+            {(selectedProfile.email || selectedProfile.phone || selectedProfile.location || selectedProfile.city) && (
+              <div className="bg-gray-50 dark:bg-navy-900 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-800 dark:text-white mb-3">{t('feed.contactInformation') || 'Contact Information'}</h3>
+                <div className="space-y-2 text-sm">
+                  {selectedProfile.email && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 dark:text-gray-400">📧 {t('feed.email') || 'Email'}:</span>
+                      <span className="text-gray-800 dark:text-white">{selectedProfile.email}</span>
+                    </div>
+                  )}
+                  {selectedProfile.phone_number && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 dark:text-gray-400">📱 {t('feed.phone') || 'Phone'}:</span>
+                      <span className="text-gray-800 dark:text-white">{selectedProfile.phone_number}</span>
+                    </div>
+                  )}
+                  {selectedProfile.phone && !selectedProfile.phone_number && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 dark:text-gray-400">📱 {t('feed.phone') || 'Phone'}:</span>
+                      <span className="text-gray-800 dark:text-white">{selectedProfile.phone}</span>
+                    </div>
+                  )}
+                  {selectedProfile.location && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 dark:text-gray-400">📍 {t('feed.location') || 'Location'}:</span>
+                      <span className="text-gray-800 dark:text-white">{selectedProfile.location}</span>
+                    </div>
+                  )}
+                  {selectedProfile.city && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 dark:text-gray-400">🏙️ {t('feed.city') || 'City'}:</span>
+                      <span className="text-gray-800 dark:text-white">{selectedProfile.city}</span>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
+            )}
 
             {/* About */}
-            <div>
-              <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.about')}</h3>
-              <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-                {selectedProfile.about}
-              </p>
-            </div>
+            {(selectedProfile.about || selectedProfile.bio) && (
+              <div className="bg-gray-50 dark:bg-navy-900 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-800 dark:text-white mb-3">{t('feed.about') || 'About'}</h3>
+                <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                  {selectedProfile.about || selectedProfile.bio}
+                </p>
+              </div>
+            )}
 
             {/* Student-specific content */}
             {profileType === 'student' && (
@@ -2464,6 +2973,36 @@ const Explore = () => {
               </>
             )}
 
+            {/* Institution-specific content */}
+            {profileType === 'institution' && (
+              <>
+                {selectedProfile.title && (
+                  <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.institutionName') || 'Institution Name'}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                      {selectedProfile.title}
+                    </p>
+                  </div>
+                )}
+                {(selectedProfile.first_name || selectedProfile.last_name) && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.ownerName') || 'Owner Name'}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {selectedProfile.first_name || ''} {selectedProfile.last_name || ''}
+                    </p>
+                  </div>
+                )}
+                {selectedProfile.username && (
+                  <div className="bg-gray-50 dark:bg-navy-900 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.username') || 'Username'}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      @{selectedProfile.username}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
             {/* Lecturer-specific content */}
             {profileType === 'lecturer' && (
               <>
@@ -2474,55 +3013,64 @@ const Explore = () => {
                   </p>
                 </div>
 
-                <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.coursesTaught')}</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedProfile.courses.map((course, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1 bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full text-sm"
-                      >
-                        {course}
-                      </span>
-                    ))}
+                {selectedProfile.courses && selectedProfile.courses.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.coursesTaught')}</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedProfile.courses.map((course, index) => (
+                        <span
+                          key={index}
+                          className="px-3 py-1 bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full text-sm"
+                        >
+                          {course}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.researchInterests')}</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedProfile.research.map((topic, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1 bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300 rounded-full text-sm"
-                      >
-                        {topic}
-                      </span>
-                    ))}
+                {selectedProfile.research && selectedProfile.research.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.researchInterests')}</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedProfile.research.map((topic, index) => (
+                        <span
+                          key={index}
+                          className="px-3 py-1 bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300 rounded-full text-sm"
+                        >
+                          {topic}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.publications')}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {selectedProfile.publications}
-                  </p>
-                </div>
+                {selectedProfile.publications && (
+                  <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.publications')}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {selectedProfile.publications}
+                    </p>
+                  </div>
+                )}
 
-                <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.achievementsAwards')}</h3>
-                  <ul className="space-y-2">
-                    {selectedProfile.achievements.map((achievement, index) => (
-                      <li key={index} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
-                        <span className="text-primary-600 dark:text-teal-400">🏆</span>
-                        {achievement}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                {selectedProfile.achievements && selectedProfile.achievements.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.achievementsAwards')}</h3>
+                    <ul className="space-y-2">
+                      {selectedProfile.achievements.map((achievement, index) => (
+                        <li key={index} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
+                          <span className="text-primary-600 dark:text-teal-400">🏆</span>
+                          {achievement}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </>
             )}
-          </div>
+            </div>
+          )}
         </Modal>
       )}
 
@@ -2531,6 +3079,351 @@ const Explore = () => {
         isOpen={showProfileModal} 
         onClose={() => setShowProfileModal(false)} 
       />
+
+      {/* Job Details Modal */}
+      {selectedJob && (
+        <Modal
+          isOpen={!!selectedJob}
+          onClose={handleCloseJob}
+          title={selectedJob.title || t('feed.jobDetails') || 'Job Details'}
+        >
+          {isLoadingJob ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 dark:border-teal-400"></div>
+              <p className="ml-4 text-gray-600 dark:text-gray-400">{t('common.loading')}</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Job Header */}
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+                  {selectedJob.title}
+                </h2>
+                {selectedJob.specialty && (
+                  <p className="text-lg text-primary-600 dark:text-teal-400 font-semibold mb-2">
+                    {selectedJob.specialty}
+                  </p>
+                )}
+                {selectedJob.institution_username && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    <FaUniversity className="text-primary-600 dark:text-teal-400" />
+                    <span>@{selectedJob.institution_username}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Description */}
+              {selectedJob.description && (
+                <div className="bg-gray-50 dark:bg-navy-900 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.description') || 'Description'}</h3>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                    {selectedJob.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Job Details Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Experience Required */}
+                {selectedJob.experience_required !== undefined && selectedJob.experience_required !== null && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FaBriefcase className="text-blue-600 dark:text-blue-400" />
+                      <h3 className="font-semibold text-gray-800 dark:text-white text-sm">{t('feed.experienceRequired') || 'Experience Required'}</h3>
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">
+                      {selectedJob.experience_required} {t('feed.years') || 'years'}
+                    </p>
+                  </div>
+                )}
+
+                {/* Skills Required */}
+                {selectedJob.skills_required && (
+                  <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FaGraduationCap className="text-purple-600 dark:text-purple-400" />
+                      <h3 className="font-semibold text-gray-800 dark:text-white text-sm">{t('feed.skillsRequired') || 'Skills Required'}</h3>
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">
+                      {selectedJob.skills_required}
+                    </p>
+                  </div>
+                )}
+
+                {/* Salary Offer */}
+                {selectedJob.salary_offer !== undefined && selectedJob.salary_offer !== null && (
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FaDollarSign className="text-green-600 dark:text-green-400" />
+                      <h3 className="font-semibold text-gray-800 dark:text-white text-sm">{t('feed.salaryOffer') || 'Salary Offer'}</h3>
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm font-bold">
+                      ${selectedJob.salary_offer.toLocaleString()}
+                    </p>
+                  </div>
+                )}
+
+                {/* Created Date */}
+                {selectedJob.created_at && (
+                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FaClock className="text-orange-600 dark:text-orange-400" />
+                      <h3 className="font-semibold text-gray-800 dark:text-white text-sm">{t('feed.postedDate') || 'Posted Date'}</h3>
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">
+                      {new Date(selectedJob.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {/* Apply Job Modal */}
+      {showApplyJobModal && selectedJob && (
+        <Modal
+          isOpen={showApplyJobModal}
+          onClose={() => {
+            setShowApplyJobModal(false);
+            setApplyJobMessage('');
+          }}
+          title={t('feed.applyToJob') || 'Apply to Job'}
+        >
+          <div className="space-y-6">
+            {/* Job Info */}
+            <div className="bg-gray-50 dark:bg-navy-900 rounded-lg p-4">
+              <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{selectedJob.title}</h3>
+              {selectedJob.institution && (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {t('feed.institution') || 'Institution'}: {selectedJob.institution}
+                </p>
+              )}
+            </div>
+
+            {/* Message Input */}
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                {t('feed.messageToInstitution') || 'Message to Institution'} ({t('common.optional') || 'Optional'})
+              </label>
+              <textarea
+                value={applyJobMessage}
+                onChange={(e) => setApplyJobMessage(e.target.value)}
+                placeholder={t('feed.messagePlaceholder') || 'Add a message to the institution (optional)...'}
+                rows={4}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+              />
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  setShowApplyJobModal(false);
+                  setApplyJobMessage('');
+                }}
+                className="flex-1 px-4 py-3 border border-gray-300 dark:border-navy-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-navy-700 transition-colors"
+              >
+                {t('common.cancel') || 'Cancel'}
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={async () => {
+                  if (!instituteData.accessToken) {
+                    toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+                    return;
+                  }
+
+                  setIsApplying(true);
+                  try {
+                    const response = await authService.applyToJob(
+                      instituteData.accessToken,
+                      selectedJob.id,
+                      applyJobMessage,
+                      {
+                        refreshToken: instituteData.refreshToken,
+                        onTokenRefreshed: (tokens) => {
+                          updateInstituteData({
+                            accessToken: tokens.access,
+                            refreshToken: tokens.refresh,
+                          });
+                        },
+                        onSessionExpired: () => {
+                          // Handle session expired
+                        },
+                      }
+                    );
+
+                    if (response?.success) {
+                      toast.success(response.message || t('feed.applicationSubmitted') || 'Application submitted successfully!');
+                      setShowApplyJobModal(false);
+                      setApplyJobMessage('');
+                      setSelectedJob(null);
+                    } else {
+                      toast.error(response?.message || t('feed.applicationFailed') || 'Failed to submit application');
+                    }
+                  } catch (error) {
+                    console.error('Error applying to job:', error);
+                    toast.error(error?.message || error?.data?.message || t('feed.applicationFailed') || 'Failed to submit application');
+                  } finally {
+                    setIsApplying(false);
+                  }
+                }}
+                disabled={isApplying}
+                className="flex-1 px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isApplying ? (t('feed.applying') || 'Applying...') : (t('feed.apply') || 'Apply')}
+              </motion.button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Course Details Modal */}
+      {selectedCourse && (
+        <Modal
+          isOpen={!!selectedCourse}
+          onClose={handleCloseCourse}
+          title={selectedCourse.title || 'Course Details'}
+        >
+          {isLoadingCourse ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 dark:border-teal-400"></div>
+              <p className="ml-4 text-gray-600 dark:text-gray-400">{t('common.loading')}</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Course Image */}
+              {selectedCourse.course_image && (
+                <div className="relative h-64 overflow-hidden rounded-xl">
+                  <img
+                    src={getImageUrl(selectedCourse.course_image)}
+                    alt={selectedCourse.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+
+              {/* Course Header */}
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+                  {selectedCourse.title}
+                </h2>
+                {selectedCourse.level && (
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                    selectedCourse.level === 'beginner' || selectedCourse.level === 'Beginner' 
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
+                    selectedCourse.level === 'intermediate' || selectedCourse.level === 'Intermediate'
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' :
+                      'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
+                  }`}>
+                    {selectedCourse.level}
+                  </span>
+                )}
+              </div>
+
+              {/* About/Description */}
+              {selectedCourse.about && (
+                <div className="bg-gray-50 dark:bg-navy-900 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.about') || 'About'}</h3>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                    {selectedCourse.about}
+                  </p>
+                </div>
+              )}
+
+              {/* Course Details Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Institution */}
+                {selectedCourse.institution_name && (
+                  <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FaUniversity className="text-indigo-600 dark:text-indigo-400" />
+                      <h3 className="font-semibold text-gray-800 dark:text-white text-sm">{t('feed.institution') || 'Institution'}</h3>
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">{selectedCourse.institution_name}</p>
+                    {selectedCourse.institution_username && (
+                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">@{selectedCourse.institution_username}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Lecturer */}
+                {selectedCourse.lecturer_name && (
+                  <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FaChalkboardTeacher className="text-purple-600 dark:text-purple-400" />
+                      <h3 className="font-semibold text-gray-800 dark:text-white text-sm">{t('feed.lecturer') || 'Lecturer'}</h3>
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">{selectedCourse.lecturer_name}</p>
+                  </div>
+                )}
+
+                {/* Price */}
+                {selectedCourse.price && (
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FaDollarSign className="text-green-600 dark:text-green-400" />
+                      <h3 className="font-semibold text-gray-800 dark:text-white text-sm">{t('feed.price') || 'Price'}</h3>
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm font-bold">${parseFloat(selectedCourse.price).toFixed(2)}</p>
+                  </div>
+                )}
+
+                {/* Dates */}
+                {(selectedCourse.starting_date || selectedCourse.ending_date) && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FaClock className="text-blue-600 dark:text-blue-400" />
+                      <h3 className="font-semibold text-gray-800 dark:text-white text-sm">{t('feed.dates') || 'Course Dates'}</h3>
+                    </div>
+                    {selectedCourse.starting_date && (
+                      <p className="text-gray-600 dark:text-gray-400 text-xs">
+                        <span className="font-medium">{t('feed.startDate') || 'Start'}:</span> {new Date(selectedCourse.starting_date).toLocaleDateString()}
+                      </p>
+                    )}
+                    {selectedCourse.ending_date && (
+                      <p className="text-gray-600 dark:text-gray-400 text-xs">
+                        <span className="font-medium">{t('feed.endDate') || 'End'}:</span> {new Date(selectedCourse.ending_date).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Schedule */}
+                {(selectedCourse.days || selectedCourse.start_time || selectedCourse.end_time) && (
+                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 md:col-span-2">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FaClock className="text-orange-600 dark:text-orange-400" />
+                      <h3 className="font-semibold text-gray-800 dark:text-white text-sm">{t('feed.schedule') || 'Schedule'}</h3>
+                    </div>
+                    <div className="space-y-1">
+                      {selectedCourse.days && selectedCourse.days.length > 0 && (
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">
+                          <span className="font-medium">{t('feed.days') || 'Days'}:</span> {selectedCourse.days.map(day => day.charAt(0).toUpperCase() + day.slice(1)).join(', ')}
+                        </p>
+                      )}
+                      {selectedCourse.start_time && selectedCourse.end_time && (
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">
+                          <span className="font-medium">{t('feed.time') || 'Time'}:</span> {selectedCourse.start_time.substring(0, 5)} - {selectedCourse.end_time.substring(0, 5)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </Modal>
+      )}
 
       {/* Verification Required Popup */}
       <AnimatePresence>

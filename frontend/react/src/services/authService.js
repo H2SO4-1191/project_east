@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'https://projecteastapi.ddns.net';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8000/';
 
 const defaultHeaders = {
   'Content-Type': 'application/json',
@@ -88,34 +88,34 @@ export const authService = {
   },
 
   async refreshAccessToken(refreshToken) {
-    const endpoints = ['/refresh/', '/token/refresh/', '/registration/refresh/'];
-    let lastError;
+    if (!refreshToken) {
+      throw buildError(400, { message: 'Refresh token is required.' });
+    }
 
-    for (const endpoint of endpoints) {
-      try {
-        const response = await fetch(`${BASE_URL}${endpoint}`, {
-          method: 'POST',
-          headers: defaultHeaders,
-          body: JSON.stringify({ refresh: refreshToken }),
-        });
+    try {
+      const response = await fetch(`${BASE_URL}/registration/refresh/`, {
+        method: 'POST',
+        headers: defaultHeaders,
+        body: JSON.stringify({ refresh: refreshToken }),
+      });
 
-        const data = await parseResponse(response);
+      const data = await parseResponse(response);
 
-        if (response.ok && data?.access) {
-          return { access: data.access, refresh: data.refresh || refreshToken };
-        }
-
-        lastError = buildError(response.status, data);
-      } catch (error) {
-        lastError = error;
+      if (response.ok && data?.access) {
+        // SimpleJWT returns only access token, preserve the refresh token
+        return { access: data.access, refresh: refreshToken };
       }
-    }
 
-    if (lastError) {
-      throw lastError;
+      // Handle error response
+      throw buildError(response.status, data);
+    } catch (error) {
+      // If it's already a buildError, rethrow it
+      if (error?.status && error?.message) {
+        throw error;
+      }
+      // Otherwise, wrap it
+      throw buildError(error?.status || 400, error?.data || { message: 'Unable to refresh session.' });
     }
-
-    throw buildError(400, { message: 'Unable to refresh session.' });
   },
 
   async getProtected(endpoint, accessToken, options = {}) {
@@ -267,7 +267,7 @@ export const authService = {
     if (payload.residence_front) formData.append('residence_front', payload.residence_front);
     if (payload.residence_back) formData.append('residence_back', payload.residence_back);
 
-    const response = await fetch(`${BASE_URL}/institution/institution-verify/`, {
+    const response = await fetch(`${BASE_URL}/institution/verify/`, {
       method: 'PUT',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -284,7 +284,7 @@ export const authService = {
         }
 
         // Retry the request with new token
-        const retryResponse = await fetch(`${BASE_URL}/institution/institution-verify/`, {
+        const retryResponse = await fetch(`${BASE_URL}/institution/verify/`, {
           method: 'PUT',
           headers: {
             Authorization: `Bearer ${tokens.access}`,
@@ -320,8 +320,10 @@ export const authService = {
   async editInstitutionProfile(accessToken, payload, { refreshToken, onTokenRefreshed } = {}) {
     const formData = new FormData();
 
-    // Append text fields
+    // Append text fields (all optional)
     if (payload.username) formData.append('username', payload.username);
+    if (payload.first_name) formData.append('first_name', payload.first_name);
+    if (payload.last_name) formData.append('last_name', payload.last_name);
     if (payload.title) formData.append('title', payload.title);
     if (payload.location) formData.append('location', payload.location);
     if (payload.phone_number) formData.append('phone_number', payload.phone_number);
@@ -334,7 +336,7 @@ export const authService = {
     if (payload.residence_front) formData.append('residence_front', payload.residence_front);
     if (payload.residence_back) formData.append('residence_back', payload.residence_back);
 
-    const response = await fetch(`${BASE_URL}/institution/edit-profile/`, {
+    const response = await fetch(`${BASE_URL}/institution/edit/`, {
       method: 'PUT',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -351,7 +353,7 @@ export const authService = {
         }
 
         // Retry the request with new token
-        const retryResponse = await fetch(`${BASE_URL}/institution/edit-profile/`, {
+        const retryResponse = await fetch(`${BASE_URL}/institution/edit/`, {
           method: 'PUT',
           headers: {
             Authorization: `Bearer ${tokens.access}`,
@@ -691,6 +693,10 @@ export const authService = {
     if (payload.city) formData.append('city', payload.city);
     if (payload.phone_number) formData.append('phone_number', payload.phone_number);
     if (payload.about) formData.append('about', payload.about);
+    if (payload.studying_level) formData.append('studying_level', payload.studying_level);
+    if (payload.interesting_keywords) formData.append('interesting_keywords', payload.interesting_keywords);
+    if (payload.responsible_phone) formData.append('responsible_phone', payload.responsible_phone);
+    if (payload.responsible_email) formData.append('responsible_email', payload.responsible_email);
 
     // Append file fields (only if provided)
     if (payload.profile_image) formData.append('profile_image', payload.profile_image);
@@ -811,6 +817,111 @@ export const authService = {
     return data;
   },
 
+  // Get institution posts (public, no auth required)
+  async getInstitutionPosts(username) {
+    const response = await fetch(`${BASE_URL}/institution/${username}/posts/`, {
+      headers: defaultHeaders,
+    });
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Get public student profile by username (no auth required)
+  async getStudentPublicProfile(username) {
+    const response = await fetch(`${BASE_URL}/student/profile/${username}/`, {
+      headers: defaultHeaders,
+    });
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Get single job post details
+  async getJobDetails(jobId) {
+    const response = await fetch(`${BASE_URL}/institution/job/${jobId}/`, {
+      method: 'GET',
+      headers: defaultHeaders,
+    });
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Apply to a job post (lecturer only, verified)
+  async applyToJob(accessToken, jobId, message = '', options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/lecturer/job/${jobId}/apply/`, {
+        method: 'POST',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ message: message || '' }),
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  async getInstitutionJobs(username) {
+    const response = await fetch(`${BASE_URL}/institution/${username}/jobs/`, {
+      headers: defaultHeaders,
+    });
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
   // Edit institution profile
   async editInstitutionProfile(accessToken, payload, options = {}) {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
@@ -835,7 +946,7 @@ export const authService = {
     if (payload.residence_back) formData.append('residence_back', payload.residence_back);
 
     const makeRequest = async (token) =>
-      fetch(`${BASE_URL}/institution/profile/edit/`, {
+      fetch(`${BASE_URL}/institution/edit/`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -960,29 +1071,122 @@ export const authService = {
     return data;
   },
 
+  // Create job post
+  async createJobPost(accessToken, payload, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    // Validate access token
+    if (!accessToken || typeof accessToken !== 'string' || accessToken.trim() === '') {
+      throw buildError(401, {
+        message: 'Authentication token is missing or invalid. Please log in again.',
+        detail: 'Authentication credentials were not provided.'
+      });
+    }
+
+    // Prepare request body (can be JSON or form-data, using JSON for simplicity)
+    const requestBody = {
+      title: payload.title,
+      description: payload.description || '',
+      specialty: payload.specialty,
+      experience_required: payload.experience_required,
+      skills_required: payload.skills_required || '',
+      salary_offer: payload.salary_offer,
+    };
+
+    const makeRequest = async (token) => {
+      if (!token || typeof token !== 'string' || token.trim() === '') {
+        throw buildError(401, {
+          message: 'Authentication token is missing or invalid.',
+          detail: 'Authentication credentials were not provided.'
+        });
+      }
+
+      return fetch(`${BASE_URL}/institution/job/create/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+    };
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
   // Create institution post
   async createInstitutionPost(accessToken, payload, options = {}) {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
 
-    const formData = new FormData();
-    formData.append('title', payload.title);
-    if (payload.description) formData.append('description', payload.description);
-    
-    // Append multiple images if provided
-    if (payload.images && payload.images.length > 0) {
-      payload.images.forEach((image) => {
-        formData.append('images', image);
+    // Validate access token
+    if (!accessToken || typeof accessToken !== 'string' || accessToken.trim() === '') {
+      throw buildError(401, {
+        message: 'Authentication token is missing or invalid. Please log in again.',
+        detail: 'Authentication credentials were not provided.'
       });
     }
 
-    const makeRequest = async (token) =>
-      fetch(`${BASE_URL}/institution/create-post/`, {
+    const formData = new FormData();
+    
+    // Required field: title
+    formData.append('title', payload.title);
+    
+    // Optional field: description (send empty string if not provided)
+    formData.append('description', payload.description || '');
+    
+    // Optional field: images (0..N files, only append if provided)
+    if (payload.images && Array.isArray(payload.images) && payload.images.length > 0) {
+      payload.images.forEach((image) => {
+        if (image instanceof File) {
+          formData.append('images', image);
+        }
+      });
+    }
+
+    const makeRequest = async (token) => {
+      if (!token || typeof token !== 'string' || token.trim() === '') {
+        throw buildError(401, {
+          message: 'Authentication token is missing or invalid.',
+          detail: 'Authentication credentials were not provided.'
+        });
+      }
+
+      return fetch(`${BASE_URL}/institution/create-post/`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
         },
         body: formData,
       });
+    };
 
     let response = await makeRequest(accessToken);
 
@@ -1141,6 +1345,479 @@ export const authService = {
         );
       }
     }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Create staff member
+  async createStaff(accessToken, payload, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const formData = new FormData();
+    
+    // Required fields
+    formData.append('first_name', payload.first_name);
+    formData.append('last_name', payload.last_name);
+    formData.append('phone_number', payload.phone_number);
+    formData.append('duty', payload.duty);
+    formData.append('salary', payload.salary);
+    
+    // Required file
+    if (payload.personal_image) {
+      formData.append('personal_image', payload.personal_image);
+    }
+    
+    // Optional files
+    if (payload.idcard_front) {
+      formData.append('idcard_front', payload.idcard_front);
+    }
+    if (payload.idcard_back) {
+      formData.append('idcard_back', payload.idcard_back);
+    }
+    if (payload.residence_front) {
+      formData.append('residence_front', payload.residence_front);
+    }
+    if (payload.residence_back) {
+      formData.append('residence_back', payload.residence_back);
+    }
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/institution/staff/create/`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Get staff member details
+  async getStaffDetails(accessToken, staffId, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/institution/staff/${staffId}/`, {
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Edit staff member
+  async editStaff(accessToken, staffId, payload, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const formData = new FormData();
+    
+    // Append only provided fields (partial update)
+    if (payload.first_name) formData.append('first_name', payload.first_name);
+    if (payload.last_name) formData.append('last_name', payload.last_name);
+    if (payload.phone_number) formData.append('phone_number', payload.phone_number);
+    if (payload.duty) formData.append('duty', payload.duty);
+    if (payload.salary !== undefined) formData.append('salary', payload.salary);
+    
+    // Files
+    if (payload.personal_image) formData.append('personal_image', payload.personal_image);
+    if (payload.idcard_front) formData.append('idcard_front', payload.idcard_front);
+    if (payload.idcard_back) formData.append('idcard_back', payload.idcard_back);
+    if (payload.residence_front) formData.append('residence_front', payload.residence_front);
+    if (payload.residence_back) formData.append('residence_back', payload.residence_back);
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/institution/staff/${staffId}/edit/`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Delete staff member
+  async deleteStaff(accessToken, staffId, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/institution/staff/${staffId}/delete/`, {
+        method: 'DELETE',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // AI Document Check
+  async checkDocument(accessToken, file, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/ai/doc/`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Verify lecturer account
+  async verifyLecturer(accessToken, payload, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    // Validate access token
+    if (!accessToken) {
+      throw buildError(401, { message: 'Authentication credentials were not provided.' });
+    }
+
+    const formData = new FormData();
+    
+    // Required fields
+    formData.append('phone_number', payload.phone_number);
+    formData.append('about', payload.about);
+    formData.append('academic_achievement', payload.academic_achievement);
+    formData.append('specialty', payload.specialty);
+    formData.append('skills', payload.skills);
+    formData.append('experience', payload.experience);
+    formData.append('free_time', payload.free_time);
+    
+    // Required files
+    if (payload.profile_image) formData.append('profile_image', payload.profile_image);
+    if (payload.idcard_front) formData.append('idcard_front', payload.idcard_front);
+    if (payload.idcard_back) formData.append('idcard_back', payload.idcard_back);
+    if (payload.residence_front) formData.append('residence_front', payload.residence_front);
+    if (payload.residence_back) formData.append('residence_back', payload.residence_back);
+
+    const makeRequest = async (token) => {
+      if (!token) {
+        throw buildError(401, { message: 'Authentication credentials were not provided.' });
+      }
+      return fetch(`${BASE_URL}/lecturer/verify/`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+    };
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  async verifyStudent(accessToken, payload, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    // Validate access token
+    if (!accessToken) {
+      throw buildError(401, { message: 'Authentication credentials were not provided.' });
+    }
+
+    // Create FormData for multipart/form-data request
+    const formData = new FormData();
+    
+    // Required text fields - always append (backend will validate)
+    formData.append('phone_number', payload.phone_number || '');
+    formData.append('about', payload.about || '');
+    formData.append('studying_level', payload.studying_level || '');
+    
+    // Optional text fields - only append if they exist and have non-empty values
+    if (payload.responsible_phone && payload.responsible_phone.trim()) {
+      formData.append('responsible_phone', payload.responsible_phone.trim());
+    }
+    if (payload.responsible_email && payload.responsible_email.trim()) {
+      formData.append('responsible_email', payload.responsible_email.trim());
+    }
+    
+    // Required file fields - append if they exist (backend will validate if missing)
+    if (payload.profile_image) {
+      formData.append('profile_image', payload.profile_image);
+    }
+    if (payload.idcard_front) {
+      formData.append('idcard_front', payload.idcard_front);
+    }
+    if (payload.idcard_back) {
+      formData.append('idcard_back', payload.idcard_back);
+    }
+    if (payload.residence_front) {
+      formData.append('residence_front', payload.residence_front);
+    }
+    if (payload.residence_back) {
+      formData.append('residence_back', payload.residence_back);
+    }
+
+    // Debug: Log FormData contents (for development only)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Student verification FormData:', {
+        phone_number: payload.phone_number,
+        about: payload.about,
+        studying_level: payload.studying_level,
+        responsible_phone: payload.responsible_phone || '(not provided)',
+        responsible_email: payload.responsible_email || '(not provided)',
+        profile_image: payload.profile_image ? payload.profile_image.name || 'File' : '(not provided)',
+        idcard_front: payload.idcard_front ? payload.idcard_front.name || 'File' : '(not provided)',
+        idcard_back: payload.idcard_back ? payload.idcard_back.name || 'File' : '(not provided)',
+        residence_front: payload.residence_front ? payload.residence_front.name || 'File' : '(not provided)',
+        residence_back: payload.residence_back ? payload.residence_back.name || 'File' : '(not provided)',
+      });
+    }
+
+    const makeRequest = async (token) => {
+      if (!token) {
+        throw buildError(401, { message: 'Authentication credentials were not provided.' });
+      }
+      // PUT /student/verify/ - no ID in URL, backend uses JWT token from Authorization header
+      // multipart/form-data - browser sets Content-Type header automatically with boundary
+      // Do NOT manually set Content-Type header - browser will set it correctly
+      return fetch(`${BASE_URL}/student/verify/`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          // Note: Do NOT set Content-Type header - browser will automatically set:
+          // Content-Type: multipart/form-data; boundary=----WebKitFormBoundary...
+        },
+        body: formData,
+      });
+    };
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Get full course details by course ID (public, no auth required)
+  async getCourseDetails(courseId) {
+    const response = await fetch(`${BASE_URL}/course/${courseId}/`, {
+      headers: defaultHeaders,
+    });
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Get courses enrolled by a student (public, no auth required)
+  async getStudentCourses(username) {
+    const response = await fetch(`${BASE_URL}/student/${username}/courses/`, {
+      headers: defaultHeaders,
+    });
 
     const data = await parseResponse(response);
 

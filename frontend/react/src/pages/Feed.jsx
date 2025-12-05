@@ -56,6 +56,9 @@ const Feed = () => {
   const [showVerificationPopup, setShowVerificationPopup] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
   const [username, setUsername] = useState(null);
+  const [showInstitutionProfile, setShowInstitutionProfile] = useState(false);
+  const [selectedInstitution, setSelectedInstitution] = useState(null);
+  const [isLoadingInstitutionProfile, setIsLoadingInstitutionProfile] = useState(false);
   
   // Demo students data
   const [students] = useState([
@@ -295,8 +298,12 @@ const Feed = () => {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'https://projecteastapi.ddns.net';
-    return `${baseUrl}${imagePath.startsWith('/') ? '' : '/'}${imagePath}`;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
+    // Ensure imagePath starts with / and doesn't have duplicate /media/
+    let cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+    // Remove duplicate /media/ if present
+    cleanPath = cleanPath.replace(/^\/media\/media\//, '/media/');
+    return `${baseUrl}${cleanPath}`;
   };
 
   // Fetch user profile image on mount
@@ -372,7 +379,7 @@ const Feed = () => {
     }
   };
 
-  // Fetch Feed Data from API
+  // Fetch Feed Data from API - Get mixed feed of posts, courses and jobs
   useEffect(() => {
     const fetchFeed = async () => {
       setIsLoadingFeed(true);
@@ -382,6 +389,7 @@ const Feed = () => {
         const accessToken = instituteData.accessToken || null;
         const refreshToken = instituteData.refreshToken || null;
         
+        // Get feed from new endpoint: GET /home/feed/
         const feedData = await authService.getFeed(accessToken, {
           refreshToken,
           onTokenRefreshed: (tokens) => {
@@ -395,22 +403,71 @@ const Feed = () => {
           },
         });
 
-        // Handle paginated response
-        let items = [];
-        if (feedData?.results && Array.isArray(feedData.results)) {
-          items = feedData.results;
-        } else if (Array.isArray(feedData)) {
-          items = feedData;
+        console.log('Feed data received:', feedData);
+        console.log('Feed data structure:', {
+          count: feedData?.count,
+          hasResults: !!feedData?.results,
+          resultsLength: feedData?.results?.length,
+          hasNext: !!feedData?.next,
+          hasPrevious: !!feedData?.previous,
+        });
+
+        // Extract results from paginated response
+        const feedItems = feedData?.results || [];
+        
+        if (Array.isArray(feedItems) && feedItems.length > 0) {
+          console.log(`Processing ${feedItems.length} feed items`);
+          
+          // Process each feed item
+          const processedItems = feedItems.map(item => {
+            // Handle image field (singular) - convert to images array for consistency
+            let images = [];
+            if (item.image) {
+              // If single image, convert to array format
+              images = [{ image: item.image }];
+            } else if (item.images && Array.isArray(item.images)) {
+              // If already an array, use it
+              images = item.images;
+            }
+            
+            // Extract institution information if available
+            const institutionUsername = item.institution_username || 
+                                      item.institution?.username || 
+                                      item.username;
+            
+            const institutionName = item.institution_name || 
+                                   item.institution?.name || 
+                                   item.institution?.title ||
+                                   item.institution_title ||
+                                   item.name ||
+                                   institutionUsername;
+            
+            const institutionProfileImage = item.institution_profile_image || 
+                                           item.institution?.profile_image ||
+                                           null;
+            
+            return {
+              ...item,
+              images: images,
+              timestamp: formatTimestamp(item.created_at),
+              type: item.type || 'post', // Ensure type is set
+              institution_username: institutionUsername,
+              institution_name: institutionName,
+              institution_title: item.institution?.title || item.institution_title || institutionName,
+              institution_profile_image: institutionProfileImage ? getImageUrl(institutionProfileImage) : null,
+            };
+          }).filter(item => {
+            // Filter out items that don't have required fields for display
+            return item.title || item.description || (item.images && item.images.length > 0);
+          });
+
+          console.log('Processed feed items:', processedItems.length);
+          console.log('Sample processed item:', processedItems[0]);
+          setFeedItems(processedItems);
+        } else {
+          console.warn('No feed items found in response');
+          setFeedItems([]);
         }
-
-        // Process items to ensure proper structure
-        const processedItems = items.map(item => ({
-          ...item,
-          image: item.image ? getImageUrl(item.image) : null,
-          timestamp: item.timestamp || formatTimestamp(item.created_at),
-        }));
-
-        setFeedItems(processedItems);
       } catch (error) {
         console.error('Error fetching feed:', error);
         setFeedError(error?.message || 'Failed to load feed. Please try again.');
@@ -547,6 +604,34 @@ const Feed = () => {
     setProfileType(null);
   };
 
+  const handleInstitutionProfileClick = async (username) => {
+    if (!username) return;
+    
+    setIsLoadingInstitutionProfile(true);
+    setShowInstitutionProfile(true);
+    
+    try {
+      const profileData = await authService.getInstitutionPublicProfile(username);
+      if (profileData?.success && profileData?.data) {
+        setSelectedInstitution({
+          ...profileData.data,
+          profile_image: profileData.data.profile_image ? getImageUrl(profileData.data.profile_image) : null,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching institution profile:', error);
+      toast.error(t('feed.failedToLoadProfile') || 'Failed to load institution profile');
+      setShowInstitutionProfile(false);
+    } finally {
+      setIsLoadingInstitutionProfile(false);
+    }
+  };
+
+  const handleCloseInstitutionProfile = () => {
+    setShowInstitutionProfile(false);
+    setSelectedInstitution(null);
+  };
+
   const isInstitution = instituteData.userType === 'institution';
 
   return (
@@ -601,20 +686,19 @@ const Feed = () => {
               {(instituteData.userType === 'student' || instituteData.userType === 'lecturer') && (
             <button
                   onClick={() => {
-                    /* UNCOMMENT FOR PRODUCTION - Verification Check
-                    if (!instituteData.isVerified) {
+                    // Verification check for students only
+                    if (instituteData.userType === 'student' && !instituteData.isVerified) {
                       setShowVerificationPopup(true);
                       return;
                     }
-                    */
                     if (instituteData.userType === 'student') {
                       navigate('/student/courses');
                     } else {
                       navigate('/lecturer/courses');
                     }
                   }}
-                  className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
-                  title={t('nav.currentCourses')}
+                  className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 ${instituteData.userType === 'student' && !instituteData.isVerified ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  title={instituteData.userType === 'student' && !instituteData.isVerified ? t('nav.verificationRequired') || 'Verification Required' : t('nav.currentCourses')}
             >
                   <FaBook className="w-5 h-5 flex-shrink-0" />
                   {isSidebarExpanded && <span className="font-medium">{t('nav.currentCourses')}</span>}
@@ -625,20 +709,19 @@ const Feed = () => {
               {(instituteData.userType === 'student' || instituteData.userType === 'lecturer') && (
             <button
                   onClick={() => {
-                    /* UNCOMMENT FOR PRODUCTION - Verification Check
-                    if (!instituteData.isVerified) {
+                    // Verification check for students only
+                    if (instituteData.userType === 'student' && !instituteData.isVerified) {
                       setShowVerificationPopup(true);
                       return;
                     }
-                    */
                     if (instituteData.userType === 'student') {
                       navigate('/student/schedule');
                     } else {
                       navigate('/lecturer/schedule');
                     }
                   }}
-                  className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
-                  title={t('nav.schedule')}
+                  className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 ${instituteData.userType === 'student' && !instituteData.isVerified ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  title={instituteData.userType === 'student' && !instituteData.isVerified ? t('nav.verificationRequired') || 'Verification Required' : t('nav.schedule')}
             >
                   <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
@@ -800,13 +883,12 @@ const Feed = () => {
                     {(instituteData.userType === 'student' || instituteData.userType === 'lecturer') && (
                   <button
                     onClick={() => {
-                          /* UNCOMMENT FOR PRODUCTION - Verification Check
-                          if (!instituteData.isVerified) {
+                          // Verification check for students only
+                          if (instituteData.userType === 'student' && !instituteData.isVerified) {
                             setShowVerificationPopup(true);
                             setIsMobileSidebarOpen(false);
                             return;
                           }
-                          */
                           if (instituteData.userType === 'student') {
                             navigate('/student/courses');
                           } else {
@@ -814,7 +896,7 @@ const Feed = () => {
                           }
                       setIsMobileSidebarOpen(false);
                     }}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 ${instituteData.userType === 'student' && !instituteData.isVerified ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                         <FaBook className="w-5 h-5 flex-shrink-0" />
                         <span className="font-medium">{t('nav.currentCourses')}</span>
@@ -825,13 +907,12 @@ const Feed = () => {
                     {(instituteData.userType === 'student' || instituteData.userType === 'lecturer') && (
                   <button
                     onClick={() => {
-                          /* UNCOMMENT FOR PRODUCTION - Verification Check
-                          if (!instituteData.isVerified) {
+                          // Verification check for students only
+                          if (instituteData.userType === 'student' && !instituteData.isVerified) {
                             setShowVerificationPopup(true);
                             setIsMobileSidebarOpen(false);
                             return;
                           }
-                          */
                           if (instituteData.userType === 'student') {
                             navigate('/student/schedule');
                           } else {
@@ -839,7 +920,7 @@ const Feed = () => {
                           }
                       setIsMobileSidebarOpen(false);
                     }}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 ${instituteData.userType === 'student' && !instituteData.isVerified ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                         <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
@@ -1444,86 +1525,98 @@ const Feed = () => {
               transition={{ delay: index * 0.1 }}
               className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 overflow-hidden"
             >
-              {/* Institution Card or Post */}
-              {(item.type === 'institution' || item.type === 'post') && (
+              {/* Facebook-style Post */}
+              {(item.type === 'post' || item.title || item.description) && (
                 <>
-                  {/* Image */}
-                  {item.image && (
-                  <div className="relative h-64 overflow-hidden">
-                    <img
-                      src={item.image}
-                        alt={item.title || item.description || 'Post image'}
-                      className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                        }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                      {item.location && (
-                    <div className="absolute bottom-4 left-4 flex items-center gap-2 text-white text-base">
-                      <FaMapMarkerAlt className="text-sm" />
-                      <span>{item.location}</span>
-                    </div>
-                      )}
-                  </div>
-                  )}
-
-                  {/* Content */}
-                  <div className="p-4 sm:p-6">
-                    <div className="flex items-start justify-between mb-3 gap-4">
-                      <h3 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white flex-1">
-                        {item.title || 'Post'}
-                      </h3>
-                      {item.timestamp && (
-                      <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-500 whitespace-nowrap flex-shrink-0">{item.timestamp}</span>
-                      )}
-                    </div>
-                    {item.description && (
-                    <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base mb-4 leading-relaxed">
-                      {item.description}
-                    </p>
-                    )}
-
-                    {/* Stats - Only show if available */}
-                    {(item.students !== undefined || item.lecturers !== undefined) && (
-                    <div className="flex items-center gap-6 mb-4 text-base text-gray-600 dark:text-gray-400">
-                        {item.students !== undefined && (
-                      <div className="flex items-center gap-2">
-                        <FaUsers className="text-primary-600 dark:text-teal-400 text-lg" />
-                        <span>{item.students} {t('feed.students')}</span>
+                  {/* Post Header - Institution Profile */}
+                  <div className="p-4 flex items-center gap-3">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleInstitutionProfileClick(item.institution_username)}
+                      className="flex-shrink-0 cursor-pointer"
+                    >
+                      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-200 dark:border-navy-700 bg-gray-100 dark:bg-navy-700 flex items-center justify-center">
+                        {item.institution_profile_image ? (
+                          <img
+                            src={item.institution_profile_image}
+                            alt={item.institution_name || 'Institution'}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div className="w-full h-full flex items-center justify-center text-primary-600 dark:text-teal-400 font-bold text-lg" style={{ display: item.institution_profile_image ? 'none' : 'flex' }}>
+                          {(item.institution_name || item.institution_username || 'I')?.[0]?.toUpperCase()}
+                        </div>
                       </div>
-                        )}
-                        {item.lecturers !== undefined && (
-                      <div className="flex items-center gap-2">
-                        <FaChalkboardTeacher className="text-primary-600 dark:text-teal-400 text-lg" />
-                        <span>{item.lecturers} {t('feed.lecturers')}</span>
-                      </div>
-                        )}
-                    </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-navy-700">
+                    </motion.button>
+                    <div className="flex-1 min-w-0">
                       <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="flex-1 px-4 py-2 border-2 border-primary-600 dark:border-teal-400 text-primary-600 dark:text-teal-400 rounded-lg hover:bg-primary-50 dark:hover:bg-navy-700 transition-colors font-semibold"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleInstitutionProfileClick(item.institution_username)}
+                        className="text-left w-full"
                       >
-                        {t('feed.learnMore')}
+                        <h3 className="font-bold text-gray-800 dark:text-white hover:underline">
+                          {item.institution_name || item.institution_title || item.institution_username || 'Institution'}
+                        </h3>
+                        {item.timestamp && (
+                          <p className="text-xs text-gray-500 dark:text-gray-500">
+                            {item.timestamp}
+                          </p>
+                        )}
                       </motion.button>
-                      
-                      {!isInstitution && (
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handleSubscribe(item.title)}
-                          className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold"
-                        >
-                          {t('feed.subscribe')}
-                        </motion.button>
-                      )}
                     </div>
+                  </div>
 
+                  {/* Post Content */}
+                  <div className="px-4 pb-4">
+                    {item.title && (
+                      <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+                        {item.title}
+                      </h4>
+                    )}
+                    {item.description && (
+                      <p className="text-gray-700 dark:text-gray-300 text-sm sm:text-base mb-4 leading-relaxed whitespace-pre-wrap">
+                        {item.description}
+                      </p>
+                    )}
+
+                    {/* Post Images */}
+                    {item.images && item.images.length > 0 && (
+                      <div className={`mb-4 ${item.images.length === 1 ? '' : 'grid gap-2'} ${item.images.length === 2 ? 'grid-cols-2' : item.images.length === 3 ? 'grid-cols-2' : item.images.length === 4 ? 'grid-cols-2' : 'grid-cols-2'}`}>
+                        {item.images.slice(0, 4).map((imageObj, imgIndex) => {
+                          const imageUrl = imageObj.image ? getImageUrl(imageObj.image) : null;
+                          if (!imageUrl) return null;
+                          
+                          return (
+                            <div
+                              key={imgIndex}
+                              className={`relative overflow-hidden rounded-lg ${item.images.length === 1 ? 'h-96' : 'h-48'} ${imgIndex === 0 && item.images.length === 3 ? 'col-span-2' : ''}`}
+                            >
+                              <img
+                                src={imageUrl}
+                                alt={`Post image ${imgIndex + 1}`}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          );
+                        })}
+                        {item.images.length > 4 && (
+                          <div className="relative h-48 overflow-hidden rounded-lg bg-gray-100 dark:bg-navy-700 flex items-center justify-center">
+                            <span className="text-gray-600 dark:text-gray-400 font-semibold">
+                              +{item.images.length - 4} {t('feed.moreImages') || 'more'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -1854,6 +1947,99 @@ const Feed = () => {
         isOpen={showProfileModal} 
         onClose={() => setShowProfileModal(false)} 
       />
+
+      {/* Institution Profile Modal */}
+      <Modal
+        isOpen={showInstitutionProfile}
+        onClose={handleCloseInstitutionProfile}
+        title={selectedInstitution?.title || selectedInstitution?.username || 'Institution Profile'}
+      >
+        {isLoadingInstitutionProfile ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 dark:border-teal-400"></div>
+            <p className="ml-3 text-gray-600 dark:text-gray-400">{t('common.loading')}</p>
+          </div>
+        ) : selectedInstitution ? (
+          <div className="space-y-6">
+            {/* Institution Header */}
+            <div className="flex items-start gap-6">
+              <div className="relative flex-shrink-0">
+                <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-primary-200 dark:border-primary-800 bg-gray-100 dark:bg-navy-700 flex items-center justify-center">
+                  {selectedInstitution.profile_image ? (
+                    <img
+                      src={selectedInstitution.profile_image}
+                      alt={selectedInstitution.title || selectedInstitution.username}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div className="w-full h-full flex items-center justify-center text-primary-600 dark:text-teal-400 font-bold text-2xl" style={{ display: selectedInstitution.profile_image ? 'none' : 'flex' }}>
+                    {(selectedInstitution.title || selectedInstitution.username || 'I')?.[0]?.toUpperCase()}
+                  </div>
+                </div>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">
+                  {selectedInstitution.title || `${selectedInstitution.first_name || ''} ${selectedInstitution.last_name || ''}`.trim() || selectedInstitution.username}
+                </h2>
+                {selectedInstitution.location && (
+                  <p className="text-gray-600 dark:text-gray-400 flex items-center gap-2 mb-2">
+                    <FaMapMarkerAlt className="text-sm" />
+                    {selectedInstitution.location}
+                  </p>
+                )}
+                {selectedInstitution.city && (
+                  <p className="text-sm text-gray-500 dark:text-gray-500">
+                    {selectedInstitution.city}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* About Section */}
+            {selectedInstitution.about && (
+              <div>
+                <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.about')}</h3>
+                <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed whitespace-pre-wrap">
+                  {selectedInstitution.about}
+                </p>
+              </div>
+            )}
+
+            {/* Contact Information */}
+            {selectedInstitution.username && (
+              <div className="bg-gray-50 dark:bg-navy-900 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-800 dark:text-white mb-3">{t('feed.contactInformation')}</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-600 dark:text-gray-400">👤 {t('feed.username') || 'Username'}:</span>
+                    <span className="text-gray-800 dark:text-white font-medium">{selectedInstitution.username}</span>
+                  </div>
+                  {selectedInstitution.location && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 dark:text-gray-400">📍 {t('feed.location')}:</span>
+                      <span className="text-gray-800 dark:text-white">{selectedInstitution.location}</span>
+                    </div>
+                  )}
+                  {selectedInstitution.city && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 dark:text-gray-400">🏙️ {t('feed.city') || 'City'}:</span>
+                      <span className="text-gray-800 dark:text-white">{selectedInstitution.city}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-gray-600 dark:text-gray-400">{t('feed.failedToLoadProfile') || 'Failed to load institution profile'}</p>
+          </div>
+        )}
+      </Modal>
 
       {/* Verification Required Popup */}
       <AnimatePresence>

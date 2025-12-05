@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { 
   FaHome, FaUsers, FaChalkboardTeacher, FaBriefcase, 
   FaCalendarAlt, FaDollarSign, FaCog, FaBars, FaTimes,
-  FaMoon, FaSun, FaSignOutAlt, FaGlobe, FaPlus, FaEdit, FaBook, FaClock, FaBell, FaNewspaper, FaUserCircle
+  FaMoon, FaSun, FaSignOutAlt, FaGlobe, FaPlus, FaEdit, FaBook, FaClock, FaBell, FaNewspaper, FaUserCircle, FaSuitcase
 } from 'react-icons/fa';
 import { useInstitute } from '../context/InstituteContext';
 import { useTheme } from '../context/ThemeContext';
@@ -43,12 +43,14 @@ const EnhancedDashboard = () => {
   const notificationRef = useRef(null);
   const [showNewPostModal, setShowNewPostModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showJobPostModal, setShowJobPostModal] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
   const [institutionTitle, setInstitutionTitle] = useState(null);
   const [username, setUsername] = useState(null);
   const [isCreatingPost, setIsCreatingPost] = useState(false);
   const [isCreatingCourse, setIsCreatingCourse] = useState(false);
   const [isUpdatingCourse, setIsUpdatingCourse] = useState(false);
+  const [isCreatingJobPost, setIsCreatingJobPost] = useState(false);
   
   // Helper function to convert relative image URLs to full URLs
   const getImageUrl = (imagePath) => {
@@ -56,8 +58,12 @@ const EnhancedDashboard = () => {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'https://projecteastapi.ddns.net';
-    return `${baseUrl}${imagePath.startsWith('/') ? '' : '/'}${imagePath}`;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
+    // Ensure imagePath starts with / and doesn't have duplicate /media/
+    let cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+    // Remove duplicate /media/ if present
+    cleanPath = cleanPath.replace(/^\/media\/media\//, '/media/');
+    return `${baseUrl}${cleanPath}`;
   };
   
   // Demo notifications
@@ -103,6 +109,16 @@ const EnhancedDashboard = () => {
     images: [],
   });
 
+  // Create job post form state
+  const [jobPostForm, setJobPostForm] = useState({
+    title: '',
+    description: '',
+    specialty: '',
+    experience_required: '',
+    skills_required: '',
+    salary_offer: '',
+  });
+
   // Create course form state
   const [createForm, setCreateForm] = useState({
     title: '',
@@ -117,6 +133,10 @@ const EnhancedDashboard = () => {
     lecturer: '',
     course_image: null,
   });
+  
+  // Lecturers list for dropdown
+  const [lecturers, setLecturers] = useState([]);
+  const [isLoadingLecturers, setIsLoadingLecturers] = useState(false);
 
   // Edit course form state
   const [editForm, setEditForm] = useState({
@@ -241,6 +261,8 @@ const EnhancedDashboard = () => {
       setShowCreateCourseModal(true);
     } else if (modalType === 'edit') {
       setShowEditCoursesModal(true);
+    } else if (modalType === 'job_post') {
+      setShowJobPostModal(true);
     }
   };
 
@@ -276,6 +298,105 @@ const EnhancedDashboard = () => {
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
     }));
+  };
+
+  // Job post form handlers
+  const handleJobPostChange = (e) => {
+    const { name, value } = e.target;
+    setJobPostForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCreateJobPost = async (e) => {
+    e.preventDefault();
+    
+    // Validate required fields
+    if (!jobPostForm.title || !jobPostForm.specialty || !jobPostForm.experience_required || !jobPostForm.salary_offer) {
+      toast.error(t('dashboard.fillRequiredFields') || 'Please fill in all required fields');
+      return;
+    }
+
+    // Validate numeric fields
+    if (isNaN(parseInt(jobPostForm.experience_required)) || parseInt(jobPostForm.experience_required) < 0) {
+      toast.error(t('dashboard.experienceMustBePositive') || 'Experience required must be a positive number');
+      return;
+    }
+
+    if (isNaN(parseInt(jobPostForm.salary_offer)) || parseInt(jobPostForm.salary_offer) < 0) {
+      toast.error(t('dashboard.salaryMustBePositive') || 'Salary offer must be a positive number');
+      return;
+    }
+
+    setIsCreatingJobPost(true);
+    
+    try {
+      const options = {
+        refreshToken: instituteData.refreshToken,
+        onTokenRefreshed: (tokens) => {
+          updateInstituteData({
+            accessToken: tokens.access,
+            refreshToken: tokens.refresh || instituteData.refreshToken,
+          });
+        },
+        onSessionExpired: () => {
+          toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+        },
+      };
+
+      const result = await authService.createJobPost(
+        instituteData.accessToken,
+        {
+          title: jobPostForm.title.trim(),
+          description: jobPostForm.description?.trim() || '',
+          specialty: jobPostForm.specialty.trim(),
+          experience_required: parseInt(jobPostForm.experience_required),
+          skills_required: jobPostForm.skills_required?.trim() || '',
+          salary_offer: parseInt(jobPostForm.salary_offer),
+        },
+        options
+      );
+
+      if (result?.success) {
+        toast.success(result.message || t('dashboard.jobPostCreated') || 'Job post created successfully!');
+        setShowJobPostModal(false);
+        setJobPostForm({
+          title: '',
+          description: '',
+          specialty: '',
+          experience_required: '',
+          skills_required: '',
+          salary_offer: '',
+        });
+      } else {
+        const errorMessage = result?.message || t('dashboard.jobPostCreateError') || 'Failed to create job post';
+        toast.error(errorMessage);
+      }
+    } catch (error) {
+      console.error('Error creating job post:', error);
+      
+      let errorMessage = t('dashboard.jobPostCreateError') || 'Failed to create job post';
+      
+      if (error?.data?.errors) {
+        const errorMessages = Object.entries(error.data.errors)
+          .map(([field, messages]) => {
+            const fieldLabel = field === 'title' ? t('dashboard.jobTitle') || 'Title' : 
+                              field === 'specialty' ? t('dashboard.specialty') || 'Specialty' :
+                              field === 'experience_required' ? t('dashboard.experienceRequired') || 'Experience Required' :
+                              field === 'salary_offer' ? t('dashboard.salaryOffer') || 'Salary Offer' : field;
+            const messageList = Array.isArray(messages) ? messages.join(', ') : messages;
+            return `${fieldLabel}: ${messageList}`;
+          })
+          .join('; ');
+        errorMessage = errorMessages || errorMessage;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.data?.message) {
+        errorMessage = error.data.message;
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setIsCreatingJobPost(false);
+    }
   };
 
   // Course management handlers
@@ -316,8 +437,20 @@ const EnhancedDashboard = () => {
   const handleCreatePost = async (e) => {
     e.preventDefault();
     
-    if (!postForm.title.trim()) {
-      toast.error(t('dashboard.postTitleRequired') || 'Post title is required');
+    // Validate required field: title
+    if (!postForm.title || !postForm.title.trim()) {
+      toast.error(t('post.postTitleRequired') || 'Post title is required');
+      return;
+    }
+
+    // Validate authentication token
+    if (!instituteData.accessToken || !instituteData.isAuthenticated) {
+      toast.error(t('common.sessionExpired') || 'You are not authenticated. Please log in again.');
+      console.error('Missing access token:', {
+        hasToken: !!instituteData.accessToken,
+        isAuthenticated: instituteData.isAuthenticated,
+        tokenLength: instituteData.accessToken?.length
+      });
       return;
     }
 
@@ -337,13 +470,25 @@ const EnhancedDashboard = () => {
         },
       };
 
+      // Prepare payload matching API endpoint:
+      // - title (string, required)
+      // - description (string, optional) - send empty string if not provided
+      // - images (0..N files, optional) - only send if provided
+      const payload = {
+        title: postForm.title.trim(),
+        description: postForm.description?.trim() || '', // Optional, but send empty string if not provided
+        images: postForm.images && postForm.images.length > 0 ? postForm.images : [], // Optional, only send if provided
+      };
+
+      console.log('Creating post:', {
+        title: payload.title,
+        hasDescription: !!payload.description,
+        imagesCount: payload.images.length
+      });
+
       const result = await authService.createInstitutionPost(
         instituteData.accessToken,
-        {
-          title: postForm.title,
-          description: postForm.description || '',
-          images: postForm.images,
-        },
+        payload,
         options
       );
 
@@ -355,27 +500,99 @@ const EnhancedDashboard = () => {
           description: '',
           images: [],
         });
+      } else {
+        // Handle case where API returns success: false
+        const errorMessage = result?.message || t('dashboard.postCreateError') || 'Failed to create post';
+        toast.error(errorMessage);
       }
     } catch (error) {
       console.error('Error creating post:', error);
-      const errorMessage = error?.data?.errors
-        ? Object.values(error.data.errors).flat().join(', ')
-        : error?.message || t('dashboard.postCreateError') || 'Failed to create post';
+      
+      // Handle API error response format: { success: false, errors: { field: ["message"] } }
+      let errorMessage = t('dashboard.postCreateError') || 'Failed to create post';
+      
+      if (error?.data?.errors) {
+        // Format: { title: ["This field is required."] }
+        const errorMessages = Object.entries(error.data.errors)
+          .map(([field, messages]) => {
+            const fieldLabel = field === 'title' ? t('post.postTitle') || 'Title' : field;
+            const messageList = Array.isArray(messages) ? messages.join(', ') : messages;
+            return `${fieldLabel}: ${messageList}`;
+          })
+          .join('; ');
+        errorMessage = errorMessages || errorMessage;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.data?.message) {
+        errorMessage = error.data.message;
+      }
+      
       toast.error(errorMessage);
     } finally {
       setIsCreatingPost(false);
     }
   };
 
+  // Fetch lecturers on mount
+  useEffect(() => {
+    const fetchLecturers = async () => {
+      if (!instituteData.accessToken || !showCreateCourseModal) return;
+      
+      setIsLoadingLecturers(true);
+      try {
+        const params = new URLSearchParams({ page: '1' });
+        const response = await authService.getProtected(
+          `/institution/lecturers-list/?${params}`,
+          instituteData.accessToken,
+          {
+            refreshToken: instituteData.refreshToken,
+            onTokenRefreshed: (tokens) => {
+              updateInstituteData({
+                accessToken: tokens.access,
+                refreshToken: tokens.refresh || instituteData.refreshToken,
+              });
+            },
+          }
+        );
+        setLecturers(response.results || []);
+      } catch (error) {
+        console.error('Failed to fetch lecturers:', error);
+        setLecturers([]);
+      } finally {
+        setIsLoadingLecturers(false);
+      }
+    };
+    
+    fetchLecturers();
+  }, [instituteData.accessToken, showCreateCourseModal]);
+
   const handleCreateCourse = async (e) => {
     e.preventDefault();
     
-    // Validate required fields
+    // Validate all required fields
     if (!createForm.title || !createForm.about || !createForm.starting_date || 
         !createForm.ending_date || !createForm.level || !createForm.price ||
         !createForm.days.length || !createForm.start_time || !createForm.end_time ||
         !createForm.lecturer) {
       toast.error(t('dashboard.fillRequiredFields') || 'Please fill in all required fields');
+      return;
+    }
+    
+    // Validate dates
+    if (new Date(createForm.ending_date) < new Date(createForm.starting_date)) {
+      toast.error(t('dashboard.endingDateBeforeStarting') || 'Ending date cannot be before starting date');
+      return;
+    }
+    
+    // Validate times
+    if (createForm.end_time <= createForm.start_time) {
+      toast.error(t('dashboard.endTimeBeforeStart') || 'End time must be greater than start time');
+      return;
+    }
+    
+    // Validate price
+    if (parseFloat(createForm.price) < 0) {
+      toast.error(t('dashboard.priceMustBePositive') || 'Price must be positive');
       return;
     }
 
@@ -999,6 +1216,22 @@ const EnhancedDashboard = () => {
               </span>
             </div>
           </div>
+
+          {/* Create Job Post Button */}
+          <div className="relative group">
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => checkVerificationAndOpen('job_post')}
+              className="h-14 w-14 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all relative z-10"
+            >
+              <FaSuitcase className="w-6 h-6" />
+            </motion.button>
+            <div className="absolute right-0 top-0 h-14 bg-gradient-to-r from-orange-600 to-orange-700 rounded-full shadow-lg flex items-center pr-16 pl-6 overflow-hidden pointer-events-none w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300 ease-out">
+              <span className="whitespace-nowrap font-semibold text-sm text-white">
+                {t('dashboard.createJobPost') || 'Create Job Post'}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1060,6 +1293,7 @@ const EnhancedDashboard = () => {
       >
         <form onSubmit={handleCreateCourse} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Title - Required */}
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
                 {t('dashboard.courseTitle')} *
@@ -1075,90 +1309,175 @@ const EnhancedDashboard = () => {
               />
             </div>
 
+            {/* Price - Required */}
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                {t('dashboard.courseCode')} *
-              </label>
-              <input
-                type="text"
-                name="code"
-                value={createForm.code}
-                onChange={handleCreateChange}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                placeholder={t('dashboard.courseCodePlaceholder')}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                {t('dashboard.credits')}
-              </label>
-              <input
-                type="number"
-                name="credits"
-                value={createForm.credits}
-                onChange={handleCreateChange}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                placeholder={t('dashboard.creditsPlaceholder')}
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                {t('dashboard.duration')}
-              </label>
-              <input
-                type="text"
-                name="duration"
-                value={createForm.duration}
-                onChange={handleCreateChange}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                placeholder={t('dashboard.durationPlaceholder')}
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                {t('dashboard.capacity')}
-              </label>
-              <input
-                type="number"
-                name="capacity"
-                value={createForm.capacity}
-                onChange={handleCreateChange}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                placeholder={t('dashboard.capacityPlaceholder')}
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                {t('dashboard.price')} *
+                {t('dashboard.price')} * ($)
               </label>
               <input
                 type="number"
                 name="price"
                 value={createForm.price}
                 onChange={handleCreateChange}
+                min="0"
+                step="0.01"
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
                 placeholder={t('dashboard.pricePlaceholder')}
                 required
               />
             </div>
+
+            {/* Starting Date - Required */}
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                {t('dashboard.startingDate') || 'Starting Date'} * (YYYY-MM-DD)
+              </label>
+              <input
+                type="date"
+                name="starting_date"
+                value={createForm.starting_date}
+                onChange={handleCreateChange}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                required
+              />
+            </div>
+
+            {/* Ending Date - Required */}
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                {t('dashboard.endingDate') || 'Ending Date'} * (YYYY-MM-DD)
+              </label>
+              <input
+                type="date"
+                name="ending_date"
+                value={createForm.ending_date}
+                onChange={handleCreateChange}
+                min={createForm.starting_date || undefined}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                required
+              />
+            </div>
+
+            {/* Level - Required */}
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                {t('dashboard.level') || 'Level'} *
+              </label>
+              <select
+                name="level"
+                value={createForm.level}
+                onChange={handleCreateChange}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                required
+              >
+                <option value="beginner">{t('dashboard.beginner') || 'Beginner'}</option>
+                <option value="intermediate">{t('dashboard.intermediate') || 'Intermediate'}</option>
+                <option value="advanced">{t('dashboard.advanced') || 'Advanced'}</option>
+              </select>
+            </div>
+
+            {/* Lecturer - Required */}
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                {t('dashboard.lecturer') || 'Lecturer'} *
+              </label>
+              <select
+                name="lecturer"
+                value={createForm.lecturer}
+                onChange={handleCreateChange}
+                disabled={isLoadingLecturers}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                required
+              >
+                <option value="">{isLoadingLecturers ? t('common.loading') : t('dashboard.selectLecturer') || 'Select Lecturer'}</option>
+                {lecturers.map((lecturer) => (
+                  <option key={lecturer.id} value={lecturer.id}>
+                    {lecturer.first_name} {lecturer.last_name} {lecturer.specialty ? `- ${lecturer.specialty}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Start Time - Required */}
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                {t('dashboard.startTime') || 'Start Time'} * (HH:MM)
+              </label>
+              <input
+                type="time"
+                name="start_time"
+                value={createForm.start_time}
+                onChange={handleCreateChange}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                required
+              />
+            </div>
+
+            {/* End Time - Required */}
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                {t('dashboard.endTime') || 'End Time'} * (HH:MM)
+              </label>
+              <input
+                type="time"
+                name="end_time"
+                value={createForm.end_time}
+                onChange={handleCreateChange}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                required
+              />
+            </div>
           </div>
 
+          {/* Days - Required */}
           <div>
             <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-              {t('dashboard.description')}
+              {t('dashboard.days') || 'Days'} * (Select at least one)
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                <label key={day} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="days"
+                    value={day}
+                    checked={createForm.days.includes(day)}
+                    onChange={handleCreateChange}
+                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                  />
+                  <span className="text-gray-700 dark:text-gray-300 capitalize">{t(`dashboard.${day}`) || day}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* About/Description - Required */}
+          <div>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+              {t('dashboard.about') || 'About'} *
             </label>
             <textarea
-              name="description"
-              value={createForm.description}
+              name="about"
+              value={createForm.about}
               onChange={handleCreateChange}
               rows="4"
               className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white resize-none"
-              placeholder={t('dashboard.descriptionPlaceholder')}
+              placeholder={t('dashboard.aboutPlaceholder') || 'Course description...'}
+              required
+            />
+          </div>
+
+          {/* Course Image - Optional */}
+          <div>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+              {t('dashboard.courseImage') || 'Course Image'} ({t('common.optional') || 'Optional'})
+            </label>
+            <input
+              type="file"
+              name="course_image"
+              accept="image/*"
+              onChange={handleCreateChange}
+              className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-navy-800 dark:file:text-teal-400"
             />
           </div>
 
@@ -1348,7 +1667,7 @@ const EnhancedDashboard = () => {
         <form onSubmit={handleCreatePost} className="space-y-4">
           <div>
             <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-              {t('dashboard.postTitle') || 'Post Title'} *
+              {t('post.postTitle') || 'Post Title'} *
             </label>
             <input
               type="text"
@@ -1356,14 +1675,14 @@ const EnhancedDashboard = () => {
               value={postForm.title}
               onChange={handlePostChange}
               className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-              placeholder={t('dashboard.postTitlePlaceholder') || 'Enter post title...'}
+              placeholder={t('post.postTitlePlaceholder') || 'Enter post title...'}
               required
             />
           </div>
 
           <div>
             <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-              {t('dashboard.description') || 'Description'}
+              {t('post.description') || 'Description'}
             </label>
             <textarea
               name="description"
@@ -1371,13 +1690,13 @@ const EnhancedDashboard = () => {
               onChange={handlePostChange}
               rows={4}
               className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white resize-none"
-              placeholder={t('dashboard.descriptionPlaceholder') || 'Enter post description...'}
+              placeholder={t('post.descriptionPlaceholder') || 'Enter post description...'}
             />
           </div>
 
           <div>
             <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-              {t('dashboard.images') || 'Images'} (Optional)
+              {t('post.images') || 'Images'} ({t('post.optional') || 'Optional'})
             </label>
             <input
               type="file"
@@ -1414,7 +1733,7 @@ const EnhancedDashboard = () => {
               className="flex-1"
               disabled={isCreatingPost}
             >
-              {isCreatingPost ? (t('common.saving') || 'Saving...') : (t('dashboard.createPost') || 'Create Post')}
+              {isCreatingPost ? (t('common.saving') || 'Saving...') : (t('post.createPost') || 'Create Post')}
             </AnimatedButton>
             <AnimatedButton
               type="button"
@@ -1425,6 +1744,142 @@ const EnhancedDashboard = () => {
               }}
               className="flex-1"
               disabled={isCreatingPost}
+            >
+              {t('common.cancel')}
+            </AnimatedButton>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Create Job Post Modal */}
+      <Modal
+        isOpen={showJobPostModal}
+        onClose={() => setShowJobPostModal(false)}
+        title={t('dashboard.createJobPost') || 'Create Job Post'}
+      >
+        <form onSubmit={handleCreateJobPost} className="space-y-4">
+          {/* Title - Required */}
+          <div>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+              {t('dashboard.jobTitle') || 'Job Title'} *
+            </label>
+            <input
+              type="text"
+              name="title"
+              value={jobPostForm.title}
+              onChange={handleJobPostChange}
+              className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+              placeholder={t('dashboard.jobTitlePlaceholder') || 'e.g. Senior Mathematics Lecturer'}
+              required
+            />
+          </div>
+
+          {/* Specialty - Required */}
+          <div>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+              {t('dashboard.specialty') || 'Specialty'} *
+            </label>
+            <input
+              type="text"
+              name="specialty"
+              value={jobPostForm.specialty}
+              onChange={handleJobPostChange}
+              className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+              placeholder={t('dashboard.specialtyPlaceholder') || 'e.g. Mathematics, Computer Science'}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Experience Required - Required */}
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                {t('dashboard.experienceRequired') || 'Experience Required'} * (years)
+              </label>
+              <input
+                type="number"
+                name="experience_required"
+                value={jobPostForm.experience_required}
+                onChange={handleJobPostChange}
+                min="0"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                placeholder={t('dashboard.experiencePlaceholder') || 'e.g. 5'}
+                required
+              />
+            </div>
+
+            {/* Salary Offer - Required */}
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                {t('dashboard.salaryOffer') || 'Salary Offer'} * ($)
+              </label>
+              <input
+                type="number"
+                name="salary_offer"
+                value={jobPostForm.salary_offer}
+                onChange={handleJobPostChange}
+                min="0"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                placeholder={t('dashboard.salaryPlaceholder') || 'e.g. 5000'}
+                required
+              />
+            </div>
+          </div>
+
+          {/* Skills Required - Optional */}
+          <div>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+              {t('dashboard.skillsRequired') || 'Skills Required'} ({t('common.optional') || 'Optional'})
+            </label>
+            <input
+              type="text"
+              name="skills_required"
+              value={jobPostForm.skills_required}
+              onChange={handleJobPostChange}
+              className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+              placeholder={t('dashboard.skillsPlaceholder') || 'e.g. Python, JavaScript, Teaching'}
+            />
+          </div>
+
+          {/* Description - Optional */}
+          <div>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+              {t('dashboard.description') || 'Description'} ({t('common.optional') || 'Optional'})
+            </label>
+            <textarea
+              name="description"
+              value={jobPostForm.description}
+              onChange={handleJobPostChange}
+              rows="4"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white resize-none"
+              placeholder={t('dashboard.jobDescriptionPlaceholder') || 'Job description and requirements...'}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <AnimatedButton
+              type="submit"
+              className="flex-1"
+              disabled={isCreatingJobPost}
+            >
+              {isCreatingJobPost ? (t('common.saving') || 'Saving...') : (t('dashboard.createJobPost') || 'Create Job Post')}
+            </AnimatedButton>
+            <AnimatedButton
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setShowJobPostModal(false);
+                setJobPostForm({
+                  title: '',
+                  description: '',
+                  specialty: '',
+                  experience_required: '',
+                  skills_required: '',
+                  salary_offer: '',
+                });
+              }}
+              className="flex-1"
+              disabled={isCreatingJobPost}
             >
               {t('common.cancel')}
             </AnimatedButton>
