@@ -13,6 +13,7 @@ from rest_framework.generics import ListAPIView
 from ai.predict_doc import classify_document
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
+import datetime
 
 class FeedPagination(PageNumberPagination):
     page_size = 20
@@ -127,7 +128,7 @@ class HomeFeedView(APIView):
                 "title": c.title,
                 "description": c.about,
                 "image": c.course_image.url if c.course_image else None,
-                "created_at": c.starting_date,
+                "created_at": datetime.datetime.combine(c.starting_date, datetime.time.min),
 
                 "publisher_id": c.institution.user.id,
                 "publisher_username": c.institution.user.username,
