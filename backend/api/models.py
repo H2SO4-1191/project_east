@@ -25,7 +25,7 @@ def upload_path(instance, file_name):
     return f"{instance.username}/{file_name}"
 
 def upload_course_path(instance, file_name):
-    return f"{instance.institution.username}/courses/{file_name}"
+    return f"{instance.institution.user.username}/courses/{file_name}"
 
 def upload_post_path(instance, file_name):
     return f"{instance.post.user.username}/posts/{file_name}"
