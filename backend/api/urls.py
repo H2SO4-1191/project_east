@@ -8,6 +8,7 @@ urlpatterns = [
     path("notifications/", NotificationsView.as_view()),
     path("course/<int:course_id>/progress/", CourseProgressView.as_view()),
     path("explore/", ExploreSearchView.as_view(), name="explore_search"),
+    path("course/<int:course_id>/", CourseDetailView.as_view()),
 
     path('registration/signup/', SignupView.as_view()),
     path('registration/login/', LoginView.as_view()),
@@ -73,4 +74,5 @@ urlpatterns = [
     path("student/course/<int:course_id>/grades/", StudentViewGradesView.as_view()),
     path("student/schedule/", StudentWeeklyScheduleView.as_view()),
     path("student/is-student-free/<int:course_id>/", StudentScheduleCheckView.as_view()),
+    path("student/enroll/<int:course_id>/", StudentEnrollCourseView.as_view()),
 ]
