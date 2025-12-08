@@ -226,19 +226,24 @@ class CourseSerializer(serializers.ModelSerializer):
             'days',
             'start_time',
             'end_time',
-            'lecturer'
+            'lecturer',
+            'capacity',
         ]
 
     def validate(self, data):
         start = data.get("starting_date") or getattr(self.instance, "starting_date", None)
         end = data.get("ending_date") or getattr(self.instance, "ending_date", None)
         price = data.get("price") or getattr(self.instance, "price", None)
+        capacity = data.get("capacity") or getattr(self.instance, "capacity", None)
 
         if start and end and end < start:
             raise serializers.ValidationError({"ending_date": "Ending date cannot be before starting date."})
 
         if price < 0:
             raise serializers.ValidationError({"price": "Price must be positive"})
+        
+        if capacity < 0:
+            raise serializers.ValidationError({"capacity": "Capacity must be positive"})
 
         st = data.get("start_time") or getattr(self.instance, "start_time", None)
         et = data.get("end_time") or getattr(self.instance, "end_time", None)
