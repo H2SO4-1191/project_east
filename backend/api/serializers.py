@@ -229,27 +229,45 @@ class CourseSerializer(serializers.ModelSerializer):
             'lecturer',
             'capacity',
         ]
+        extra_kwargs = {
+            "capacity": {"required": True},
+            "price": {"required": True},
+        }
 
     def validate(self, data):
+        # ----- Required values guaranteed by DRF -----
+        capacity = data.get("capacity")
+        price = data.get("price")
+
+        # ----- Dates -----
         start = data.get("starting_date") or getattr(self.instance, "starting_date", None)
         end = data.get("ending_date") or getattr(self.instance, "ending_date", None)
-        price = data.get("price") or getattr(self.instance, "price", None)
-        capacity = data.get("capacity") or getattr(self.instance, "capacity", None)
 
         if start and end and end < start:
-            raise serializers.ValidationError({"ending_date": "Ending date cannot be before starting date."})
+            raise serializers.ValidationError({
+                "ending_date": "Ending date cannot be before starting date."
+            })
 
+        # ----- Price -----
         if price < 0:
-            raise serializers.ValidationError({"price": "Price must be positive"})
-        
-        if capacity < 0:
-            raise serializers.ValidationError({"capacity": "Capacity must be positive"})
+            raise serializers.ValidationError({
+                "price": "Price must be a positive number."
+            })
 
+        # ----- Capacity -----
+        if capacity < 0:
+            raise serializers.ValidationError({
+                "capacity": "Capacity must be a positive integer."
+            })
+
+        # ----- Time range -----
         st = data.get("start_time") or getattr(self.instance, "start_time", None)
         et = data.get("end_time") or getattr(self.instance, "end_time", None)
 
         if st and et and et <= st:
-            raise serializers.ValidationError({"end_time": "End time must be greater than start time."})
+            raise serializers.ValidationError({
+                "end_time": "End time must be greater than start time."
+            })
 
         return data
 
