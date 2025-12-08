@@ -652,19 +652,27 @@ class InstitutionMarkedLecturersView(APIView):
     def get(self, request):
         institution = request.user.institution
 
-        # Lecturers who teach in institution courses
-        course_lecturers = Lecturer.objects.filter(
-            courses__institution=institution
-        ).distinct()
+        # IDs of lecturers who teach in institution courses
+        course_lecturer_ids = set(
+            Lecturer.objects.filter(
+                courses__institution=institution
+            ).values_list("id", flat=True)
+        )
 
-        # Lecturers manually marked
-        marked = institution.marked_lecturers.all()
+        # IDs of manually marked lecturers
+        marked_ids = set(
+            institution.marked_lecturers.values_list("id", flat=True)
+        )
 
-        # Merge both sets
-        lecturers = (course_lecturers | marked).distinct()
+        # Combine without duplicates
+        all_ids = course_lecturer_ids | marked_ids
+
+        # Final queryset
+        lecturers = Lecturer.objects.filter(id__in=all_ids)
 
         serializer = LecturerSimpleSerializer(lecturers, many=True)
         return Response({"success": True, "lecturers": serializer.data})
+
 
 
 class CourseDetailView(APIView):
