@@ -675,7 +675,58 @@ class InstitutionMarkedLecturersView(APIView):
         serializer = LecturerSimpleSerializer(lecturers, many=True)
         return Response({"success": True, "lecturers": serializer.data})
 
+class InstitutionIsMarkedView(APIView):
+    permission_classes = [IsInstitution, IsVerified]
 
+    def get(self, request, lecturer_id):
+        institution = request.user.institution
+
+        # Check if lecturer exists
+        try:
+            lecturer = Lecturer.objects.get(id=lecturer_id)
+        except Lecturer.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Lecturer not found."
+            }, status=404)
+
+        # Check if marked
+        is_marked = institution.marked_lecturers.filter(id=lecturer_id).exists()
+
+        return Response({
+            "success": True,
+            "marked": is_marked
+        })
+
+class InstitutionRemoveMarkerView(APIView):
+    permission_classes = [IsInstitution, IsVerified]
+
+    def delete(self, request, lecturer_id):
+        institution = request.user.institution
+
+        # check lecturer exists
+        try:
+            lecturer = Lecturer.objects.get(id=lecturer_id)
+        except Lecturer.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Lecturer not found."
+            }, status=404)
+
+        # if not marked, nothing to remove
+        if not institution.marked_lecturers.filter(id=lecturer_id).exists():
+            return Response({
+                "success": True,
+                "message": "Lecturer was not marked."
+            })
+
+        # remove
+        institution.marked_lecturers.remove(lecturer)
+
+        return Response({
+            "success": True,
+            "message": "Lecturer removed from marked list."
+        })
 
 class CourseDetailView(APIView):
     permission_classes = [AllowAny]

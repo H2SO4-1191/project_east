@@ -49,7 +49,8 @@ urlpatterns = [
     path("institution/is-lecturer-free/<int:lecturer_id>/", LecturerScheduleCheckView.as_view()),
     path("institution/mark-lecturer/", InstitutionAddMarkerView.as_view()),
     path("institution/marked-lecturers/", InstitutionMarkedLecturersView.as_view()),
-
+    path("institution/is-marked/<int:lecturer_id>/", InstitutionIsMarkedView.as_view()),
+    path("institution/remove-marked/<int:lecturer_id>/", InstitutionRemoveMarkerView.as_view()),
 
     path("lecturer/verify/", LecturerVerificationView.as_view()),
     path("lecturer/my-profile/", LecturerSelfProfileView.as_view()),
