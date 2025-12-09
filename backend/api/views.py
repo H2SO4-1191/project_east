@@ -439,6 +439,8 @@ class InstitutionWeeklyScheduleView(APIView):
                     "start_time": course.start_time.strftime("%H:%M"),
                     "end_time": course.end_time.strftime("%H:%M"),
                     "course_id": course.id,
+                    "starting_date": course.starting_date,
+                    "ending_date": course.ending_date,
                 })
 
         for day in week:
@@ -1125,6 +1127,8 @@ class LecturerWeeklyScheduleView(APIView):
                     "start_time": course.start_time.strftime("%H:%M"),
                     "end_time": course.end_time.strftime("%H:%M"),
                     "institution": course.institution.title,
+                    "starting_date": course.starting_date,
+                    "ending_date": course.ending_date,
                 })
 
         # sort schedule
@@ -1372,6 +1376,8 @@ class StudentWeeklyScheduleView(APIView):
                     "end_time": course.end_time.strftime("%H:%M"),
                     "lecturer": f"{course.lecturer.user.first_name} {course.lecturer.user.last_name}",
                     "institution": course.institution.title,
+                    "starting_date": course.starting_date,
+                    "ending_date": course.ending_date,
                 })
 
         # sort by day order & time
