@@ -1813,3 +1813,57 @@ class LecturerScheduleCheckView(APIView):
 
         return Response({"success": True, "contradiction": None})
 
+class ExpectedStudentsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, course_id, lecture_number):
+        user = request.user
+
+        # Fetch course
+        try:
+            course = Course.objects.select_related("institution", "lecturer__user").get(id=course_id)
+        except Course.DoesNotExist:
+            return Response({"success": False, "message": "Course not found."}, status=404)
+
+        # Lecturer permission
+        if user.user_type == "lecturer":
+            if course.lecturer != user.lecturer:
+                return Response({"success": False, "message": "Not allowed."}, status=403)
+
+        # Institution permission
+        if user.user_type == "institution":
+            if course.institution != user.institution:
+                return Response({"success": False, "message": "Not allowed."}, status=403)
+
+        # Students cannot access this
+        if user.user_type == "student":
+            return Response({"success": False, "message": "Students cannot access this."}, status=403)
+
+        # Validate lecture number
+        if lecture_number < 1 or lecture_number > course.total_lectures:
+            return Response({"success": False, "message": "Invalid lecture number."}, status=400)
+
+        # Get enrolled students
+        enrolled_students = course.students.select_related("user").all()
+
+        students_list = []
+        for st in enrolled_students:
+            students_list.append({
+                "username": st.user.username,
+                "name": f"{st.user.first_name} {st.user.last_name}",
+                "profile_image": st.user.profile_image.url if st.user.profile_image else None
+            })
+
+        return Response({
+            "success": True,
+            "course": course.title,
+            "lecture_number": lecture_number,
+            "students": students_list,
+        })
+
+
+
+
+
+
+

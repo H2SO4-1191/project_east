@@ -9,6 +9,7 @@ urlpatterns = [
     path("course/<int:course_id>/progress/", CourseProgressView.as_view()),
     path("explore/", ExploreSearchView.as_view(), name="explore_search"),
     path("course/<int:course_id>/", CourseDetailView.as_view()),
+    path("course/<int:course_id>/students/<int:lecture_number>/", ExpectedStudentsView.as_view()),
 
     path('registration/signup/', SignupView.as_view()),
     path('registration/login/', LoginView.as_view()),
