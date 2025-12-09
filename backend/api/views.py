@@ -1819,23 +1819,21 @@ class ExpectedStudentsView(APIView):
     def get(self, request, course_id, lecture_number):
         user = request.user
 
-        # Fetch course
+        # Fetch course safely
         try:
             course = Course.objects.select_related("institution", "lecturer__user").get(id=course_id)
         except Course.DoesNotExist:
             return Response({"success": False, "message": "Course not found."}, status=404)
 
-        # Lecturer permission
+        # PERMISSION CHECKS
         if user.user_type == "lecturer":
             if course.lecturer != user.lecturer:
                 return Response({"success": False, "message": "Not allowed."}, status=403)
 
-        # Institution permission
         if user.user_type == "institution":
             if course.institution != user.institution:
                 return Response({"success": False, "message": "Not allowed."}, status=403)
 
-        # Students cannot access this
         if user.user_type == "student":
             return Response({"success": False, "message": "Students cannot access this."}, status=403)
 
@@ -1843,15 +1841,18 @@ class ExpectedStudentsView(APIView):
         if lecture_number < 1 or lecture_number > course.total_lectures:
             return Response({"success": False, "message": "Invalid lecture number."}, status=400)
 
-        # Get enrolled students
+        # Fetch enrolled students
         enrolled_students = course.students.select_related("user").all()
 
         students_list = []
         for st in enrolled_students:
             students_list.append({
+                "student_id": st.id,
                 "username": st.user.username,
                 "name": f"{st.user.first_name} {st.user.last_name}",
-                "profile_image": st.user.profile_image.url if st.user.profile_image else None
+                "profile_image": (
+                    st.user.profile_image.url if st.user.profile_image else None
+                )
             })
 
         return Response({
