@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import *
 from django.utils import timezone
 from datetime import timedelta
+import datetime
 
 class FeedItemSerializer(serializers.Serializer):
     type = serializers.CharField()
@@ -211,6 +212,28 @@ class PostCreateSerializer(serializers.ModelSerializer):
 
         return post
 
+def count_lectures(start_date, end_date, days_list):
+    day_map = {
+        "monday": 0,
+        "tuesday": 1,
+        "wednesday": 2,
+        "thursday": 3,
+        "friday": 4,
+        "saturday": 5,
+        "sunday": 6,
+    }
+
+    target_days = [day_map[d] for d in days_list]
+    count = 0
+
+    cur = start_date
+    while cur <= end_date:
+        if cur.weekday() in target_days:
+            count += 1
+        cur += datetime.timedelta(days=1)
+
+    return count
+
 class CourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
@@ -235,32 +258,23 @@ class CourseSerializer(serializers.ModelSerializer):
         }
 
     def validate(self, data):
-        # ----- Required values guaranteed by DRF -----
         capacity = data.get("capacity")
         price = data.get("price")
 
-        # ----- Dates -----
         start = data.get("starting_date") or getattr(self.instance, "starting_date", None)
-        end = data.get("ending_date") or getattr(self.instance, "ending_date", None)
+        end   = data.get("ending_date") or getattr(self.instance, "ending_date", None)
 
         if start and end and end < start:
             raise serializers.ValidationError({
                 "ending_date": "Ending date cannot be before starting date."
             })
 
-        # ----- Price -----
         if price < 0:
-            raise serializers.ValidationError({
-                "price": "Price must be a positive number."
-            })
+            raise serializers.ValidationError({"price": "Price must be a positive number."})
 
-        # ----- Capacity -----
         if capacity < 0:
-            raise serializers.ValidationError({
-                "capacity": "Capacity must be a positive integer."
-            })
+            raise serializers.ValidationError({"capacity": "Capacity must be a positive integer."})
 
-        # ----- Time range -----
         st = data.get("start_time") or getattr(self.instance, "start_time", None)
         et = data.get("end_time") or getattr(self.instance, "end_time", None)
 
@@ -273,13 +287,23 @@ class CourseSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         institution = self.context["request"].user.institution
+
+        start = validated_data["starting_date"]
+        end   = validated_data["ending_date"]
+        days  = validated_data["days"]
+
+        validated_data["total_lectures"] = count_lectures(start, end, days)
+
         return Course.objects.create(institution=institution, **validated_data)
 
     def update(self, instance, validated_data):
-        for key, value in validated_data.items():
-            setattr(instance, key, value)
-        instance.save()
-        return instance
+        start = validated_data.get("starting_date", instance.starting_date)
+        end   = validated_data.get("ending_date", instance.ending_date)
+        days  = validated_data.get("days", instance.days)
+
+        validated_data["total_lectures"] = count_lectures(start, end, days)
+
+        return super().update(instance, validated_data)
 
 class InstitutionSelfProfileSerializer(serializers.ModelSerializer):
     title = serializers.CharField(source="institution.title")
