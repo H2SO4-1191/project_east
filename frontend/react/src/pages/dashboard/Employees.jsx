@@ -11,6 +11,7 @@ import { TableSkeleton, ListEmptyState } from '../../components/Skeleton';
 import { useInstitute } from '../../context/InstituteContext';
 import { authService } from '../../services/authService';
 import toast from 'react-hot-toast';
+import VerificationLock from '../../components/VerificationLock';
 
 const FALLBACK_STAFF = employeesData.map((e) => ({
   id: e.id,
@@ -175,22 +176,7 @@ const Staff = () => {
       return;
     }
 
-    // Check if required document (personal_image) is validated and valid
-    if (createForm.personal_image) {
-      const personalImageValidation = documentValidation.personal_image;
-      if (personalImageValidation.loading) {
-        toast.error(t('dashboard.staffPage.waitingForValidation') || 'Please wait for document validation to complete');
-        return;
-      }
-      if (personalImageValidation.isValid === false) {
-        toast.error(t('dashboard.staffPage.personalImageInvalid') || 'Personal image failed document validation. Please upload a valid document.');
-        return;
-      }
-      if (personalImageValidation.isValid === null) {
-        toast.error(t('dashboard.staffPage.personalImageNotValidated') || 'Personal image must be validated before submission. Please wait for validation to complete.');
-        return;
-      }
-    }
+    // Personal image is required but doesn't need AI validation
 
     // Check optional documents - if provided, they must be valid
     const optionalDocuments = [
@@ -599,8 +585,8 @@ const Staff = () => {
       const file = files[0] || null;
       setCreateForm(prev => ({ ...prev, [name]: file }));
       
-      // Validate document fields using AI
-      const documentFields = ['personal_image', 'idcard_front', 'idcard_back', 'residence_front', 'residence_back'];
+      // Validate document fields using AI (excluding personal_image)
+      const documentFields = ['idcard_front', 'idcard_back', 'residence_front', 'residence_back'];
       if (documentFields.includes(name) && file) {
         await validateDocument(file, name);
       } else if (documentFields.includes(name) && !file) {
@@ -608,6 +594,12 @@ const Staff = () => {
         setDocumentValidation(prev => ({
           ...prev,
           [name]: { loading: false, isValid: null, message: null, percentage: null }
+        }));
+      } else if (name === 'personal_image' && !file) {
+        // Clear validation state for personal_image if file is removed
+        setDocumentValidation(prev => ({
+          ...prev,
+          personal_image: { loading: false, isValid: null, message: null, percentage: null }
         }));
       }
     } else {
@@ -638,6 +630,11 @@ const Staff = () => {
       }
     }, 100);
   };
+
+  // Show verification lock if not verified
+  if (!instituteData.isVerified) {
+    return <VerificationLock />;
+  }
 
   return (
     <div className="space-y-6">
@@ -713,33 +710,36 @@ const Staff = () => {
         {isLoading ? (
           <TableSkeleton rows={5} columns={7} />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-700 dark:to-purple-800 text-white">
-                <tr>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead className="bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-700 dark:to-purple-800 text-white">
+              <tr>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">#</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.staffPage.name')}</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.staffPage.id')}</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.staffPage.duty')}</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.staffPage.phone')}</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.staffPage.salary')}</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.staffPage.status')}</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.staffPage.actions') || 'Actions'}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-navy-700">
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-navy-700">
                 <AnimatePresence>
                   {filteredStaff.map((member, index) => (
-                    <motion.tr
+                <motion.tr
                       key={`${member.id || 'local'}-${member.phone_number}`}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
-                      transition={{ delay: index * 0.05 }}
-                      whileHover={{ backgroundColor: 'rgba(168, 85, 247, 0.05)' }}
-                      className="hover:shadow-md transition-all"
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
+                  transition={{ delay: index * 0.05 }}
+                  whileHover={{ backgroundColor: 'rgba(168, 85, 247, 0.05)' }}
+                  className="hover:shadow-md transition-all"
+                >
+                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300 font-medium">
+                    {isRemote ? ((pagination.currentPage - 1) * 10) + index + 1 : index + 1}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
                           {member.personal_image ? (
                             <img
                               src={getImageUrl(member.personal_image)}
@@ -751,34 +751,31 @@ const Staff = () => {
                               }}
                             />
                           ) : (
-                            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center">
-                              <FaBriefcase className="text-white" />
-                            </div>
+                      <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center">
+                        <FaBriefcase className="text-white" />
+                      </div>
                           )}
                           <button
                             onClick={() => member.id && handleViewStaff(member.id)}
                             className="text-left hover:underline"
                             disabled={!member.id}
                           >
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
                               {member.first_name} {member.last_name}
-                            </p>
+                        </p>
                           </button>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                        {member.id || '—'}
-                      </td>
+                    </div>
+                  </td>
                       <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                         {member.duty || '—'}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                         {member.phone_number || '—'}
-                      </td>
+                  </td>
                       <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                         {member.salary ? `$${member.salary}` : '—'}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
+                  </td>
+                  <td className="px-6 py-4 text-sm">
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-semibold ${
                             member.is_active
@@ -787,8 +784,8 @@ const Staff = () => {
                           }`}
                         >
                           {member.is_active ? t('dashboard.staffPage.active') : t('dashboard.staffPage.inactive')}
-                        </span>
-                      </td>
+                    </span>
+                  </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           {member.id && (
@@ -815,12 +812,12 @@ const Staff = () => {
                             </>
                           )}
                         </div>
-                      </td>
-                    </motion.tr>
-                  ))}
+                  </td>
+                </motion.tr>
+              ))}
                 </AnimatePresence>
-              </tbody>
-            </table>
+            </tbody>
+          </table>
 
             {filteredStaff.length === 0 && (
               <ListEmptyState
@@ -835,7 +832,7 @@ const Staff = () => {
                 onAction={() => fetchStaff({ page: 1 })}
               />
             )}
-          </div>
+        </div>
         )}
       </Card>
 
@@ -1024,35 +1021,9 @@ const Staff = () => {
                 name="personal_image"
                 accept="image/*"
                 onChange={handleCreateChange}
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-navy-800 dark:file:text-teal-400 ${
-                  documentValidation.personal_image.isValid === false
-                    ? 'border-red-500 dark:border-red-500'
-                    : documentValidation.personal_image.isValid === true
-                    ? 'border-green-500 dark:border-green-500'
-                    : 'border-gray-300 dark:border-navy-600'
-                }`}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-navy-800 dark:file:text-teal-400"
                 required
               />
-              {documentValidation.personal_image.loading && (
-                <div className="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
-                  <FaSync className="animate-spin" />
-                  <span>{t('dashboard.staffPage.validatingDocument') || 'Validating document...'}</span>
-                </div>
-              )}
-              {documentValidation.personal_image.message && !documentValidation.personal_image.loading && (
-                <div className={`mt-2 text-sm flex items-center gap-2 ${
-                  documentValidation.personal_image.isValid
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-red-600 dark:text-red-400'
-                }`}>
-                  {documentValidation.personal_image.isValid ? (
-                    <span className="text-green-500">✓</span>
-                  ) : (
-                    <span className="text-red-500">✗</span>
-                  )}
-                  <span>{documentValidation.personal_image.message}</span>
-                </div>
-              )}
             </div>
           </div>
 

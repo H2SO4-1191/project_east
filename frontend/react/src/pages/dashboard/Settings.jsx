@@ -185,7 +185,7 @@ const Settings = () => {
         {
           refreshToken: instituteData.refreshToken,
           onTokenRefreshed: (tokens) =>
-            updateInstituteData({
+    updateInstituteData({
               accessToken: tokens.access,
               refreshToken: tokens.refresh || instituteData.refreshToken,
             }),
@@ -351,11 +351,11 @@ const Settings = () => {
         updateInstituteData({ username: editForm.username });
       }
 
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-      });
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
+    });
 
       toast.success(result.message || t('dashboard.settingsPage.profileUpdatedSuccess'));
       setShowEditProfileModal(false);
@@ -469,12 +469,21 @@ const Settings = () => {
             <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
               {t('dashboard.settingsPage.instituteName')}
             </label>
-            <input
-              type="text"
-              value={instituteData.name}
-              readOnly
-              className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg bg-gray-50 dark:bg-navy-800 text-gray-900 dark:text-white cursor-not-allowed"
-            />
+            {instituteData.isVerified ? (
+              <input
+                type="text"
+                value={instituteData.name || ''}
+                readOnly
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg bg-gray-50 dark:bg-navy-800 text-gray-900 dark:text-white cursor-not-allowed"
+              />
+            ) : (
+              <input
+                type="text"
+                value={t('dashboard.settingsPage.noInstitutionName') || 'You don\'t have a name of institution, verify your account.'}
+                readOnly
+                className="w-full px-4 py-3 border border-amber-300 dark:border-amber-600 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 cursor-not-allowed italic"
+              />
+            )}
           </div>
 
           <div>
@@ -551,8 +560,8 @@ const Settings = () => {
               {verificationErrors.phone_number && (
                 <p className="text-red-500 text-xs mt-1">{verificationErrors.phone_number[0]}</p>
               )}
-            </div>
           </div>
+        </div>
 
           <div>
             <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
@@ -593,7 +602,7 @@ const Settings = () => {
                       <span className="text-sm text-gray-700 dark:text-gray-300">
                         {verificationForm[field] ? verificationForm[field].name : t('dashboard.settingsPage.chooseFile')}
                       </span>
-                    </div>
+          </div>
                     <input
                       type="file"
                       accept="image/jpeg,image/jpg,image/png,image/webp"
@@ -614,9 +623,9 @@ const Settings = () => {
                       ) : (
                         <FaExclamationTriangle className="text-red-600" />
                       )}
-                    </div>
+          </div>
                   )}
-                </div>
+          </div>
 
                 {fileValidation[field] && (
                   <p className={`text-xs mt-2 ${fileValidation[field].isValid ? 'text-green-600' : 'text-red-600'}`}>
@@ -627,20 +636,20 @@ const Settings = () => {
                 {verificationErrors[field] && (
                   <p className="text-red-500 text-xs mt-1">{verificationErrors[field][0]}</p>
                 )}
-              </div>
-            ))}
           </div>
+            ))}
+        </div>
 
           <div className="flex gap-4 justify-end pt-4">
-            <AnimatedButton
+          <AnimatedButton
               type="button"
               onClick={() => setShowVerificationModal(false)}
               variant="secondary"
               disabled={isSubmitting}
             >
               {t('dashboard.settingsPage.cancel')}
-            </AnimatedButton>
-            <AnimatedButton
+          </AnimatedButton>
+          <AnimatedButton
               type="submit"
               variant="teal"
               disabled={isSubmitting || Object.values(isValidating).some(v => v)}
@@ -653,8 +662,8 @@ const Settings = () => {
               ) : (
                 t('dashboard.settingsPage.submitForVerification')
               )}
-            </AnimatedButton>
-          </div>
+          </AnimatedButton>
+        </div>
         </form>
       </Modal>
 
@@ -665,7 +674,7 @@ const Settings = () => {
         title={t('dashboard.settingsPage.editInstitutionProfile')}
       >
         <form onSubmit={handleEditProfileSubmit} className="space-y-6">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
             {t('dashboard.settingsPage.updateInstitutionInfo')}
           </p>
 
@@ -765,8 +774,8 @@ const Settings = () => {
               {editErrors.phone_number && (
                 <p className="text-red-500 text-xs mt-1">{editErrors.phone_number[0]}</p>
               )}
-            </div>
           </div>
+        </div>
 
           <div>
             <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
@@ -782,7 +791,7 @@ const Settings = () => {
             {editErrors.about && (
               <p className="text-red-500 text-xs mt-1">{editErrors.about[0]}</p>
             )}
-          </div>
+              </div>
 
           {/* File Upload Fields (Optional) */}
           <div className="space-y-4">
@@ -812,7 +821,7 @@ const Settings = () => {
                       <span className="text-sm text-gray-700 dark:text-gray-300">
                         {editForm[field] ? editForm[field].name : t('dashboard.settingsPage.chooseFileToUpdate')}
                       </span>
-                    </div>
+              </div>
                     <input
                       type="file"
                       accept="image/jpeg,image/jpg,image/png,image/webp"
@@ -833,8 +842,8 @@ const Settings = () => {
                       ) : (
                         <FaExclamationTriangle className="text-red-600" />
                       )}
-                    </div>
-                  )}
+                </div>
+              )}
                 </div>
 
                 {editFileValidation[field] && (
@@ -847,8 +856,8 @@ const Settings = () => {
                   <p className="text-red-500 text-xs mt-1">{editErrors[field][0]}</p>
                 )}
               </div>
-            ))}
-          </div>
+          ))}
+        </div>
 
           <div className="flex gap-4 justify-end pt-4">
             <AnimatedButton

@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8000/';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
 
 const defaultHeaders = {
   'Content-Type': 'application/json',
@@ -317,74 +317,6 @@ export const authService = {
     return data;
   },
 
-  async editInstitutionProfile(accessToken, payload, { refreshToken, onTokenRefreshed } = {}) {
-    const formData = new FormData();
-
-    // Append text fields (all optional)
-    if (payload.username) formData.append('username', payload.username);
-    if (payload.first_name) formData.append('first_name', payload.first_name);
-    if (payload.last_name) formData.append('last_name', payload.last_name);
-    if (payload.title) formData.append('title', payload.title);
-    if (payload.location) formData.append('location', payload.location);
-    if (payload.phone_number) formData.append('phone_number', payload.phone_number);
-    if (payload.about) formData.append('about', payload.about);
-
-    // Append file fields (only if provided)
-    if (payload.profile_image) formData.append('profile_image', payload.profile_image);
-    if (payload.idcard_back) formData.append('idcard_back', payload.idcard_back);
-    if (payload.idcard_front) formData.append('idcard_front', payload.idcard_front);
-    if (payload.residence_front) formData.append('residence_front', payload.residence_front);
-    if (payload.residence_back) formData.append('residence_back', payload.residence_back);
-
-    const response = await fetch(`${BASE_URL}/institution/edit/`, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: formData,
-    });
-
-    // Handle token refresh if needed
-    if (response.status === 401 && refreshToken && onTokenRefreshed) {
-      try {
-        const tokens = await this.refreshAccessToken(refreshToken);
-        if (typeof onTokenRefreshed === 'function') {
-          onTokenRefreshed(tokens);
-        }
-
-        // Retry the request with new token
-        const retryResponse = await fetch(`${BASE_URL}/institution/edit/`, {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${tokens.access}`,
-          },
-          body: formData,
-        });
-
-        const retryData = await parseResponse(retryResponse);
-
-        if (!retryResponse.ok) {
-          throw buildError(retryResponse.status, retryData);
-        }
-
-        return retryData;
-      } catch (refreshError) {
-        console.error('Token refresh failed during profile edit:', refreshError);
-        throw buildError(
-          refreshError?.status || 401,
-          refreshError?.data || { message: 'Session expired. Please log in again.' }
-        );
-      }
-    }
-
-    const data = await parseResponse(response);
-
-    if (!response.ok) {
-      throw buildError(response.status, data);
-    }
-
-    return data;
-  },
 
   async getFeed(accessToken = null, options = {}) {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
@@ -532,7 +464,8 @@ export const authService = {
     return data;
   },
 
-  async getLecturerProfile(accessToken, options = {}) {
+  // Get lecturer's own profile (self) - for verified lecturers
+  async getLecturerProfileSelf(accessToken, options = {}) {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
 
     const makeRequest = async (token) =>
@@ -574,7 +507,26 @@ export const authService = {
     return data;
   },
 
-  async getStudentProfile(accessToken, options = {}) {
+  // Get lecturer profile (for their own profile - uses different endpoint based on verification)
+  async getLecturerProfile(accessToken, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired, isVerified, username } = options;
+
+    // If verified, use self endpoint with JWT
+    if (isVerified) {
+      return this.getLecturerProfileSelf(accessToken, { refreshToken, onTokenRefreshed, onSessionExpired });
+    }
+
+    // If not verified, use public endpoint with username (no JWT required)
+    if (username) {
+      return this.getLecturerPublicProfile(username);
+    }
+
+    // Fallback to self endpoint if no username provided
+    return this.getLecturerProfileSelf(accessToken, { refreshToken, onTokenRefreshed, onSessionExpired });
+  },
+
+  // Get student's own full profile (requires JWT, for verified students)
+  async getStudentProfileSelf(accessToken, options = {}) {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
 
     const makeRequest = async (token) =>
@@ -616,6 +568,24 @@ export const authService = {
     return data;
   },
 
+  // Smart routing for student profile (uses self if verified, public if not)
+  async getStudentProfile(accessToken, options = {}) {
+    const { isVerified, username, refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    // If verified and has access token, use self endpoint
+    if (isVerified && accessToken) {
+      return this.getStudentProfileSelf(accessToken, { refreshToken, onTokenRefreshed, onSessionExpired });
+    }
+
+    // If not verified but has username, use public endpoint
+    if (username) {
+      return this.getStudentPublicProfile(username);
+    }
+
+    // Fallback to self endpoint if no username provided
+    return this.getStudentProfileSelf(accessToken, { refreshToken, onTokenRefreshed, onSessionExpired });
+  },
+
   async editLecturerProfile(accessToken, payload, options = {}) {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
 
@@ -642,7 +612,7 @@ export const authService = {
     if (payload.residence_back) formData.append('residence_back', payload.residence_back);
 
     const makeRequest = async (token) =>
-      fetch(`${BASE_URL}/lecturer/profile/edit/`, {
+      fetch(`${BASE_URL}/lecturer/edit-profile/`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -706,7 +676,7 @@ export const authService = {
     if (payload.residence_back) formData.append('residence_back', payload.residence_back);
 
     const makeRequest = async (token) =>
-      fetch(`${BASE_URL}/student/profile/edit/`, {
+      fetch(`${BASE_URL}/student/edit-profile/`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -749,7 +719,7 @@ export const authService = {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
 
     const makeRequest = async (token) =>
-      fetch(`${BASE_URL}/institution/profile/self/`, {
+      fetch(`${BASE_URL}/institution/my-profile/`, {
         headers: {
           ...defaultHeaders,
           Authorization: `Bearer ${token}`,
@@ -832,6 +802,21 @@ export const authService = {
     return data;
   },
 
+  // Get institution courses (public endpoint)
+  async getInstitutionCourses(username) {
+    const response = await fetch(`${BASE_URL}/institution/${username}/courses/`, {
+      headers: defaultHeaders,
+    });
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
   // Get public student profile by username (no auth required)
   async getStudentPublicProfile(username) {
     const response = await fetch(`${BASE_URL}/student/profile/${username}/`, {
@@ -853,6 +838,411 @@ export const authService = {
       method: 'GET',
       headers: defaultHeaders,
     });
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Mark a lecturer for institution
+  async markLecturer(accessToken, lecturerId, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/institution/mark-lecturer/`, {
+        method: 'POST',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ lecturer_id: lecturerId }),
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Check if lecturer is free before assigning to course
+  async isLecturerFree(accessToken, lecturerId, days, startTime, endTime, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/institution/is-lecturer-free/${lecturerId}/`, {
+        method: 'POST',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          days: days,
+          start_time: startTime,
+          end_time: endTime,
+        }),
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Get marked lecturers for institution
+  async getMarkedLecturers(accessToken, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/institution/marked-lecturers/`, {
+        method: 'GET',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Check if lecturer is marked (institution only, verified)
+  async isLecturerMarked(accessToken, lecturerId, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/institution/is-marked/${lecturerId}/`, {
+        method: 'GET',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Remove marked lecturer (institution only, verified)
+  async removeMarkedLecturer(accessToken, lecturerId, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/institution/remove-marked/${lecturerId}/`, {
+        method: 'DELETE',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Get student profile (institution only - for enrolled students)
+  // Get student profile for institution (requires JWT, institution only)
+  async getInstitutionStudentProfile(accessToken, studentId, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/institution/student/${studentId}/`, {
+        method: 'GET',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Get lecturer profile (institution only - for lecturers teaching in institution)
+  async getInstitutionLecturerProfile(accessToken, lecturerId, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/institution/lecturer/${lecturerId}/`, {
+        method: 'GET',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  async getInstitutionLecturersList(accessToken, page = 1, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const params = new URLSearchParams({ page: page.toString() });
+    const endpoint = `/institution/lecturers-list/?${params}`;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}${endpoint}`, {
+        method: 'GET',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Get job applications (institution only, verified, owner of job)
+  async getJobApplications(accessToken, jobId, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/institution/job/${jobId}/applications/`, {
+        method: 'GET',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
 
     const data = await parseResponse(response);
 
@@ -928,11 +1318,10 @@ export const authService = {
 
     const formData = new FormData();
 
-    // Append text fields (only if provided)
+    // Append text fields (only if provided) - all optional per endpoint
     if (payload.username) formData.append('username', payload.username);
     if (payload.first_name) formData.append('first_name', payload.first_name);
     if (payload.last_name) formData.append('last_name', payload.last_name);
-    if (payload.city) formData.append('city', payload.city);
     if (payload.phone_number) formData.append('phone_number', payload.phone_number);
     if (payload.about) formData.append('about', payload.about);
     if (payload.title) formData.append('title', payload.title);
@@ -946,7 +1335,7 @@ export const authService = {
     if (payload.residence_back) formData.append('residence_back', payload.residence_back);
 
     const makeRequest = async (token) =>
-      fetch(`${BASE_URL}/institution/edit/`, {
+      fetch(`${BASE_URL}/institution/edit-profile/`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -1011,6 +1400,268 @@ export const authService = {
         }
         if (refreshError?.status && refreshError?.message) {
           throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Get lecturer courses (public endpoint)
+  async getLecturerCourses(username) {
+    const response = await fetch(`${BASE_URL}/lecturer/${username}/courses/`, {
+      headers: defaultHeaders,
+    });
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Create exam for a course (lecturer only, verified)
+  async createExam(accessToken, courseId, examData, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/lecturer/course/${courseId}/exam/create/`, {
+        method: 'POST',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(examData),
+      });
+
+    let response = await makeRequest(accessToken);
+
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Submit grades for an exam (bulk create/update + send emails)
+  async submitExamGrades(accessToken, examId, grades, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/lecturer/exam/${examId}/grades/`, {
+        method: 'POST',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ grades }),
+      });
+
+    let response = await makeRequest(accessToken);
+
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // View grades for an exam
+  async viewExamGrades(accessToken, examId, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/lecturer/exam/${examId}/grades/view/`, {
+        method: 'GET',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Edit grades for an exam (bulk update without emails)
+  async editExamGrades(accessToken, examId, grades, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/lecturer/exam/${examId}/grades/edit/`, {
+        method: 'PUT',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ grades }),
+      });
+
+    let response = await makeRequest(accessToken);
+
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Mark attendance for a lecture (lecturer only, verified)
+  async markAttendance(accessToken, courseId, lectureNumber, records, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/lecturer/course/${courseId}/attendance/`, {
+        method: 'POST',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          lecture_number: lectureNumber,
+          records,
+        }),
+      });
+
+    let response = await makeRequest(accessToken);
+
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // View attendance for a specific lecture
+  async viewLectureAttendance(accessToken, courseId, lectureNumber, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/lecturer/course/${courseId}/attendance/${lectureNumber}/`, {
+        method: 'GET',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
         }
         throw buildError(
           refreshError?.status || 401,
@@ -1242,11 +1893,16 @@ export const authService = {
     
     formData.append('start_time', payload.start_time);
     formData.append('end_time', payload.end_time);
-    formData.append('lecturer', payload.lecturer);
+    // Ensure lecturer is sent as integer (FormData converts to string, but backend expects numeric string)
+    formData.append('lecturer', String(Number(payload.lecturer)));
     
     // Optional fields
     if (payload.course_image) {
       formData.append('course_image', payload.course_image);
+    }
+
+    if (payload.capacity) {
+      formData.append('capacity', payload.capacity);
     }
 
     const makeRequest = async (token) =>
@@ -1813,9 +2469,241 @@ export const authService = {
     return data;
   },
 
+  // Check if student is free before enrolling to a course
+  async checkStudentFree(accessToken, courseId, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/student/is-student-free/${courseId}/`, {
+        method: 'POST',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Enroll student in a course
+  async enrollInCourse(accessToken, courseId, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/student/enroll/${courseId}/`, {
+        method: 'POST',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
   // Get courses enrolled by a student (public, no auth required)
   async getStudentCourses(username) {
     const response = await fetch(`${BASE_URL}/student/${username}/courses/`, {
+      headers: defaultHeaders,
+    });
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Get student's attendance records for a course
+  async getStudentCourseAttendance(accessToken, courseId, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/student/course/${courseId}/attendance/`, {
+        method: 'GET',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Get student's grades for a course
+  async getStudentCourseGrades(accessToken, courseId, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/student/course/${courseId}/grades/`, {
+        method: 'GET',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Get course progress (personal if enrolled, overall average otherwise)
+  async getCourseProgress(courseId, accessToken = null, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token = null) => {
+      const headers = { ...defaultHeaders };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      return fetch(`${BASE_URL}/course/${courseId}/progress/`, {
+        method: 'GET',
+        headers,
+      });
+    };
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed && accessToken) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        // If refresh fails, try without auth (public endpoint)
+        response = await makeRequest(null);
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Get list of students for a specific lecture number in a course
+  async getCourseStudents(courseId, lectureNumber) {
+    const response = await fetch(`${BASE_URL}/course/${courseId}/students/${lectureNumber}/`, {
       headers: defaultHeaders,
     });
 

@@ -7,8 +7,11 @@ import AnimatedCounter from '../../components/AnimatedCounter';
 import AnimatedButton from '../../components/AnimatedButton';
 import Modal from '../../components/Modal';
 import toast from 'react-hot-toast';
+import { useInstitute } from '../../context/InstituteContext';
+import VerificationLock from '../../components/VerificationLock';
 
 const Finance = () => {
+  const { instituteData } = useInstitute();
   const { t } = useTranslation();
   const [showCreateCourseModal, setShowCreateCourseModal] = useState(false);
   const [showEditCoursesModal, setShowEditCoursesModal] = useState(false);
@@ -108,6 +111,11 @@ const Finance = () => {
       setSelectedCourse(null);
     }
   };
+
+  // Show verification lock if not verified
+  if (!instituteData.isVerified) {
+    return <VerificationLock />;
+  }
 
   return (
     <div className="space-y-6">

@@ -5,15 +5,17 @@ import { useTranslation } from 'react-i18next';
 import { 
   FaHome, FaUsers, FaChalkboardTeacher, FaBriefcase, 
   FaCalendarAlt, FaDollarSign, FaCog, FaBars, FaTimes,
-  FaMoon, FaSun, FaSignOutAlt, FaGlobe, FaPlus, FaEdit, FaBook, FaClock, FaBell, FaNewspaper, FaUserCircle, FaSuitcase
+  FaMoon, FaSun, FaSignOutAlt, FaGlobe, FaPlus, FaEdit, FaBook, FaClock, FaNewspaper, FaUserCircle, FaSuitcase, FaClipboardList, FaChevronRight, FaBookmark, FaInfoCircle
 } from 'react-icons/fa';
 import { useInstitute } from '../context/InstituteContext';
 import { useTheme } from '../context/ThemeContext';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { authService } from '../services/authService';
 import Modal from '../components/Modal';
 import AnimatedButton from '../components/AnimatedButton';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import ProfileModal from '../components/ProfileModal';
+import KeyboardShortcutsHelp from '../components/KeyboardShortcutsHelp';
 import toast from 'react-hot-toast';
 import Overview from './dashboard/Overview';
 import Students from './dashboard/Students';
@@ -38,19 +40,38 @@ const EnhancedDashboard = () => {
   const [showEditCoursesModal, setShowEditCoursesModal] = useState(false);
   const [showVerificationWarning, setShowVerificationWarning] = useState(false);
   const [courses, setCourses] = useState([]);
+  const [isLoadingCourses, setIsLoadingCourses] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const notificationRef = useRef(null);
   const [showNewPostModal, setShowNewPostModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showJobPostModal, setShowJobPostModal] = useState(false);
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
   const [institutionTitle, setInstitutionTitle] = useState(null);
   const [username, setUsername] = useState(null);
+  
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onCreate: () => checkVerificationAndOpen('create'),
+    onEdit: () => checkVerificationAndOpen('edit'),
+    onSettings: () => navigate('/dashboard/settings'),
+    onHelp: () => setShowKeyboardHelp(true),
+    enableCreate: true,
+    enableEdit: true,
+    userType: 'institution',
+  });
   const [isCreatingPost, setIsCreatingPost] = useState(false);
   const [isCreatingCourse, setIsCreatingCourse] = useState(false);
   const [isUpdatingCourse, setIsUpdatingCourse] = useState(false);
   const [isCreatingJobPost, setIsCreatingJobPost] = useState(false);
+  const [showApplicationsModal, setShowApplicationsModal] = useState(false);
+  const [selectedJobId, setSelectedJobId] = useState(null);
+  const [applications, setApplications] = useState([]);
+  const [isLoadingApplications, setIsLoadingApplications] = useState(false);
+  const [jobPosts, setJobPosts] = useState([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  const [isMenuExpanded, setIsMenuExpanded] = useState(false);
+  const menuTimeoutRef = useRef(null);
   
   // Helper function to convert relative image URLs to full URLs
   const getImageUrl = (imagePath) => {
@@ -128,15 +149,30 @@ const EnhancedDashboard = () => {
     level: 'beginner',
     price: '',
     days: [],
-    start_time: '',
-    end_time: '',
-    lecturer: '',
+    start_time: '', // Will store 12-hour format for display
+    end_time: '', // Will store 12-hour format for display
+    lecturers: [], // Array of lecturer objects: { id, username, full_name, available, checking, message }
+    lecturer_username: '', // Current input for searching lecturer by username
+    capacity: '', // New field for course capacity
     course_image: null,
   });
+
+  // Course image preview states
+  const [createCourseImagePreview, setCreateCourseImagePreview] = useState(null);
+  const [editCourseImagePreview, setEditCourseImagePreview] = useState(null);
+  
+  // Lecturer search state
+  const [isSearchingLecturer, setIsSearchingLecturer] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState(null);
   
   // Lecturers list for dropdown
   const [lecturers, setLecturers] = useState([]);
   const [isLoadingLecturers, setIsLoadingLecturers] = useState(false);
+  const [markedLecturers, setMarkedLecturers] = useState([]);
+  const [isLoadingMarkedLecturers, setIsLoadingMarkedLecturers] = useState(false);
+  const [markingLecturerId, setMarkingLecturerId] = useState(null); // Track which lecturer is being marked
+  const [showLecturerConflictModal, setShowLecturerConflictModal] = useState(false);
+  const [lecturerConflict, setLecturerConflict] = useState(null);
 
   // Edit course form state
   const [editForm, setEditForm] = useState({
@@ -212,28 +248,14 @@ const EnhancedDashboard = () => {
     fetchInstitutionProfile();
   }, [instituteData.isAuthenticated, instituteData.accessToken]);
 
-  // Close notifications when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
-        setShowNotifications(false);
-      }
-    };
-
-    if (showNotifications) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showNotifications]);
-
   // Cleanup sidebar timeout on unmount
   useEffect(() => {
     return () => {
       if (sidebarTimeoutRef.current) {
         clearTimeout(sidebarTimeoutRef.current);
+      }
+      if (menuTimeoutRef.current) {
+        clearTimeout(menuTimeoutRef.current);
       }
     };
   }, []);
@@ -249,7 +271,7 @@ const EnhancedDashboard = () => {
   };
 
   // Check verification before opening course modals
-  const checkVerificationAndOpen = (modalType) => {
+  const checkVerificationAndOpen = async (modalType) => {
     if (!instituteData.isVerified) {
       setShowVerificationWarning(true);
       return;
@@ -260,7 +282,38 @@ const EnhancedDashboard = () => {
     } else if (modalType === 'create') {
       setShowCreateCourseModal(true);
     } else if (modalType === 'edit') {
+      // Open modal first with loading state
       setShowEditCoursesModal(true);
+      setIsLoadingCourses(true);
+      setCourses([]);
+      
+      // Use the username from profile API (correct public username), not instituteData.username
+      const usernameToUse = username || instituteData.username;
+      console.log('Fetching courses for username:', usernameToUse); // Debug log
+      
+      // Fetch courses after opening modal
+      if (usernameToUse) {
+        try {
+          const response = await authService.getInstitutionCourses(usernameToUse);
+          console.log('Fetched courses:', response); // Debug log
+          if (response?.results) {
+            setCourses(response.results);
+          } else if (response?.data) {
+            setCourses(Array.isArray(response.data) ? response.data : []);
+          } else {
+            setCourses([]);
+          }
+        } catch (error) {
+          console.error('Error fetching courses:', error);
+          toast.error(t('dashboard.failedToLoadCourses') || 'Failed to load courses');
+          setCourses([]);
+        } finally {
+          setIsLoadingCourses(false);
+        }
+      } else {
+        console.warn('No username available to fetch courses');
+        setIsLoadingCourses(false);
+      }
     } else if (modalType === 'job_post') {
       setShowJobPostModal(true);
     }
@@ -280,6 +333,76 @@ const EnhancedDashboard = () => {
         }, 3500);
       }
     }, 100);
+  };
+
+  // Fetch job posts for the institution
+  const fetchJobPosts = async () => {
+    if (!instituteData.isAuthenticated || !instituteData.accessToken || !username) {
+      return;
+    }
+
+    setIsLoadingJobs(true);
+    try {
+      const jobData = await authService.getInstitutionJobs(username);
+      if (jobData?.success && jobData?.data) {
+        setJobPosts(Array.isArray(jobData.data) ? jobData.data : []);
+      } else {
+        setJobPosts([]);
+      }
+    } catch (error) {
+      console.error('Error fetching job posts:', error);
+      setJobPosts([]);
+    } finally {
+      setIsLoadingJobs(false);
+    }
+  };
+
+  // Fetch applications for a specific job
+  const fetchApplications = async (jobId) => {
+    if (!instituteData.isAuthenticated || !instituteData.accessToken || !jobId) {
+      return;
+    }
+
+    setIsLoadingApplications(true);
+    setSelectedJobId(jobId);
+    try {
+      const options = {
+        refreshToken: instituteData.refreshToken,
+        onTokenRefreshed: (tokens) => {
+          updateInstituteData({
+            accessToken: tokens.access,
+            refreshToken: tokens.refresh || instituteData.refreshToken,
+          });
+        },
+        onSessionExpired: () => {
+          toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+        },
+      };
+
+      const data = await authService.getJobApplications(instituteData.accessToken, jobId, options);
+      if (data?.success && data?.applications) {
+        setApplications(Array.isArray(data.applications) ? data.applications : []);
+      } else {
+        setApplications([]);
+      }
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+      toast.error(error?.message || t('dashboard.failedToLoadApplications') || 'Failed to load applications');
+      setApplications([]);
+    } finally {
+      setIsLoadingApplications(false);
+    }
+  };
+
+  // Handle opening applications modal
+  const handleOpenApplications = async () => {
+    if (!instituteData.isVerified) {
+      setShowVerificationWarning(true);
+      return;
+    }
+
+    await fetchJobPosts();
+    setShowApplicationsModal(true);
   };
 
   // Post form handlers
@@ -399,6 +522,28 @@ const EnhancedDashboard = () => {
     }
   };
 
+  // Helper function to convert 12-hour time to 24-hour time
+  const convertTo24Hour = (time12h) => {
+    if (!time12h) return '';
+    // Format: "HH:MM AM" or "HH:MM PM"
+    const parts = time12h.trim().split(' ');
+    if (parts.length !== 2) return '';
+    const [time, period] = parts;
+    const [hours, minutes] = time.split(':');
+    if (!hours || !minutes || !period) return '';
+    
+    let hour24 = parseInt(hours);
+    const periodUpper = period.toUpperCase();
+    
+    if (periodUpper === 'PM' && hour24 !== 12) {
+      hour24 += 12;
+    } else if (periodUpper === 'AM' && hour24 === 12) {
+      hour24 = 0;
+    }
+    
+    return `${hour24.toString().padStart(2, '0')}:${minutes}`;
+  };
+
   // Course management handlers
   const handleCreateChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -411,9 +556,241 @@ const EnhancedDashboard = () => {
           : prev.days.filter(day => day !== value)
       }));
     } else if (type === 'file') {
-      setCreateForm(prev => ({ ...prev, [name]: e.target.files[0] }));
+      const file = e.target.files[0];
+      setCreateForm(prev => ({ ...prev, [name]: file }));
+      
+      // Generate image preview for course_image
+      if (name === 'course_image' && file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setCreateCourseImagePreview(reader.result);
+        };
+        reader.readAsDataURL(file);
+      } else if (name === 'course_image' && !file) {
+        setCreateCourseImagePreview(null);
+      }
     } else {
       setCreateForm(prev => ({ ...prev, [name]: value }));
+      
+      // Auto-search lecturer when username changes (with debouncing)
+      if (name === 'lecturer_username') {
+        // Clear previous timeout
+        if (searchTimeout) {
+          clearTimeout(searchTimeout);
+        }
+        
+        // Set new timeout for auto-search
+        if (value && value.trim()) {
+          const timeout = setTimeout(() => {
+            handleAutoSearchLecturer(value.trim());
+          }, 800); // Wait 800ms after user stops typing
+          setSearchTimeout(timeout);
+        }
+      }
+    }
+  };
+
+  // Auto-search lecturer by username and check availability
+  const handleAutoSearchLecturer = async (username) => {
+    if (!username) return;
+
+    // Check if lecturer already added
+    const alreadyAdded = createForm.lecturers.find(l => l.username === username);
+    if (alreadyAdded) {
+      toast.info(t('dashboard.lecturerAlreadyAdded') || 'This lecturer is already added');
+      return;
+    }
+
+    setIsSearchingLecturer(true);
+
+    try {
+      // Step 1: Search for lecturer
+      const data = await authService.getLecturerPublicProfile(username);
+      
+      if (data?.success && data?.data) {
+        const lecturerData = data.data;
+        
+        // Add lecturer to the list with "checking" status
+        const newLecturer = {
+          id: lecturerData.id,
+          username: lecturerData.username,
+          full_name: `${lecturerData.first_name || ''} ${lecturerData.last_name || ''}`.trim(),
+          first_name: lecturerData.first_name,
+          last_name: lecturerData.last_name,
+          specialty: lecturerData.specialty,
+          profile_image: lecturerData.profile_image,
+          available: null,
+          checking: true,
+          message: t('dashboard.checkingAvailability') || 'Checking availability...',
+        };
+
+        setCreateForm(prev => ({
+          ...prev,
+          lecturers: [...prev.lecturers, newLecturer],
+          lecturer_username: '', // Clear input
+        }));
+
+        toast.success(t('dashboard.lecturerFound') || `Lecturer found: ${newLecturer.full_name}`);
+
+        // Step 2: Auto-check availability if days and times are set
+        if (createForm.days.length > 0 && createForm.start_time && createForm.end_time) {
+          await checkLecturerAvailability(lecturerData.id);
+        } else {
+          // Update lecturer status to indicate missing info
+          setCreateForm(prev => ({
+            ...prev,
+            lecturers: prev.lecturers.map(l => 
+              l.id === lecturerData.id 
+                ? { ...l, checking: false, available: null, message: t('dashboard.selectDaysAndTimes') || 'Select days and times to check availability' }
+                : l
+            )
+          }));
+        }
+      } else {
+        toast.error(t('dashboard.lecturerNotFound') || 'Lecturer not found');
+      }
+    } catch (error) {
+      console.error('Error searching lecturer:', error);
+      toast.error(error?.message || t('dashboard.lecturerSearchFailed') || 'Failed to search lecturer');
+    } finally {
+      setIsSearchingLecturer(false);
+    }
+  };
+
+  // Check lecturer availability
+  const checkLecturerAvailability = async (lecturerId) => {
+    if (!createForm.days || createForm.days.length === 0 || !createForm.start_time || !createForm.end_time) {
+      return;
+    }
+
+    // Check if user is authenticated
+    if (!instituteData.accessToken || !instituteData.isAuthenticated) {
+      console.error('Not authenticated - cannot check lecturer availability');
+      setCreateForm(prev => ({
+        ...prev,
+        lecturers: prev.lecturers.map(l => 
+          l.id === lecturerId 
+            ? { ...l, checking: false, available: null, message: t('common.authRequired') || 'Authentication required' }
+            : l
+        )
+      }));
+      return;
+    }
+
+    // Convert times from 12-hour to 24-hour format for backend
+    const startTime24 = convertTo24Hour(createForm.start_time);
+    const endTime24 = convertTo24Hour(createForm.end_time);
+
+    if (!startTime24 || !endTime24) {
+      console.error('Failed to convert times to 24-hour format');
+      return;
+    }
+
+    try {
+      const options = {
+        refreshToken: instituteData.refreshToken,
+        onTokenRefreshed: (tokens) => {
+          updateInstituteData({
+            accessToken: tokens.access,
+            refreshToken: tokens.refresh || instituteData.refreshToken,
+          });
+        },
+        onSessionExpired: () => {
+          toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+        },
+      };
+
+      const data = await authService.isLecturerFree(
+        instituteData.accessToken,
+        lecturerId,
+        createForm.days,
+        startTime24,
+        endTime24,
+        options
+      );
+
+      // Debug logging to see the actual response
+      console.log('Lecturer availability response:', data);
+
+      // Handle response - backend may return different structures
+      if (data && (data.success === true || data.is_free !== undefined)) {
+        const available = data.is_free;
+        const message = data.message || (available ? t('dashboard.lecturerAvailable') || 'Available!' : t('dashboard.lecturerNotAvailable') || 'Not available');
+        
+        // Update lecturer in the list
+        setCreateForm(prev => ({
+          ...prev,
+          lecturers: prev.lecturers.map(l => 
+            l.id === lecturerId 
+              ? { ...l, checking: false, available, message }
+              : l
+          )
+        }));
+      } else {
+        console.error('Unexpected response structure:', data);
+        setCreateForm(prev => ({
+          ...prev,
+          lecturers: prev.lecturers.map(l => 
+            l.id === lecturerId 
+              ? { ...l, checking: false, available: null, message: 'Failed to check' }
+              : l
+          )
+        }));
+      }
+    } catch (error) {
+      console.error('Error checking availability:', error);
+      
+      // Check if it's an authentication error
+      let errorMessage = 'Error checking availability';
+      if (error?.status === 401) {
+        errorMessage = t('common.authRequired') || 'Authentication required';
+      } else if (error?.status === 403) {
+        errorMessage = t('common.permissionDenied') || 'Permission denied';
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      setCreateForm(prev => ({
+        ...prev,
+        lecturers: prev.lecturers.map(l => 
+          l.id === lecturerId 
+            ? { ...l, checking: false, available: null, message: errorMessage }
+            : l
+        )
+      }));
+    }
+  };
+
+  // Re-check all lecturers availability when days or times change
+  const recheckAllLecturersAvailability = async () => {
+    if (!createForm.days.length || !createForm.start_time || !createForm.end_time) return;
+    
+    // Mark all as checking
+    setCreateForm(prev => ({
+      ...prev,
+      lecturers: prev.lecturers.map(l => ({ ...l, checking: true, message: 'Checking availability...' }))
+    }));
+
+    // Check each lecturer
+    for (const lecturer of createForm.lecturers) {
+      await checkLecturerAvailability(lecturer.id);
+    }
+  };
+
+  // Remove lecturer from list
+  const removeLecturer = (lecturerId) => {
+    setCreateForm(prev => ({
+      ...prev,
+      lecturers: prev.lecturers.filter(l => l.id !== lecturerId)
+    }));
+  };
+
+  // Handle marked lecturer selection
+  const handleMarkedLecturerSelect = (lecturerId) => {
+    const selected = markedLecturers.find(l => l.id === parseInt(lecturerId));
+    if (selected && selected.username) {
+      setCreateForm(prev => ({ ...prev, lecturer_username: selected.username }));
+      handleAutoSearchLecturer(selected.username);
     }
   };
 
@@ -428,7 +805,19 @@ const EnhancedDashboard = () => {
           : prev.days.filter(day => day !== value)
       }));
     } else if (type === 'file') {
-      setEditForm(prev => ({ ...prev, [name]: e.target.files[0] }));
+      const file = e.target.files[0];
+      setEditForm(prev => ({ ...prev, [name]: file }));
+      
+      // Generate image preview for course_image
+      if (name === 'course_image' && file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setEditCourseImagePreview(reader.result);
+        };
+        reader.readAsDataURL(file);
+      } else if (name === 'course_image' && !file) {
+        setEditCourseImagePreview(null);
+      }
     } else {
       setEditForm(prev => ({ ...prev, [name]: value }));
     }
@@ -566,15 +955,130 @@ const EnhancedDashboard = () => {
     fetchLecturers();
   }, [instituteData.accessToken, showCreateCourseModal]);
 
+  // Fetch marked lecturers when create course modal opens
+  useEffect(() => {
+    const fetchMarkedLecturers = async () => {
+      if (!instituteData.accessToken || !showCreateCourseModal) return;
+      
+      setIsLoadingMarkedLecturers(true);
+      try {
+        const response = await authService.getMarkedLecturers(instituteData.accessToken, {
+          refreshToken: instituteData.refreshToken,
+          onTokenRefreshed: (tokens) => {
+            updateInstituteData({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh || instituteData.refreshToken,
+            });
+          },
+          onSessionExpired: () => {
+            toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+          },
+        });
+        
+        if (response?.success && Array.isArray(response.lecturers)) {
+          setMarkedLecturers(response.lecturers);
+        } else if (Array.isArray(response)) {
+          setMarkedLecturers(response);
+        } else {
+          setMarkedLecturers([]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch marked lecturers:', error);
+        setMarkedLecturers([]);
+      } finally {
+        setIsLoadingMarkedLecturers(false);
+      }
+    };
+    
+    fetchMarkedLecturers();
+  }, [instituteData.accessToken, showCreateCourseModal]);
+
+  // Auto-recheck lecturer availability when days or times change
+  useEffect(() => {
+    if (createForm.lecturers.length > 0 && createForm.days.length > 0 && createForm.start_time && createForm.end_time) {
+      recheckAllLecturersAvailability();
+    }
+  }, [createForm.days, createForm.start_time, createForm.end_time]);
+
+  // Handle marking a lecturer
+  const handleMarkLecturer = async (lecturerId) => {
+    if (!lecturerId) {
+      toast.error(t('dashboard.lecturerIdRequired') || 'Lecturer ID is required');
+      return;
+    }
+    
+    if (!instituteData.accessToken) {
+      toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+      return;
+    }
+    
+    setMarkingLecturerId(lecturerId);
+    try {
+      const response = await authService.markLecturer(
+        instituteData.accessToken,
+        lecturerId,
+        {
+          refreshToken: instituteData.refreshToken,
+          onTokenRefreshed: (tokens) => {
+            updateInstituteData({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh || instituteData.refreshToken,
+            });
+          },
+          onSessionExpired: () => {
+            toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+          },
+        }
+      );
+      
+      if (response?.success) {
+        toast.success(response.message || t('dashboard.lecturerMarked') || 'Lecturer marked successfully!');
+        // Refresh marked lecturers list
+        const updatedResponse = await authService.getMarkedLecturers(instituteData.accessToken, {
+          refreshToken: instituteData.refreshToken,
+          onTokenRefreshed: (tokens) => {
+            updateInstituteData({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh || instituteData.refreshToken,
+            });
+          },
+        });
+        if (updatedResponse?.success && Array.isArray(updatedResponse.lecturers)) {
+          setMarkedLecturers(updatedResponse.lecturers);
+        } else if (Array.isArray(updatedResponse)) {
+          setMarkedLecturers(updatedResponse);
+        }
+      } else {
+        toast.error(response?.message || t('dashboard.failedToMarkLecturer') || 'Failed to mark lecturer');
+      }
+    } catch (error) {
+      console.error('Error marking lecturer:', error);
+      toast.error(error?.message || error?.data?.message || t('dashboard.failedToMarkLecturer') || 'Failed to mark lecturer');
+    } finally {
+      setMarkingLecturerId(null);
+    }
+  };
+
   const handleCreateCourse = async (e) => {
     e.preventDefault();
     
+    // Ensure level has a default value
+    const courseLevel = createForm.level || 'beginner';
+    
     // Validate all required fields
     if (!createForm.title || !createForm.about || !createForm.starting_date || 
-        !createForm.ending_date || !createForm.level || !createForm.price ||
+        !createForm.ending_date || !courseLevel || !createForm.price ||
         !createForm.days.length || !createForm.start_time || !createForm.end_time ||
-        !createForm.lecturer) {
-      toast.error(t('dashboard.fillRequiredFields') || 'Please fill in all required fields');
+        !createForm.lecturers.length) {
+      toast.error(t('dashboard.fillRequiredFields') || 'Please fill in all required fields and add at least one lecturer');
+      return;
+    }
+
+    // Check if all lecturers are available
+    const unavailableLecturers = createForm.lecturers.filter(l => l.available === false);
+    if (unavailableLecturers.length > 0) {
+      const names = unavailableLecturers.map(l => l.full_name).join(', ');
+      toast.error(t('dashboard.someLecturersNotAvailable') || `Some lecturers are not available: ${names}`);
       return;
     }
     
@@ -584,8 +1088,17 @@ const EnhancedDashboard = () => {
       return;
     }
     
+    // Convert 12-hour format (HH:MM AM/PM) to 24-hour format (HH:MM) for validation and API
+    const startTime24 = convertTo24Hour(createForm.start_time);
+    const endTime24 = convertTo24Hour(createForm.end_time);
+
     // Validate times
-    if (createForm.end_time <= createForm.start_time) {
+    if (!startTime24 || !endTime24) {
+      toast.error(t('dashboard.invalidTimeFormat') || 'Please enter valid times in HH:MM AM/PM format');
+      return;
+    }
+
+    if (endTime24 <= startTime24) {
       toast.error(t('dashboard.endTimeBeforeStart') || 'End time must be greater than start time');
       return;
     }
@@ -594,6 +1107,15 @@ const EnhancedDashboard = () => {
     if (parseFloat(createForm.price) < 0) {
       toast.error(t('dashboard.priceMustBePositive') || 'Price must be positive');
       return;
+    }
+
+    // Validate capacity if provided
+    if (createForm.capacity && createForm.capacity.trim()) {
+      const capacityValue = parseInt(createForm.capacity);
+      if (isNaN(capacityValue) || capacityValue <= 0) {
+        toast.error(t('dashboard.capacityMustBePositive') || 'Capacity must be a positive number');
+        return;
+      }
     }
 
     setIsCreatingCourse(true);
@@ -612,21 +1134,43 @@ const EnhancedDashboard = () => {
         },
       };
 
+      // Use the first available lecturer (API expects single lecturer)
+      // In the future, if API supports multiple lecturers, we can send array
+      const primaryLecturer = createForm.lecturers[0];
+      const lecturerId = primaryLecturer.id;
+
+      // Prepare payload with capacity if provided
+      const payload = {
+        title: createForm.title,
+        about: createForm.about,
+        starting_date: createForm.starting_date,
+        ending_date: createForm.ending_date,
+        level: courseLevel, // Enum: "beginner", "intermediate", "advanced" - with guaranteed default
+        price: parseFloat(createForm.price),
+        days: createForm.days, // Enum: "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"
+        start_time: startTime24, // Converted to 24-hour format (HH:MM)
+        end_time: endTime24, // Converted to 24-hour format (HH:MM)
+        lecturer: lecturerId, // Integer (primary key) - using first lecturer
+        course_image: createForm.course_image,
+      };
+
+      // Add capacity if provided
+      if (createForm.capacity && createForm.capacity.trim()) {
+        const capacityValue = parseInt(createForm.capacity);
+        if (!isNaN(capacityValue) && capacityValue > 0) {
+          payload.capacity = capacityValue;
+        }
+      }
+
+      // Debug logging
+      console.log('Creating course with payload:', {
+        ...payload,
+        course_image: payload.course_image ? 'File attached' : 'No file'
+      });
+
       const result = await authService.createInstitutionCourse(
         instituteData.accessToken,
-        {
-          title: createForm.title,
-          about: createForm.about,
-          starting_date: createForm.starting_date,
-          ending_date: createForm.ending_date,
-          level: createForm.level,
-          price: parseFloat(createForm.price),
-          days: createForm.days,
-          start_time: createForm.start_time,
-          end_time: createForm.end_time,
-          lecturer: parseInt(createForm.lecturer),
-          course_image: createForm.course_image,
-        },
+        payload,
         options
       );
 
@@ -643,9 +1187,13 @@ const EnhancedDashboard = () => {
           days: [],
           start_time: '',
           end_time: '',
-          lecturer: '',
+          lecturers: [],
+          lecturer_username: '',
+          capacity: '',
           course_image: null,
         });
+        // Reset image preview
+        setCreateCourseImagePreview(null);
       }
     } catch (error) {
       console.error('Error creating course:', error);
@@ -660,7 +1208,20 @@ const EnhancedDashboard = () => {
 
   const handleEditCourse = (course) => {
     setSelectedCourse(course);
-    setEditForm(course);
+    // Populate edit form with course data
+    setEditForm({
+      title: course.title || '',
+      about: course.about || '',
+      starting_date: course.starting_date || '',
+      ending_date: course.ending_date || '',
+      level: course.level || 'beginner',
+      price: course.price || '',
+      days: course.days || [],
+      start_time: course.start_time || '',
+      end_time: course.end_time || '',
+      lecturer: course.lecturer || '',
+      course_image: null, // Don't pre-populate file input
+    });
   };
 
   const handleUpdateCourse = async (e) => {
@@ -711,6 +1272,7 @@ const EnhancedDashboard = () => {
       if (result?.success) {
         toast.success(result.message || t('dashboard.courseUpdated') || 'Course updated successfully!');
         setSelectedCourse(null);
+        setEditCourseImagePreview(null); // Reset image preview
         setEditForm({
           title: '',
           about: '',
@@ -741,6 +1303,7 @@ const EnhancedDashboard = () => {
       setCourses(prev => prev.filter(c => c.id !== courseId));
       toast.success(t('dashboard.courseDeleted'));
       setSelectedCourse(null);
+      setEditCourseImagePreview(null); // Reset image preview
     }
   };
 
@@ -850,6 +1413,11 @@ const EnhancedDashboard = () => {
             {isDark ? <FaSun className="w-5 h-5 text-gold-500 flex-shrink-0" /> : <FaMoon className="w-5 h-5 text-navy-600 flex-shrink-0" />}
             {isSidebarExpanded && <span className="font-medium whitespace-nowrap">{isDark ? t('nav.lightMode') : t('nav.darkMode')}</span>}
           </motion.button>
+
+          {/* Language Switcher */}
+          <div className={`w-full ${isSidebarExpanded ? '' : 'flex justify-center'}`}>
+            <LanguageSwitcher variant="sidebar" />
+          </div>
           
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -952,6 +1520,9 @@ const EnhancedDashboard = () => {
                   {isDark ? <FaSun className="w-5 h-5 text-gold-500" /> : <FaMoon className="w-5 h-5 text-navy-600" />}
                   <span className="font-medium">{isDark ? t('nav.lightMode') : t('nav.darkMode')}</span>
                 </button>
+
+                {/* Language Switcher */}
+                <LanguageSwitcher variant="sidebar" />
                 
                 <button
                   onClick={handleLogout}
@@ -971,7 +1542,7 @@ const EnhancedDashboard = () => {
         {/* Header */}
         <header className="bg-white dark:bg-navy-800 shadow-md border-b border-gray-200 dark:border-navy-700 sticky top-0 z-30">
           <div className="px-6 py-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between" style={{ direction: 'ltr' }}>
               <div className="flex items-center gap-4">
                 {/* Logo Button for Mobile - Opens Sidebar */}
                 <motion.div
@@ -984,24 +1555,17 @@ const EnhancedDashboard = () => {
                     <span className="text-white text-lg font-bold">PE</span>
                   </div>
                 </motion.div>
-
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-                    {displayName}
-                  </h1>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{displayUsername}</p>
-                </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                {/* Language Switcher */}
-                <LanguageSwitcher />
-
-                <div className="hidden md:block text-right">
+              <div className="flex items-center gap-4 ml-auto" dir="ltr" style={{ direction: 'ltr' }}>
+                <div className="hidden md:block text-right" style={{ direction: 'ltr' }}>
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {t('dashboard.welcome')} {greetingName}
+                    {t('dashboard.welcome')} {username || greetingName}
                   </p>
-                  <div className="flex items-center gap-2 justify-end">
+                  {instituteData.email && (
+                    <p className="text-xs text-gray-500 dark:text-gray-500">{instituteData.email}</p>
+                  )}
+                  <div className="flex items-center gap-2 justify-end mt-1" style={{ direction: 'ltr' }}>
                     <p className="text-xs text-gray-500 dark:text-gray-500">
                       {subscriptionLabel}
                     </p>
@@ -1017,83 +1581,6 @@ const EnhancedDashboard = () => {
                       </span>
                     )}
                   </div>
-                </div>
-                
-                {/* Notification Button */}
-                <div className="relative" ref={notificationRef}>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setShowNotifications(!showNotifications)}
-                    className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors"
-                  >
-                    <FaBell className="text-gray-600 dark:text-gray-400 text-xl" />
-                    {notifications.filter(n => !n.read).length > 0 && (
-                      <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
-                        {notifications.filter(n => !n.read).length}
-                      </span>
-                    )}
-                  </motion.button>
-
-                  {/* Notification Popup */}
-                  <AnimatePresence>
-                    {showNotifications && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                        className="absolute right-0 mt-2 w-80 bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-700 overflow-hidden z-50"
-                      >
-                        <div className="p-4 border-b border-gray-200 dark:border-navy-700 flex items-center justify-between">
-                          <h3 className="font-bold text-gray-800 dark:text-white">{t('nav.notifications')}</h3>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">
-                            {notifications.filter(n => !n.read).length} new
-                          </span>
-                        </div>
-                        <div className="max-h-96 overflow-y-auto">
-                          {notifications.length === 0 ? (
-                            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                              {t('nav.noNotifications')}
-                            </div>
-                          ) : (
-                            notifications.map((notification) => (
-                              <motion.div
-                                key={notification.id}
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                className={`p-4 border-b border-gray-100 dark:border-navy-700 hover:bg-gray-50 dark:hover:bg-navy-900 transition-colors cursor-pointer ${
-                                  !notification.read ? 'bg-primary-50 dark:bg-primary-900/20' : ''
-                                }`}
-                                onClick={() => setShowNotifications(false)}
-                              >
-                                <div className="flex items-start gap-3">
-                                  <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                                    !notification.read ? 'bg-primary-600' : 'bg-transparent'
-                                  }`} />
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-semibold text-sm text-gray-800 dark:text-white mb-1">
-                                      {notification.title}
-                                    </h4>
-                                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">
-                                      {notification.message}
-                                    </p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-500">
-                                      {notification.time}
-                                    </p>
-                                  </div>
-                                </div>
-                              </motion.div>
-                            ))
-                          )}
-                        </div>
-                        <div className="p-3 border-t border-gray-200 dark:border-navy-700 text-center">
-                          <button className="text-sm text-primary-600 dark:text-teal-400 hover:underline font-medium">
-                            {t('nav.viewAllNotifications')}
-                          </button>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </div>
 
                 <motion.button
@@ -1167,70 +1654,178 @@ const EnhancedDashboard = () => {
           </div>
         </nav>
 
-        {/* Floating Action Buttons - Bottom Right Corner */}
-        <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3 z-40">
-          {/* New Post Button */}
-          <div className="relative group">
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => checkVerificationAndOpen('new_post')}
-              className="h-14 w-14 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all relative z-10"
-            >
-              <FaNewspaper className="w-6 h-6" />
-            </motion.button>
-            <div className="absolute right-0 top-0 h-14 bg-gradient-to-r from-purple-600 to-purple-700 rounded-full shadow-lg flex items-center pr-16 pl-6 overflow-hidden pointer-events-none w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300 ease-out">
-              <span className="whitespace-nowrap font-semibold text-sm text-white">
-                {t('dashboard.newPost')}
-              </span>
-            </div>
-          </div>
+        {/* Floating Action Menu - Bottom Right Corner */}
+        <div 
+          className="fixed bottom-6 right-6 z-40"
+          onMouseEnter={() => {
+            setIsMenuExpanded(true);
+            // Clear any existing timeout
+            if (menuTimeoutRef.current) {
+              clearTimeout(menuTimeoutRef.current);
+            }
+          }}
+          onMouseLeave={() => {
+            setIsMenuExpanded(false);
+            // Clear timeout on mouse leave
+            if (menuTimeoutRef.current) {
+              clearTimeout(menuTimeoutRef.current);
+            }
+          }}
+        >
+          <div className="flex flex-col items-end gap-4">
+            {/* Expanded Menu Buttons - Vertical Layout (Stacking from bottom to top) */}
+            <AnimatePresence>
+              {isMenuExpanded && (
+                <>
+                  {/* Applications Button - Top (appears last) */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 50, scale: 0.5 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 50, scale: 0.5 }}
+                    transition={{ duration: 0.3, delay: 0.4 }}
+                    className="relative group"
+                  >
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleOpenApplications}
+                      className="h-14 w-14 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all relative z-10"
+                    >
+                      <FaClipboardList className="w-6 h-6" />
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleOpenApplications}
+                      className="absolute right-16 top-0 h-14 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 rounded-full shadow-lg flex items-center pr-4 pl-6 whitespace-nowrap cursor-pointer"
+                    >
+                      <span className="font-semibold text-sm text-white">
+                        {t('dashboard.applications') || 'Applications'}
+                      </span>
+                    </motion.button>
+                  </motion.div>
 
-          {/* Create Course Button */}
-          <div className="relative group">
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => checkVerificationAndOpen('create')}
-              className="h-14 w-14 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-500 hover:to-primary-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all relative z-10"
-            >
-              <FaPlus className="w-6 h-6" />
-            </motion.button>
-            <div className="absolute right-0 top-0 h-14 bg-gradient-to-r from-primary-600 to-primary-700 rounded-full shadow-lg flex items-center pr-16 pl-6 overflow-hidden pointer-events-none w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300 ease-out">
-              <span className="whitespace-nowrap font-semibold text-sm text-white">
-                {t('dashboard.createNewCourse')}
-              </span>
-            </div>
-          </div>
+                  {/* Create Job Post Button */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 50, scale: 0.5 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 50, scale: 0.5 }}
+                    transition={{ duration: 0.3, delay: 0.3 }}
+                    className="relative group"
+                  >
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => checkVerificationAndOpen('job_post')}
+                      className="h-14 w-14 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all relative z-10"
+                    >
+                      <FaSuitcase className="w-6 h-6" />
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => checkVerificationAndOpen('job_post')}
+                      className="absolute right-20 top-0 h-14 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600 rounded-full shadow-lg flex items-center pr-4 pl-6 whitespace-nowrap cursor-pointer z-0"
+                    >
+                      <span className="font-semibold text-sm text-white">
+                        {t('dashboard.createJobPost') || 'Create Job Post'}
+                      </span>
+                    </motion.button>
+                  </motion.div>
 
-          {/* Edit Courses Button */}
-          <div className="relative group">
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => checkVerificationAndOpen('edit')}
-              className="h-14 w-14 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all relative z-10"
-            >
-              <FaEdit className="w-6 h-6" />
-            </motion.button>
-            <div className="absolute right-0 top-0 h-14 bg-gradient-to-r from-teal-600 to-teal-700 rounded-full shadow-lg flex items-center pr-16 pl-6 overflow-hidden pointer-events-none w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300 ease-out">
-              <span className="whitespace-nowrap font-semibold text-sm text-white">
-                {t('dashboard.editCurrentCourses')}
-              </span>
-            </div>
-          </div>
+                  {/* Edit Courses Button */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 50, scale: 0.5 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 50, scale: 0.5 }}
+                    transition={{ duration: 0.3, delay: 0.2 }}
+                    className="relative group"
+                  >
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => checkVerificationAndOpen('edit')}
+                      className="h-14 w-14 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all relative z-10"
+                    >
+                      <FaEdit className="w-6 h-6" />
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => checkVerificationAndOpen('edit')}
+                      className="absolute right-20 top-0 h-14 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 rounded-full shadow-lg flex items-center pr-4 pl-6 whitespace-nowrap cursor-pointer z-0"
+                    >
+                      <span className="font-semibold text-sm text-white">
+                        {t('dashboard.editCurrentCourses')}
+                      </span>
+                    </motion.button>
+                  </motion.div>
 
-          {/* Create Job Post Button */}
-          <div className="relative group">
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => checkVerificationAndOpen('job_post')}
-              className="h-14 w-14 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all relative z-10"
+                  {/* Create Course Button */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 50, scale: 0.5 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 50, scale: 0.5 }}
+                    transition={{ duration: 0.3, delay: 0.1 }}
+                    className="relative group"
+                  >
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => checkVerificationAndOpen('create')}
+                      className="h-14 w-14 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-500 hover:to-primary-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all relative z-10"
+                    >
+                      <FaPlus className="w-6 h-6" />
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => checkVerificationAndOpen('create')}
+                      className="absolute right-20 top-0 h-14 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-500 hover:to-primary-600 rounded-full shadow-lg flex items-center pr-4 pl-6 whitespace-nowrap cursor-pointer z-0"
+                    >
+                      <span className="font-semibold text-sm text-white">
+                        {t('dashboard.createNewCourse')}
+                      </span>
+                    </motion.button>
+                  </motion.div>
+
+                  {/* New Post Button - Bottom (appears first) */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 50, scale: 0.5 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 50, scale: 0.5 }}
+                    transition={{ duration: 0.3, delay: 0 }}
+                    className="relative group"
+                  >
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => checkVerificationAndOpen('new_post')}
+                      className="h-14 w-14 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all relative z-10"
+                    >
+                      <FaNewspaper className="w-6 h-6" />
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => checkVerificationAndOpen('new_post')}
+                      className="absolute right-20 top-0 h-14 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 rounded-full shadow-lg flex items-center pr-4 pl-6 whitespace-nowrap cursor-pointer z-0"
+                    >
+                      <span className="font-semibold text-sm text-white">
+                        {t('dashboard.newPost')}
+                      </span>
+                    </motion.button>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+
+            {/* Main Menu Button */}
+            <motion.div
+              animate={{ rotate: isMenuExpanded ? 90 : 0 }}
+              transition={{ duration: 0.3 }}
+              className="relative"
             >
-              <FaSuitcase className="w-6 h-6" />
-            </motion.button>
-            <div className="absolute right-0 top-0 h-14 bg-gradient-to-r from-orange-600 to-orange-700 rounded-full shadow-lg flex items-center pr-16 pl-6 overflow-hidden pointer-events-none w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300 ease-out">
-              <span className="whitespace-nowrap font-semibold text-sm text-white">
-                {t('dashboard.createJobPost') || 'Create Job Post'}
-              </span>
-            </div>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                className="h-16 w-16 text-white rounded-full shadow-xl flex items-center justify-center transition-all relative z-20"
+                style={{ backgroundColor: '#52988E' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#4a8980'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#52988E'}
+              >
+                <FaBars className="w-7 h-7" />
+              </motion.button>
+            </motion.div>
           </div>
         </div>
       </div>
@@ -1290,6 +1885,7 @@ const EnhancedDashboard = () => {
         isOpen={showCreateCourseModal}
         onClose={() => setShowCreateCourseModal(false)}
         title={t('dashboard.createNewCourse')}
+        size="xl"
       >
         <form onSubmit={handleCreateCourse} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1365,7 +1961,8 @@ const EnhancedDashboard = () => {
               </label>
               <select
                 name="level"
-                value={createForm.level}
+                value={createForm.level || 'beginner'}
+                defaultValue="beginner"
                 onChange={handleCreateChange}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
                 required
@@ -1376,56 +1973,214 @@ const EnhancedDashboard = () => {
               </select>
             </div>
 
-            {/* Lecturer - Required */}
-            <div>
+            {/* Lecturer Username Search - Required */}
+            <div className="md:col-span-2">
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                {t('dashboard.lecturer') || 'Lecturer'} *
+                {t('dashboard.lecturerUsername') || 'Lecturer Username'} *
               </label>
-              <select
-                name="lecturer"
-                value={createForm.lecturer}
-                onChange={handleCreateChange}
-                disabled={isLoadingLecturers}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                required
-              >
-                <option value="">{isLoadingLecturers ? t('common.loading') : t('dashboard.selectLecturer') || 'Select Lecturer'}</option>
-                {lecturers.map((lecturer) => (
-                  <option key={lecturer.id} value={lecturer.id}>
-                    {lecturer.first_name} {lecturer.last_name} {lecturer.specialty ? `- ${lecturer.specialty}` : ''}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  name="lecturer_username"
+                  value={createForm.lecturer_username}
+                  onChange={handleCreateChange}
+                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                  placeholder={t('dashboard.enterLecturerUsername') || 'Type username to search automatically...'}
+                />
+                {isSearchingLecturer && (
+                  <div className="px-4 py-3 flex items-center">
+                    <div className="w-5 h-5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleMarkedLecturerSelect(e.target.value);
+                      e.target.value = '';
+                    }
+                  }}
+                  value=""
+                  disabled={isLoadingMarkedLecturers}
+                  className="px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed min-w-[200px]"
+                >
+                  <option value="">{isLoadingMarkedLecturers ? t('common.loading') : t('dashboard.markedLecturers') || 'Marked Lecturers'}</option>
+                  {markedLecturers.map((lecturer) => (
+                    <option key={lecturer.id} value={lecturer.id}>
+                      {lecturer.full_name || `${lecturer.first_name || ''} ${lecturer.last_name || ''}`.trim()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Added Lecturers List */}
+              {createForm.lecturers.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {t('dashboard.addedLecturers') || 'Added Lecturers'} ({createForm.lecturers.length})
+                  </p>
+                  {createForm.lecturers.map((lecturer) => (
+                    <motion.div
+                      key={lecturer.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      className={`p-4 rounded-lg border-2 ${
+                        lecturer.checking
+                          ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700'
+                          : lecturer.available === true
+                          ? 'bg-green-50 dark:bg-green-900/20 border-green-500'
+                          : lecturer.available === false
+                          ? 'bg-red-50 dark:bg-red-900/20 border-red-500'
+                          : 'bg-gray-50 dark:bg-gray-900/20 border-gray-300 dark:border-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-12 h-12 bg-primary-100 dark:bg-primary-800 rounded-full flex items-center justify-center">
+                          <span className="text-primary-600 dark:text-primary-300 font-bold text-lg">
+                            {lecturer.first_name?.charAt(0) || 'L'}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-gray-900 dark:text-white font-semibold">
+                            {lecturer.full_name}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            @{lecturer.username} • {t('dashboard.lecturerId') || 'ID'}: {lecturer.id}
+                          </p>
+                          {lecturer.specialty && (
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              {lecturer.specialty}
+                            </p>
+                          )}
+                          <div className="mt-2 flex items-center gap-2">
+                            {lecturer.checking ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                <span className="text-sm text-blue-600 dark:text-blue-400">
+                                  {lecturer.message}
+                                </span>
+                              </>
+                            ) : lecturer.available === true ? (
+                              <>
+                                <span className="text-2xl">✅</span>
+                                <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                                  {lecturer.message}
+                                </span>
+                              </>
+                            ) : lecturer.available === false ? (
+                              <>
+                                <span className="text-2xl">❌</span>
+                                <span className="text-sm font-medium text-red-700 dark:text-red-300">
+                                  {lecturer.message}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {lecturer.message}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <motion.button
+                          type="button"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => removeLecturer(lecturer.id)}
+                          className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          title={t('common.remove') || 'Remove'}
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Start Time - Required */}
+            {/* Capacity - Optional */}
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                {t('dashboard.startTime') || 'Start Time'} * (HH:MM)
+                {t('dashboard.capacity') || 'Capacity'} ({t('common.optional') || 'Optional'})
               </label>
               <input
-                type="time"
-                name="start_time"
-                value={createForm.start_time}
+                type="number"
+                name="capacity"
+                value={createForm.capacity}
                 onChange={handleCreateChange}
+                min="1"
+                step="1"
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                required
+                placeholder={t('dashboard.capacityPlaceholder') || 'e.g. 30'}
               />
             </div>
 
-            {/* End Time - Required */}
+            {/* Start Time - Required (12-hour format with AM/PM) */}
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                {t('dashboard.endTime') || 'End Time'} * (HH:MM)
+                {t('dashboard.startTime') || 'Start Time'} * (HH:MM AM/PM)
               </label>
-              <input
-                type="time"
-                name="end_time"
-                value={createForm.end_time}
-                onChange={handleCreateChange}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                required
-              />
+              <div className="flex gap-2 items-center">
+                <input
+                  type="time"
+                  onChange={(e) => {
+                    // Convert 24-hour format from time input to 12-hour format (HH:MM AM/PM)
+                    const time24 = e.target.value;
+                    if (time24) {
+                      const [hours, minutes] = time24.split(':');
+                      const hour12 = parseInt(hours);
+                      const period = hour12 >= 12 ? 'PM' : 'AM';
+                      const hour12Formatted = hour12 % 12 || 12;
+                      const time12h = `${hour12Formatted.toString().padStart(2, '0')}:${minutes} ${period}`;
+                      setCreateForm(prev => ({ ...prev, start_time: time12h }));
+                    } else {
+                      setCreateForm(prev => ({ ...prev, start_time: '' }));
+                    }
+                  }}
+                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                  required
+                />
+                {createForm.start_time && (
+                  <div className="px-4 py-3 bg-gray-100 dark:bg-navy-600 rounded-lg text-gray-700 dark:text-gray-300 flex items-center min-w-[120px] justify-center font-medium">
+                    {createForm.start_time}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* End Time - Required (12-hour format with AM/PM) */}
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                {t('dashboard.endTime') || 'End Time'} * (HH:MM AM/PM)
+              </label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="time"
+                  onChange={(e) => {
+                    // Convert 24-hour format from time input to 12-hour format (HH:MM AM/PM)
+                    const time24 = e.target.value;
+                    if (time24) {
+                      const [hours, minutes] = time24.split(':');
+                      const hour12 = parseInt(hours);
+                      const period = hour12 >= 12 ? 'PM' : 'AM';
+                      const hour12Formatted = hour12 % 12 || 12;
+                      const time12h = `${hour12Formatted.toString().padStart(2, '0')}:${minutes} ${period}`;
+                      setCreateForm(prev => ({ ...prev, end_time: time12h }));
+                    } else {
+                      setCreateForm(prev => ({ ...prev, end_time: '' }));
+                    }
+                  }}
+                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                  required
+                />
+                {createForm.end_time && (
+                  <div className="px-4 py-3 bg-gray-100 dark:bg-navy-600 rounded-lg text-gray-700 dark:text-gray-300 flex items-center min-w-[120px] justify-center font-medium">
+                    {createForm.end_time}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1479,6 +2234,15 @@ const EnhancedDashboard = () => {
               onChange={handleCreateChange}
               className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-navy-800 dark:file:text-teal-400"
             />
+            {createCourseImagePreview && (
+              <div className="mt-3">
+                <img
+                  src={createCourseImagePreview}
+                  alt="Course Preview"
+                  className="w-full max-w-[200px] h-auto object-cover rounded-lg border-2 border-primary-500 shadow-md"
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -1503,12 +2267,24 @@ const EnhancedDashboard = () => {
         onClose={() => {
           setShowEditCoursesModal(false);
           setSelectedCourse(null);
+          setEditCourseImagePreview(null); // Reset image preview
         }}
         title={selectedCourse ? t('dashboard.editCourse') : t('dashboard.manageCourses')}
       >
         {!selectedCourse ? (
           <div className="space-y-3">
-            {courses.length === 0 ? (
+            {isLoadingCourses ? (
+              <div className="text-center py-12">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  className="w-10 h-10 border-4 border-teal-200 dark:border-teal-800 border-t-teal-600 dark:border-t-teal-400 rounded-full mx-auto mb-4"
+                />
+                <p className="text-gray-600 dark:text-gray-400">
+                  {t('dashboard.loadingCourses') || 'Loading courses...'}
+                </p>
+              </div>
+            ) : courses.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-gray-500 dark:text-gray-400">
                   {t('dashboard.noCourses')}
@@ -1523,12 +2299,25 @@ const EnhancedDashboard = () => {
                   onClick={() => handleEditCourse(course)}
                 >
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="flex-1">
                       <h4 className="font-bold text-gray-800 dark:text-white">{course.title}</h4>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{course.code}</p>
+                      {course.level && (
+                        <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-semibold ${
+                          course.level === 'beginner' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' :
+                          course.level === 'intermediate' ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' :
+                          'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300'
+                        }`}>
+                          {course.level}
+                        </span>
+                      )}
+                      {course.starting_date && course.ending_date && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {course.starting_date} - {course.ending_date}
+                        </p>
+                      )}
                     </div>
                     <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-sm font-semibold">
-                      ${course.price}
+                      ${parseFloat(course.price).toFixed(2)}
                     </span>
                   </div>
                 </motion.div>
@@ -1538,7 +2327,8 @@ const EnhancedDashboard = () => {
         ) : (
           <form onSubmit={handleUpdateCourse} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+              {/* Title */}
+              <div className="md:col-span-2">
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
                   {t('dashboard.courseTitle')} *
                 </label>
@@ -1552,59 +2342,55 @@ const EnhancedDashboard = () => {
                 />
               </div>
 
+              {/* Starting Date */}
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  {t('dashboard.courseCode')} *
+                  {t('dashboard.startingDate')} *
                 </label>
                 <input
-                  type="text"
-                  name="code"
-                  value={editForm.code}
+                  type="date"
+                  name="starting_date"
+                  value={editForm.starting_date}
                   onChange={handleEditChange}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
                   required
                 />
               </div>
 
+              {/* Ending Date */}
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  {t('dashboard.credits')}
+                  {t('dashboard.endingDate')} *
                 </label>
                 <input
-                  type="number"
-                  name="credits"
-                  value={editForm.credits}
+                  type="date"
+                  name="ending_date"
+                  value={editForm.ending_date}
                   onChange={handleEditChange}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                  required
                 />
               </div>
 
+              {/* Level */}
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  {t('dashboard.duration')}
+                  {t('dashboard.courseLevel')} *
                 </label>
-                <input
-                  type="text"
-                  name="duration"
-                  value={editForm.duration}
+                <select
+                  name="level"
+                  value={editForm.level}
                   onChange={handleEditChange}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                />
+                  required
+                >
+                  <option value="beginner">{t('dashboard.beginner') || 'Beginner'}</option>
+                  <option value="intermediate">{t('dashboard.intermediate') || 'Intermediate'}</option>
+                  <option value="advanced">{t('dashboard.advanced') || 'Advanced'}</option>
+                </select>
               </div>
 
-              <div>
-                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                  {t('dashboard.capacity')}
-                </label>
-                <input
-                  type="number"
-                  name="capacity"
-                  value={editForm.capacity}
-                  onChange={handleEditChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                />
-              </div>
-
+              {/* Price */}
               <div>
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
                   {t('dashboard.price')} *
@@ -1614,44 +2400,66 @@ const EnhancedDashboard = () => {
                   name="price"
                   value={editForm.price}
                   onChange={handleEditChange}
+                  step="0.01"
+                  min="0"
                   className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
                   required
                 />
               </div>
             </div>
 
+            {/* About/Description */}
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                {t('dashboard.description')}
+                {t('dashboard.aboutCourse')}
               </label>
               <textarea
-                name="description"
-                value={editForm.description}
+                name="about"
+                value={editForm.about}
                 onChange={handleEditChange}
                 rows="4"
                 className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white resize-none"
+                placeholder={t('dashboard.aboutCoursePlaceholder') || 'Enter course description...'}
               />
             </div>
 
+            {/* Course Image */}
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                {t('dashboard.courseImage')} ({t('common.optional') || 'Optional'})
+              </label>
+              <input
+                type="file"
+                name="course_image"
+                onChange={handleEditChange}
+                accept="image/*"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+              />
+              {editCourseImagePreview && (
+                <div className="mt-3">
+                  <img
+                    src={editCourseImagePreview}
+                    alt="Course Preview"
+                    className="w-full max-w-[200px] h-auto object-cover rounded-lg border-2 border-primary-500 shadow-md"
+                  />
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-3 pt-4">
-              <AnimatedButton type="submit" className="flex-1">
-                {t('dashboard.updateCourse')}
+              <AnimatedButton type="submit" disabled={isUpdatingCourse} className="flex-1">
+                {isUpdatingCourse ? (t('common.updating') || 'Updating...') : (t('dashboard.updateCourse') || 'Update Course')}
               </AnimatedButton>
               <AnimatedButton
                 type="button"
                 variant="secondary"
-                onClick={() => handleDeleteCourse(selectedCourse.id)}
-                className="flex-1 bg-red-600 hover:bg-red-500"
-              >
-                {t('dashboard.deleteCourse')}
-              </AnimatedButton>
-              <AnimatedButton
-                type="button"
-                variant="secondary"
-                onClick={() => setSelectedCourse(null)}
+                onClick={() => {
+                  setSelectedCourse(null);
+                  setEditCourseImagePreview(null); // Reset image preview
+                }}
                 className="flex-1"
               >
-                {t('common.back')}
+                {t('common.back') || 'Back'}
               </AnimatedButton>
             </div>
           </form>
@@ -1891,6 +2699,243 @@ const EnhancedDashboard = () => {
       <ProfileModal 
         isOpen={showProfileModal} 
         onClose={() => setShowProfileModal(false)} 
+      />
+
+      {/* Lecturer Conflict Modal */}
+      <AnimatePresence>
+        {showLecturerConflictModal && lecturerConflict && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => {
+              setShowLecturerConflictModal(false);
+              setLecturerConflict(null);
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-navy-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-red-500 to-orange-500 p-6 text-center">
+                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FaInfoCircle className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-white">
+                  {t('dashboard.lecturerScheduleConflict') || 'Lecturer Schedule Conflict'}
+                </h3>
+              </div>
+
+              {/* Content */}
+              <div className="p-6">
+                <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
+                  {t('dashboard.lecturerConflictMessage') || 'The lecturer is not available at the requested time due to a scheduling conflict with another course.'}
+                </p>
+
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+                  <h4 className="font-semibold text-gray-800 dark:text-white mb-3">
+                    {t('dashboard.conflictingCourse') || 'Conflicting Course:'}
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <p className="text-gray-700 dark:text-gray-300">
+                      <span className="font-medium">{t('dashboard.course') || 'Course'}:</span> {lecturerConflict.course_title}
+                    </p>
+                    <p className="text-gray-700 dark:text-gray-300">
+                      <span className="font-medium">{t('dashboard.institution') || 'Institution'}:</span> {lecturerConflict.institution}
+                    </p>
+                    {lecturerConflict.institution_username && (
+                      <p className="text-gray-700 dark:text-gray-300">
+                        <span className="font-medium">{t('dashboard.institutionUsername') || 'Institution Username'}:</span> @{lecturerConflict.institution_username}
+                      </p>
+                    )}
+                    <p className="text-gray-700 dark:text-gray-300">
+                      <span className="font-medium">{t('dashboard.day') || 'Day'}:</span> {lecturerConflict.day}
+                    </p>
+                    <p className="text-gray-700 dark:text-gray-300">
+                      <span className="font-medium">{t('dashboard.time') || 'Time'}:</span> {lecturerConflict.time}
+                    </p>
+                  </div>
+                </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setShowLecturerConflictModal(false);
+                    setLecturerConflict(null);
+                  }}
+                  className="w-full px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-medium transition-colors"
+                >
+                  {t('common.close') || 'Close'}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Applications Modal */}
+      <Modal
+        isOpen={showApplicationsModal}
+        onClose={() => {
+          setShowApplicationsModal(false);
+          setSelectedJobId(null);
+          setApplications([]);
+        }}
+        title={t('dashboard.applications') || 'Job Applications'}
+      >
+        <div className="space-y-6">
+          {/* Job Selection */}
+          {!selectedJobId && (
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-3">
+                {t('dashboard.selectJob') || 'Select a Job Post'}
+              </label>
+              {isLoadingJobs ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 dark:border-teal-400"></div>
+                  <p className="ml-3 text-gray-600 dark:text-gray-400">{t('common.loading')}</p>
+                </div>
+              ) : jobPosts.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <p>{t('dashboard.noJobPosts') || 'No job posts available. Create a job post first.'}</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {jobPosts.map((job) => (
+                    <motion.button
+                      key={job.id}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => fetchApplications(job.id)}
+                      className="w-full p-4 bg-gray-50 dark:bg-navy-700 rounded-lg border border-gray-200 dark:border-navy-600 hover:border-primary-500 dark:hover:border-teal-400 transition-colors text-left"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-semibold text-gray-800 dark:text-white">{job.title}</h4>
+                          {job.specialty && (
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              {job.specialty}
+                            </p>
+                          )}
+                        </div>
+                        <FaChevronRight className="text-gray-400 dark:text-gray-500" />
+                      </div>
+                    </motion.button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Applications List */}
+          {selectedJobId && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <button
+                  onClick={() => {
+                    setSelectedJobId(null);
+                    setApplications([]);
+                  }}
+                  className="flex items-center gap-2 text-primary-600 dark:text-teal-400 hover:underline text-sm font-medium"
+                >
+                  <FaChevronRight className="rotate-180" />
+                  {t('common.back') || 'Back'}
+                </button>
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                  {t('dashboard.applications') || 'Applications'}
+                </h3>
+              </div>
+
+              {isLoadingApplications ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 dark:border-teal-400"></div>
+                  <p className="ml-3 text-gray-600 dark:text-gray-400">{t('common.loading')}</p>
+                </div>
+              ) : applications.length === 0 ? (
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  <FaClipboardList className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <p>{t('dashboard.noApplications') || 'No applications for this job post yet.'}</p>
+                </div>
+              ) : (
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {applications.map((application) => (
+                    <motion.div
+                      key={application.application_id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-4 bg-gray-50 dark:bg-navy-700 rounded-lg border border-gray-200 dark:border-navy-600"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h4 className="font-semibold text-gray-800 dark:text-white">
+                            {application.first_name} {application.last_name}
+                          </h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            {application.specialty} • {application.experience} {t('dashboard.yearsExperience') || 'years experience'}
+                          </p>
+                        </div>
+                        <span className="text-xs text-gray-500 dark:text-gray-500">
+                          {new Date(application.applied_at).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      {application.skills && (
+                        <div className="mb-3">
+                          <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">
+                            {t('dashboard.skills') || 'Skills'}:
+                          </p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{application.skills}</p>
+                        </div>
+                      )}
+
+                      {application.message && (
+                        <div className="mb-3">
+                          <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">
+                            {t('dashboard.message') || 'Message'}:
+                          </p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                            {application.message}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-4 pt-3 border-t border-gray-200 dark:border-navy-600">
+                        {application.email && (
+                          <a
+                            href={`mailto:${application.email}`}
+                            className="text-sm text-primary-600 dark:text-teal-400 hover:underline"
+                          >
+                            {application.email}
+                          </a>
+                        )}
+                        {application.phone_number && (
+                          <a
+                            href={`tel:${application.phone_number}`}
+                            className="text-sm text-primary-600 dark:text-teal-400 hover:underline"
+                          >
+                            {application.phone_number}
+                          </a>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Keyboard Shortcuts Help Modal */}
+      <KeyboardShortcutsHelp 
+        isOpen={showKeyboardHelp} 
+        onClose={() => setShowKeyboardHelp(false)} 
       />
     </div>
   );

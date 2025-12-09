@@ -7,6 +7,12 @@ import {
   FaUserGraduate,
   FaSync,
   FaExclamationTriangle,
+  FaTimes,
+  FaEnvelope,
+  FaPhone,
+  FaMapMarkerAlt,
+  FaIdCard,
+  FaHome,
 } from 'react-icons/fa';
 import { useTranslation } from 'react-i18next';
 import Card from '../../components/Card';
@@ -14,8 +20,23 @@ import { studentsData } from '../../data/enhancedDemoData';
 import { ListEmptyState, TableSkeleton } from '../../components/Skeleton';
 import { authService } from '../../services/authService';
 import { useInstitute } from '../../context/InstituteContext';
+import Modal from '../../components/Modal';
+import toast from 'react-hot-toast';
+import VerificationLock from '../../components/VerificationLock';
 
 const DEFAULT_PAGE_SIZE = 10;
+
+// Helper function to convert relative image URLs to full URLs
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
+  let cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+  cleanPath = cleanPath.replace(/^\/media\/media\//, '/media/');
+  return `${baseUrl}${cleanPath}`;
+};
 
 const parseApiStudent = (student) => ({
   id: student.id,
@@ -34,7 +55,6 @@ const Students = () => {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [filterGrade, setFilterGrade] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isRemote, setIsRemote] = useState(false);
@@ -45,14 +65,12 @@ const Students = () => {
     previous: null,
     currentPage: 1,
   });
-
-  const grades = useMemo(
-    () => ['all', ...new Set(studentsData.map((s) => s.grade || '—'))],
-    []
-  );
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
 
   const fetchStudents = useCallback(
-    async ({ page = 1, status = filterStatus, grade = filterGrade, search = searchTerm } = {}) => {
+    async ({ page = 1, status = filterStatus, search = searchTerm } = {}) => {
       if (!instituteData.accessToken) {
         return;
       }
@@ -64,9 +82,6 @@ const Students = () => {
       params.set('page', page);
       if (status !== 'all') {
         params.set('active', status === 'Active' ? 'true' : 'false');
-      }
-      if (grade !== 'all') {
-        params.set('studying_level', grade);
       }
       if (search.trim()) {
         params.set('search', search.trim());
@@ -108,12 +123,11 @@ const Students = () => {
         const fallback = studentsData
           .filter((student) => {
             const matchesStatus = status === 'all' || student.status === status;
-            const matchesGrade = grade === 'all' || student.grade === grade;
             const matchesSearch =
               student.name.toLowerCase().includes(search.toLowerCase()) ||
               student.id.toLowerCase().includes(search.toLowerCase()) ||
               student.email.toLowerCase().includes(search.toLowerCase());
-            return matchesStatus && matchesGrade && matchesSearch;
+            return matchesStatus && matchesSearch;
           })
           .slice(0, DEFAULT_PAGE_SIZE);
         setStudents(fallback);
@@ -128,7 +142,7 @@ const Students = () => {
         setIsLoading(false);
       }
     },
-    [filterGrade, filterStatus, instituteData.accessToken, instituteData.refreshToken, searchTerm, updateInstituteData, clearInstituteData, navigate]
+    [filterStatus, instituteData.accessToken, instituteData.refreshToken, searchTerm, updateInstituteData, clearInstituteData, navigate]
   );
 
   useEffect(() => {
@@ -137,11 +151,11 @@ const Students = () => {
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      fetchStudents({ page: 1, search: searchTerm });
+      fetchStudents({ page: 1, search: searchTerm, status: filterStatus });
     }, 400);
 
     return () => clearTimeout(handler);
-  }, [searchTerm, fetchStudents]);
+  }, [searchTerm, filterStatus, fetchStudents]);
 
   const filteredStudents = useMemo(() => {
     return students.filter((student) => {
@@ -154,11 +168,61 @@ const Students = () => {
         filterStatus === 'all' ||
         (filterStatus === 'Active' && student.active) ||
         (filterStatus === 'Inactive' && !student.active);
-      const matchesGrade = filterGrade === 'all' || student.studyingLevel === filterGrade;
 
-      return matchesSearch && matchesStatus && matchesGrade;
+      return matchesSearch && matchesStatus;
     });
-  }, [students, searchTerm, filterStatus, filterGrade]);
+  }, [students, searchTerm, filterStatus]);
+
+  const handleStudentClick = async (student) => {
+    if (!student.id) {
+      toast.error(t('dashboard.studentsPage.noStudentId') || 'Student ID not available');
+      return;
+    }
+
+    setShowProfileModal(true);
+    setIsLoadingProfile(true);
+    setSelectedStudent(null);
+
+    try {
+      const options = {
+        refreshToken: instituteData.refreshToken,
+        onTokenRefreshed: (tokens) =>
+          updateInstituteData({
+            accessToken: tokens.access,
+            refreshToken: tokens.refresh || instituteData.refreshToken,
+          }),
+        onSessionExpired: () => {
+          toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+          clearInstituteData();
+          navigate('/login', { replace: true });
+        },
+      };
+
+      const response = await authService.getInstitutionStudentProfile(
+        instituteData.accessToken,
+        student.id,
+        options
+      );
+
+      if (response?.success && response?.data) {
+        setSelectedStudent(response.data);
+      } else {
+        toast.error(response?.message || t('dashboard.studentsPage.failedToLoadProfile') || 'Failed to load student profile');
+        setShowProfileModal(false);
+      }
+    } catch (error) {
+      console.error('Error fetching student profile:', error);
+      toast.error(error?.message || t('dashboard.studentsPage.failedToLoadProfile') || 'Failed to load student profile');
+      setShowProfileModal(false);
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  };
+
+  // Show verification lock if not verified
+  if (!instituteData.isVerified) {
+    return <VerificationLock />;
+  }
 
   return (
     <div className="space-y-6">
@@ -193,32 +257,13 @@ const Students = () => {
               onChange={(e) => {
                 const status = e.target.value;
                 setFilterStatus(status);
-                fetchStudents({ page: 1, status });
+                fetchStudents({ page: 1, status, search: searchTerm });
               }}
               className="px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
             >
               <option value="all">{t('dashboard.studentsPage.allStatus')}</option>
               <option value="Active">{t('dashboard.studentsPage.active')}</option>
               <option value="Inactive">{t('dashboard.studentsPage.inactive')}</option>
-            </select>
-          </div>
-
-          {/* Grade Filter */}
-          <div>
-            <select
-              value={filterGrade}
-              onChange={(e) => {
-                const grade = e.target.value;
-                setFilterGrade(grade);
-                fetchStudents({ page: 1, grade });
-              }}
-              className="px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-            >
-              {grades.map((grade) => (
-                <option key={grade} value={grade}>
-                  {grade === 'all' ? t('dashboard.studentsPage.allGrades') : grade}
-                </option>
-              ))}
             </select>
           </div>
 
@@ -262,12 +307,11 @@ const Students = () => {
             <table className="min-w-full">
               <thead className="bg-gradient-to-r from-primary-600 to-primary-700 dark:from-primary-700 dark:to-primary-800 text-white">
                 <tr>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">#</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.studentsPage.name')}</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.studentsPage.email')}</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.studentsPage.level')}</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.studentsPage.phone')}</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.studentsPage.status')}</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">{t('dashboard.studentsPage.id')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-navy-700">
@@ -281,7 +325,11 @@ const Students = () => {
                       transition={{ delay: index * 0.05 }}
                       whileHover={{ backgroundColor: 'rgba(59, 130, 246, 0.05)' }}
                       className="hover:shadow-md transition-all cursor-pointer"
+                      onClick={() => handleStudentClick(student)}
                     >
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300 font-medium">
+                        {((pagination.currentPage - 1) * DEFAULT_PAGE_SIZE) + index + 1}
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           {student.profileImage ? (
@@ -307,9 +355,6 @@ const Students = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                        {student.email}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                         {student.studyingLevel}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
@@ -325,9 +370,6 @@ const Students = () => {
                         >
                           {student.active ? t('dashboard.studentsPage.active') : t('dashboard.studentsPage.inactive')}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                        {student.id || '—'}
                       </td>
                     </motion.tr>
                   ))}
@@ -385,6 +427,167 @@ const Students = () => {
           </button>
         </div>
       </div>
+
+      {/* Student Profile Modal */}
+      <Modal
+        isOpen={showProfileModal}
+        onClose={() => {
+          setShowProfileModal(false);
+          setSelectedStudent(null);
+        }}
+        title={t('dashboard.studentsPage.studentProfile') || 'Student Profile'}
+        size="lg"
+      >
+        {isLoadingProfile ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="w-12 h-12 border-4 border-primary-200 dark:border-primary-800 border-t-primary-600 dark:border-t-primary-400 rounded-full animate-spin"></div>
+          </div>
+        ) : selectedStudent ? (
+          <div className="space-y-6">
+            {/* Header with Avatar */}
+            <div className="flex items-center gap-6 pb-6 border-b border-gray-200 dark:border-navy-700">
+              {selectedStudent.profile_image ? (
+                <img
+                  src={getImageUrl(selectedStudent.profile_image)}
+                  alt={`${selectedStudent.first_name} ${selectedStudent.last_name}`}
+                  className="w-24 h-24 rounded-full object-cover border-4 border-primary-200 dark:border-primary-800"
+                />
+              ) : (
+                <div className="w-24 h-24 bg-gradient-to-br from-primary-500 to-teal-500 rounded-full flex items-center justify-center">
+                  <FaUserGraduate className="text-white text-4xl" />
+                </div>
+              )}
+              <div className="flex-1">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {selectedStudent.first_name} {selectedStudent.last_name}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400">@{selectedStudent.username}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+                  {t('dashboard.studentsPage.studentId') || 'Student ID'}: {selectedStudent.id}
+                </p>
+              </div>
+            </div>
+
+            {/* Contact Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-navy-900 rounded-lg">
+                <FaEnvelope className="text-primary-600 dark:text-primary-400 mt-1" />
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('dashboard.studentsPage.email') || 'Email'}</p>
+                  <p className="text-gray-900 dark:text-white font-medium">{selectedStudent.email}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-navy-900 rounded-lg">
+                <FaPhone className="text-primary-600 dark:text-primary-400 mt-1" />
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('dashboard.studentsPage.phone') || 'Phone'}</p>
+                  <p className="text-gray-900 dark:text-white font-medium">{selectedStudent.phone_number || '—'}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-navy-900 rounded-lg">
+                <FaMapMarkerAlt className="text-primary-600 dark:text-primary-400 mt-1" />
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('dashboard.studentsPage.city') || 'City'}</p>
+                  <p className="text-gray-900 dark:text-white font-medium capitalize">{selectedStudent.city || '—'}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-navy-900 rounded-lg">
+                <FaUserGraduate className="text-primary-600 dark:text-primary-400 mt-1" />
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('dashboard.studentsPage.studyingLevel') || 'Studying Level'}</p>
+                  <p className="text-gray-900 dark:text-white font-medium capitalize">{selectedStudent.studying_level || '—'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* About Section */}
+            {selectedStudent.about && (
+              <div className="p-4 bg-gray-50 dark:bg-navy-900 rounded-lg">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  {t('dashboard.studentsPage.about') || 'About'}
+                </h4>
+                <p className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{selectedStudent.about}</p>
+              </div>
+            )}
+
+            {/* Responsible Contact */}
+            {(selectedStudent.responsible_phone || selectedStudent.responsible_email) && (
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-3">
+                  {t('dashboard.studentsPage.responsibleContact') || 'Responsible Contact'}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {selectedStudent.responsible_phone && (
+                    <div className="flex items-center gap-2">
+                      <FaPhone className="text-blue-600 dark:text-blue-400" />
+                      <span className="text-gray-900 dark:text-white">{selectedStudent.responsible_phone}</span>
+                    </div>
+                  )}
+                  {selectedStudent.responsible_email && (
+                    <div className="flex items-center gap-2">
+                      <FaEnvelope className="text-blue-600 dark:text-blue-400" />
+                      <span className="text-gray-900 dark:text-white">{selectedStudent.responsible_email}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Interesting Keywords */}
+            {selectedStudent.interesting_keywords && (
+              <div className="p-4 bg-gray-50 dark:bg-navy-900 rounded-lg">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  {t('dashboard.studentsPage.interests') || 'Interests'}
+                </h4>
+                <p className="text-gray-600 dark:text-gray-400">{selectedStudent.interesting_keywords}</p>
+              </div>
+            )}
+
+            {/* Documents */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {selectedStudent.idcard_front && (
+                <div className="text-center">
+                  <div className="w-full h-24 bg-gray-100 dark:bg-navy-900 rounded-lg flex items-center justify-center mb-2 overflow-hidden">
+                    <img src={getImageUrl(selectedStudent.idcard_front)} alt="ID Front" className="w-full h-full object-cover" />
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{t('dashboard.studentsPage.idFront') || 'ID Front'}</p>
+                </div>
+              )}
+              {selectedStudent.idcard_back && (
+                <div className="text-center">
+                  <div className="w-full h-24 bg-gray-100 dark:bg-navy-900 rounded-lg flex items-center justify-center mb-2 overflow-hidden">
+                    <img src={getImageUrl(selectedStudent.idcard_back)} alt="ID Back" className="w-full h-full object-cover" />
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{t('dashboard.studentsPage.idBack') || 'ID Back'}</p>
+                </div>
+              )}
+              {selectedStudent.residence_front && (
+                <div className="text-center">
+                  <div className="w-full h-24 bg-gray-100 dark:bg-navy-900 rounded-lg flex items-center justify-center mb-2 overflow-hidden">
+                    <img src={getImageUrl(selectedStudent.residence_front)} alt="Residence Front" className="w-full h-full object-cover" />
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{t('dashboard.studentsPage.residenceFront') || 'Residence Front'}</p>
+                </div>
+              )}
+              {selectedStudent.residence_back && (
+                <div className="text-center">
+                  <div className="w-full h-24 bg-gray-100 dark:bg-navy-900 rounded-lg flex items-center justify-center mb-2 overflow-hidden">
+                    <img src={getImageUrl(selectedStudent.residence_back)} alt="Residence Back" className="w-full h-full object-cover" />
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{t('dashboard.studentsPage.residenceBack') || 'Residence Back'}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+            {t('dashboard.studentsPage.noProfileData') || 'No profile data available'}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

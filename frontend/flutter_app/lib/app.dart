@@ -8,6 +8,7 @@ import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/otp_screen.dart';
+import 'screens/feed_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'widgets/protected_route.dart';
 
@@ -52,7 +53,8 @@ class MyApp extends StatelessWidget {
           themeMode: themeProvider.isDark ? ThemeMode.dark : ThemeMode.light,
           initialRoute: '/',
           routes: {
-            '/': (context) => const HomeScreen(),
+            '/': (context) => const FeedScreen(),
+            '/home': (context) => const HomeScreen(),
             '/login': (context) => const LoginScreen(),
             '/signup': (context) => const SignupScreen(),
             '/otp': (context) => const OTPScreen(),

@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect } from 'react';
 import { IoClose } from 'react-icons/io5';
 
 const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
@@ -8,6 +9,22 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
     lg: 'max-w-4xl',
     xl: 'max-w-6xl',
   };
+
+  // Handle Escape key to close modal
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
 
   return (
     <AnimatePresence>

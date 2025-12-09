@@ -8,6 +8,7 @@ import { scheduleData } from '../../data/enhancedDemoData';
 import { ScheduleSkeleton, ListEmptyState } from '../../components/Skeleton';
 import { useInstitute } from '../../context/InstituteContext';
 import { authService } from '../../services/authService';
+import VerificationLock from '../../components/VerificationLock';
 
 const FALLBACK_SCHEDULE = scheduleData.reduce((acc, item) => {
   const dayKey = item.day?.toLowerCase() || 'monday';

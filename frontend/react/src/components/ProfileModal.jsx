@@ -111,6 +111,15 @@ const ProfileModal = ({ isOpen, onClose }) => {
     residence_back: { loading: false, isValid: null, message: null, percentage: null },
   });
 
+  // Image preview states for verification
+  const [verificationImagePreviews, setVerificationImagePreviews] = useState({
+    profile_image: null,
+    idcard_front: null,
+    idcard_back: null,
+    residence_front: null,
+    residence_back: null,
+  });
+
   // Helper function to convert relative image URLs to full URLs
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
@@ -152,9 +161,19 @@ const ProfileModal = ({ isOpen, onClose }) => {
         };
 
         if (instituteData.userType === 'lecturer') {
-          data = await authService.getLecturerProfile(instituteData.accessToken, options);
+          // Pass verification status and username to determine which endpoint to use
+          data = await authService.getLecturerProfile(instituteData.accessToken, {
+            ...options,
+            isVerified: instituteData.isVerified,
+            username: instituteData.username,
+          });
         } else if (instituteData.userType === 'student') {
-          data = await authService.getStudentProfile(instituteData.accessToken, options);
+          // Pass verification status and username to determine which endpoint to use
+          data = await authService.getStudentProfile(instituteData.accessToken, {
+            ...options,
+            isVerified: instituteData.isVerified,
+            username: instituteData.username,
+          });
         } else if (instituteData.userType === 'institution') {
           data = await authService.getInstitutionProfile(instituteData.accessToken, options);
         }
@@ -311,9 +330,17 @@ const ProfileModal = ({ isOpen, onClose }) => {
           if (instituteData.userType === 'institution') {
             updatedData = await authService.getInstitutionProfile(instituteData.accessToken, options);
           } else if (instituteData.userType === 'lecturer') {
-            updatedData = await authService.getLecturerProfile(instituteData.accessToken, options);
+            updatedData = await authService.getLecturerProfile(instituteData.accessToken, {
+              ...options,
+              isVerified: instituteData.isVerified,
+              username: instituteData.username,
+            });
           } else if (instituteData.userType === 'student') {
-            updatedData = await authService.getStudentProfile(instituteData.accessToken, options);
+            updatedData = await authService.getStudentProfile(instituteData.accessToken, {
+              ...options,
+              isVerified: instituteData.isVerified,
+              username: instituteData.username,
+            });
           }
 
           if (updatedData?.success && updatedData?.data) {
@@ -322,11 +349,11 @@ const ProfileModal = ({ isOpen, onClose }) => {
         } catch (err) {
           console.error('Error refetching profile after update:', err);
           // Fallback to local update if refetch fails
-          setProfileData(prev => ({
-            ...prev,
-            ...editForm,
-            profile_image: profileImagePreview ? profileImagePreview : prev.profile_image,
-          }));
+        setProfileData(prev => ({
+          ...prev,
+          ...editForm,
+          profile_image: profileImagePreview ? profileImagePreview : prev.profile_image,
+        }));
         }
         
         // Update institute context with new name
@@ -443,6 +470,24 @@ const ProfileModal = ({ isOpen, onClose }) => {
       setStudentVerificationForm(prev => ({ ...prev, [field]: file }));
     } else {
       setLecturerVerificationForm(prev => ({ ...prev, [field]: file }));
+    }
+
+    // Generate image preview
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setVerificationImagePreviews(prev => ({
+          ...prev,
+          [field]: reader.result
+        }));
+      };
+      reader.readAsDataURL(file);
+    } else {
+      // Clear preview if file is removed
+      setVerificationImagePreviews(prev => ({
+        ...prev,
+        [field]: null
+      }));
     }
     
     // Validate document fields using AI (only for actual documents, not profile images)
@@ -589,7 +634,11 @@ const ProfileModal = ({ isOpen, onClose }) => {
           if (isInstitution) {
             updatedData = await authService.getInstitutionProfile(instituteData.accessToken, refreshOptions);
           } else {
-            updatedData = await authService.getLecturerProfile(instituteData.accessToken, refreshOptions);
+            updatedData = await authService.getLecturerProfile(instituteData.accessToken, {
+              ...refreshOptions,
+              isVerified: instituteData.isVerified,
+              username: instituteData.username,
+            });
           }
 
           if (updatedData?.success && updatedData?.data) {
@@ -658,6 +707,14 @@ const ProfileModal = ({ isOpen, onClose }) => {
           idcard_back: { loading: false, isValid: null, message: null, percentage: null },
           residence_front: { loading: false, isValid: null, message: null, percentage: null },
           residence_back: { loading: false, isValid: null, message: null, percentage: null },
+        });
+        // Reset image previews
+        setVerificationImagePreviews({
+          profile_image: null,
+          idcard_front: null,
+          idcard_back: null,
+          residence_front: null,
+          residence_back: null,
         });
       }
     } catch (err) {
@@ -1246,15 +1303,15 @@ const ProfileModal = ({ isOpen, onClose }) => {
                                 {(() => {
                                   const isVerified = profileData?.is_verified ?? instituteData.isVerified ?? false;
                                   return isVerified ? (
-                                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-sm font-medium">
-                                      <FaUserCheck className="w-4 h-4" />
-                                      {t('profile.verified') || 'Verified'}
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-full text-sm font-medium">
-                                      <FaUserTimes className="w-4 h-4" />
-                                      {t('profile.pendingVerification') || 'Pending Verification'}
-                                    </span>
+                                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-sm font-medium">
+                                    <FaUserCheck className="w-4 h-4" />
+                                    {t('profile.verified') || 'Verified'}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-full text-sm font-medium">
+                                    <FaUserTimes className="w-4 h-4" />
+                                    {t('profile.pendingVerification') || 'Pending Verification'}
+                                  </span>
                                   );
                                 })()}
                               </div>
@@ -1556,9 +1613,9 @@ const ProfileModal = ({ isOpen, onClose }) => {
                                 
                                 if ((isLecturer || isInstitution || isStudent) && !isVerified) {
                                   return (
-                                    <motion.button
-                                      whileHover={{ scale: 1.02 }}
-                                      whileTap={{ scale: 0.98 }}
+                              <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
                                       onClick={() => setShowVerificationModal(true)}
                                       className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-semibold transition-colors"
                                     >
@@ -1580,11 +1637,11 @@ const ProfileModal = ({ isOpen, onClose }) => {
                                           setIsEditMode(true);
                                         }
                                       }}
-                                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-xl font-semibold transition-colors"
-                                    >
-                                      <FaEdit className="w-4 h-4" />
-                                      {t('profile.editProfile') || 'Edit Profile'}
-                                    </motion.button>
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-xl font-semibold transition-colors"
+                              >
+                                <FaEdit className="w-4 h-4" />
+                                {t('profile.editProfile') || 'Edit Profile'}
+                              </motion.button>
                                   );
                                 }
                               })()}
@@ -1632,6 +1689,14 @@ const ProfileModal = ({ isOpen, onClose }) => {
                   residence_front: { loading: false, isValid: null, message: null, percentage: null },
                   residence_back: { loading: false, isValid: null, message: null, percentage: null },
                 });
+                // Reset image previews
+                setVerificationImagePreviews({
+                  profile_image: null,
+                  idcard_front: null,
+                  idcard_back: null,
+                  residence_front: null,
+                  residence_back: null,
+                });
               }}
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
             />
@@ -1663,6 +1728,14 @@ const ProfileModal = ({ isOpen, onClose }) => {
                           idcard_back: { loading: false, isValid: null, message: null, percentage: null },
                           residence_front: { loading: false, isValid: null, message: null, percentage: null },
                           residence_back: { loading: false, isValid: null, message: null, percentage: null },
+                        });
+                        // Reset image previews
+                        setVerificationImagePreviews({
+                          profile_image: null,
+                          idcard_front: null,
+                          idcard_back: null,
+                          residence_front: null,
+                          residence_back: null,
                         });
                       }}
                       className="p-2 rounded-full bg-gray-100 dark:bg-navy-700 hover:bg-gray-200 dark:hover:bg-navy-600 transition-colors"
@@ -1917,6 +1990,15 @@ const ProfileModal = ({ isOpen, onClose }) => {
                           className="w-full px-4 py-2 border border-gray-300 dark:border-navy-600 rounded-lg bg-white dark:bg-navy-700 text-gray-800 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
                           required
                         />
+                        {verificationImagePreviews.profile_image && (
+                          <div className="mt-3">
+                            <img
+                              src={verificationImagePreviews.profile_image}
+                              alt="Profile Preview"
+                              className="w-20 h-20 object-cover rounded-full border-2 border-primary-500 shadow-md"
+                            />
+                          </div>
+                        )}
                       </div>
 
                       <div>
@@ -1936,6 +2018,15 @@ const ProfileModal = ({ isOpen, onClose }) => {
                           }`}
                           required
                         />
+                        {verificationImagePreviews.idcard_front && (
+                          <div className="mt-3">
+                            <img
+                              src={verificationImagePreviews.idcard_front}
+                              alt="ID Card Front Preview"
+                              className="w-full max-w-[200px] h-auto object-cover rounded-lg border-2 border-gray-300 dark:border-navy-500 shadow-md"
+                            />
+                          </div>
+                        )}
                         {verificationDocumentValidation.idcard_front.loading && (
                           <div className="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
                             <FaSync className="animate-spin" />
@@ -1975,6 +2066,15 @@ const ProfileModal = ({ isOpen, onClose }) => {
                           }`}
                           required
                         />
+                        {verificationImagePreviews.idcard_back && (
+                          <div className="mt-3">
+                            <img
+                              src={verificationImagePreviews.idcard_back}
+                              alt="ID Card Back Preview"
+                              className="w-full max-w-[200px] h-auto object-cover rounded-lg border-2 border-gray-300 dark:border-navy-500 shadow-md"
+                            />
+                          </div>
+                        )}
                         {verificationDocumentValidation.idcard_back.loading && (
                           <div className="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
                             <FaSync className="animate-spin" />
@@ -1999,7 +2099,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          {t('profile.residenceFront') || 'Residence Front'} *
+                          {t('profile.residenceFront') || 'Residence Document (Front)'} *
                         </label>
                         <input
                           type="file"
@@ -2014,6 +2114,15 @@ const ProfileModal = ({ isOpen, onClose }) => {
                           }`}
                           required
                         />
+                        {verificationImagePreviews.residence_front && (
+                          <div className="mt-3">
+                            <img
+                              src={verificationImagePreviews.residence_front}
+                              alt="Residence Front Preview"
+                              className="w-full max-w-[200px] h-auto object-cover rounded-lg border-2 border-gray-300 dark:border-navy-500 shadow-md"
+                            />
+                          </div>
+                        )}
                         {verificationDocumentValidation.residence_front.loading && (
                           <div className="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
                             <FaSync className="animate-spin" />
@@ -2038,7 +2147,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          {t('profile.residenceBack') || 'Residence Back'} *
+                          {t('profile.residenceBack') || 'Residence Document (Back)'} *
                         </label>
                         <input
                           type="file"
@@ -2053,6 +2162,15 @@ const ProfileModal = ({ isOpen, onClose }) => {
                           }`}
                           required
                         />
+                        {verificationImagePreviews.residence_back && (
+                          <div className="mt-3">
+                            <img
+                              src={verificationImagePreviews.residence_back}
+                              alt="Residence Back Preview"
+                              className="w-full max-w-[200px] h-auto object-cover rounded-lg border-2 border-gray-300 dark:border-navy-500 shadow-md"
+                            />
+                          </div>
+                        )}
                         {verificationDocumentValidation.residence_back.loading && (
                           <div className="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
                             <FaSync className="animate-spin" />
@@ -2108,6 +2226,14 @@ const ProfileModal = ({ isOpen, onClose }) => {
                             residence_front: { loading: false, isValid: null, message: null, percentage: null },
                             residence_back: { loading: false, isValid: null, message: null, percentage: null },
                           });
+                          // Reset image previews
+                          setVerificationImagePreviews({
+                            profile_image: null,
+                            idcard_front: null,
+                            idcard_back: null,
+                            residence_front: null,
+                            residence_back: null,
+                          });
                         }}
                         disabled={isVerifying}
                         className="px-6 py-3 bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-300 dark:hover:bg-navy-600 transition-colors disabled:opacity-50"
@@ -2116,11 +2242,11 @@ const ProfileModal = ({ isOpen, onClose }) => {
                       </motion.button>
                     </div>
                   </div>
-                </div>
               </div>
-            </motion.div>
-          </>
-        )}
+            </div>
+          </motion.div>
+        </>
+      )}
       </AnimatePresence>
     </AnimatePresence>
   );

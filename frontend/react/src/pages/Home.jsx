@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FaMoon, FaSun } from 'react-icons/fa';
 import { useInstitute } from '../context/InstituteContext';
@@ -9,11 +9,19 @@ import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const Home = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { setInstituteData } = useInstitute();
   const { isDark, toggleTheme } = useTheme();
   const { t } = useTranslation();
   const [showSignInOptions, setShowSignInOptions] = useState(false);
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+  
+  // Check if navigation state has showSignUp flag
+  useEffect(() => {
+    if (location.state?.showSignUp) {
+      setShowSignInOptions(true);
+    }
+  }, [location.state]);
   const [formData, setFormData] = useState({
     instituteName: '',
     email: '',
@@ -55,7 +63,7 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100 dark:from-navy-900 dark:via-navy-800 dark:to-navy-900 flex items-center justify-center p-4 relative">
       {/* Theme Toggle & Language Switcher - Fixed Position */}
-      <div className="fixed top-4 right-4 flex items-center gap-3 z-50">
+      <div className="fixed top-4 right-4 flex flex-col items-end gap-3 z-50">
         {/* Theme Toggle */}
         <motion.button
           whileHover={{ scale: 1.05 }}

@@ -461,5 +461,61 @@ class ApiService {
       );
     }
   }
+
+  /// Get feed data (posts, courses, jobs)
+  static Future<Map<String, dynamic>> getFeed({
+    String? accessToken,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      final headers = <String, String>{..._defaultHeaders};
+      if (accessToken != null && accessToken.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $accessToken';
+      }
+
+      var response = await http.get(
+        Uri.parse('$baseUrl/home/feed/'),
+        headers: headers,
+      );
+
+      // Handle token refresh on 401 (only if token was provided)
+      if (response.statusCode == 401 && accessToken != null && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+          
+          // Retry request with new token
+          headers['Authorization'] = 'Bearer ${refreshed['access']}';
+          response = await http.get(
+            Uri.parse('$baseUrl/home/feed/'),
+            headers: headers,
+          );
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      final data = _parseResponse(response.body);
+
+      if (response.statusCode != 200) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
 }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { 
   FaArrowLeft,
@@ -26,19 +26,24 @@ import {
   FaClock,
   FaUsers,
   FaDollarSign,
-  FaInfoCircle
+  FaInfoCircle,
+  FaBookmark,
+  FaChartLine
 } from 'react-icons/fa';
 import { useInstitute } from '../context/InstituteContext';
 import { useTheme } from '../context/ThemeContext';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { authService } from '../services/authService';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import Modal from '../components/Modal';
 import ProfileModal from '../components/ProfileModal';
+import KeyboardShortcutsHelp from '../components/KeyboardShortcutsHelp';
 import toast from 'react-hot-toast';
 
 const Explore = () => {
   const navigate = useNavigate();
-  const { instituteData } = useInstitute();
+  const location = useLocation();
+  const { instituteData, updateInstituteData } = useInstitute();
   const { isDark, toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
@@ -47,7 +52,6 @@ const Explore = () => {
   const [profileType, setProfileType] = useState(null);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedLevel, setSelectedLevel] = useState('all');
   const [selectedInstitution, setSelectedInstitution] = useState('all');
   const [isLoadingSearch, setIsLoadingSearch] = useState(false);
   const [searchError, setSearchError] = useState(null);
@@ -76,379 +80,115 @@ const Explore = () => {
   const [showApplyJobModal, setShowApplyJobModal] = useState(false);
   const [applyJobMessage, setApplyJobMessage] = useState('');
   const [isApplying, setIsApplying] = useState(false);
-
-  // Demo courses data (fallback)
-  const [demoCourses] = useState([
-    {
-      id: 1,
-      title: 'Introduction to Programming',
-      code: 'CS101',
-      institution: 'Baghdad International Academy',
-      instructor: 'Dr. Sarah Khan',
-      duration: '12 weeks',
-      students: 45,
-      price: 350,
-      level: 'Beginner',
-      rating: 4.8,
-      reviews: 120,
-      description: 'Learn the fundamentals of programming with Python. Perfect for beginners who want to start their coding journey.',
-      image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&q=80',
-      category: 'Computer Science',
-      language: 'Arabic & English',
-    },
-    {
-      id: 2,
-      title: 'Business Strategy & Management',
-      code: 'BUS201',
-      institution: 'Tigris Business School',
-      instructor: 'Prof. Ali Mahmoud',
-      duration: '10 weeks',
-      students: 38,
-      price: 450,
-      level: 'Intermediate',
-      rating: 4.9,
-      reviews: 95,
-      description: 'Master the art of strategic business planning and management. Learn from real-world case studies and industry experts.',
-      image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&q=80',
-      category: 'Business',
-      language: 'Arabic',
-    },
-    {
-      id: 3,
-      title: 'Human Anatomy & Physiology',
-      code: 'MED101',
-      institution: 'Euphrates Medical Institute',
-      instructor: 'Dr. Layla Hassan',
-      duration: '16 weeks',
-      students: 52,
-      price: 600,
-      level: 'Beginner',
-      rating: 4.7,
-      reviews: 150,
-      description: 'Comprehensive study of human body systems and their functions. Essential for medical students and healthcare professionals.',
-      image: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&q=80',
-      category: 'Medicine',
-      language: 'Arabic & English',
-    },
-    {
-      id: 4,
-      title: 'Advanced Calculus',
-      code: 'MATH301',
-      institution: 'Iraqi Science Academy',
-      instructor: 'Prof. Karim Saleh',
-      duration: '14 weeks',
-      students: 30,
-      price: 400,
-      level: 'Advanced',
-      rating: 4.6,
-      reviews: 78,
-      description: 'Deep dive into advanced calculus concepts including multivariable calculus, differential equations, and mathematical analysis.',
-      image: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=400&q=80',
-      category: 'Mathematics',
-      language: 'English',
-    },
-    {
-      id: 5,
-      title: 'Mechanical Engineering Fundamentals',
-      code: 'ENG102',
-      institution: 'Kurdistan Technical University',
-      instructor: 'Dr. Noor Ahmed',
-      duration: '15 weeks',
-      students: 42,
-      price: 500,
-      level: 'Intermediate',
-      rating: 4.8,
-      reviews: 110,
-      description: 'Learn the core principles of mechanical engineering including statics, dynamics, and materials science.',
-      image: 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=400&q=80',
-      category: 'Engineering',
-      language: 'Arabic & English',
-    },
-    {
-      id: 6,
-      title: 'Web Development Bootcamp',
-      code: 'CS202',
-      institution: 'Baghdad International Academy',
-      instructor: 'Dr. Sarah Khan',
-      duration: '16 weeks',
-      students: 68,
-      price: 550,
-      level: 'Intermediate',
-      rating: 4.9,
-      reviews: 200,
-      description: 'Complete web development course covering HTML, CSS, JavaScript, React, and Node.js. Build real-world projects.',
-      image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&q=80',
-      category: 'Computer Science',
-      language: 'Arabic & English',
-    },
-    {
-      id: 7,
-      title: 'Digital Marketing Essentials',
-      code: 'BUS301',
-      institution: 'Tigris Business School',
-      instructor: 'Prof. Ali Mahmoud',
-      duration: '8 weeks',
-      students: 55,
-      price: 380,
-      level: 'Beginner',
-      rating: 4.7,
-      reviews: 145,
-      description: 'Learn digital marketing strategies including SEO, social media marketing, content creation, and analytics.',
-      image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&q=80',
-      category: 'Business',
-      language: 'Arabic',
-    },
-    {
-      id: 8,
-      title: 'Data Science & Analytics',
-      code: 'CS301',
-      institution: 'Iraqi Science Academy',
-      instructor: 'Prof. Karim Saleh',
-      duration: '18 weeks',
-      students: 35,
-      price: 650,
-      level: 'Advanced',
-      rating: 4.8,
-      reviews: 88,
-      description: 'Master data science techniques including machine learning, statistical analysis, and data visualization using Python and R.',
-      image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&q=80',
-      category: 'Computer Science',
-      language: 'English',
-    },
-  ]);
-
-  // Demo students data (fallback)
-  const [demoStudents] = useState([
-    {
-      id: 1,
-      name: 'Ahmed Hassan',
-      major: 'Computer Science',
-      year: '3rd Year',
-      university: 'Baghdad University',
-      image: 'https://i.pravatar.cc/150?img=12',
-      bio: 'Passionate about AI and Machine Learning',
-      email: 'ahmed.hassan@student.edu',
-      phone: '+964 770 123 4567',
-      location: 'Baghdad, Iraq',
-      gpa: '3.8',
-      isVerified: true,
-      skills: ['Python', 'JavaScript', 'Machine Learning', 'React'],
-      interests: ['Artificial Intelligence', 'Web Development', 'Data Science'],
-      achievements: ['Dean\'s List 2023', 'Hackathon Winner', 'Research Assistant'],
-      about: 'I am a dedicated Computer Science student with a strong passion for artificial intelligence and machine learning. Currently working on several projects involving neural networks and deep learning. Always eager to learn new technologies and collaborate on innovative projects.',
-    },
-    {
-      id: 2,
-      name: 'Fatima Ali',
-      major: 'Business Administration',
-      year: '2nd Year',
-      university: 'Al-Noor Institute',
-      image: 'https://i.pravatar.cc/150?img=45',
-      bio: 'Future entrepreneur and business leader',
-      email: 'fatima.ali@student.edu',
-      phone: '+964 771 234 5678',
-      location: 'Baghdad, Iraq',
-      gpa: '3.9',
-      isVerified: true,
-      skills: ['Marketing', 'Finance', 'Leadership', 'Strategic Planning'],
-      interests: ['Entrepreneurship', 'Digital Marketing', 'Business Strategy'],
-      achievements: ['Student Council President', 'Business Plan Competition Winner', 'Internship at Top Firm'],
-      about: 'Aspiring entrepreneur with a keen interest in business strategy and innovation. I believe in creating value through sustainable business practices and am currently developing my own startup idea focused on e-commerce solutions.',
-    },
-    {
-      id: 3,
-      name: 'Omar Khalid',
-      major: 'Engineering',
-      year: '4th Year',
-      university: 'Kurdistan Technical University',
-      image: 'https://i.pravatar.cc/150?img=33',
-      bio: 'Building the future with technology',
-      email: 'omar.khalid@student.edu',
-      phone: '+964 772 345 6789',
-      location: 'Erbil, Iraq',
-      gpa: '3.7',
-      isVerified: false,
-      skills: ['CAD Design', 'Project Management', 'AutoCAD', 'SolidWorks'],
-      interests: ['Mechanical Design', 'Robotics', 'Sustainable Engineering'],
-      achievements: ['Engineering Excellence Award', 'Senior Project Lead', 'Published Research Paper'],
-      about: 'Senior engineering student specializing in mechanical design and robotics. Passionate about creating sustainable solutions for real-world problems. Currently leading a team project on renewable energy systems.',
-    },
-    {
-      id: 4,
-      name: 'Zahra Mohammed',
-      major: 'Medicine',
-      year: '1st Year',
-      university: 'Euphrates Medical Institute',
-      image: 'https://i.pravatar.cc/150?img=47',
-      bio: 'Dedicated to healthcare and healing',
-      email: 'zahra.mohammed@student.edu',
-      phone: '+964 773 456 7890',
-      location: 'Najaf, Iraq',
-      gpa: '4.0',
-      isVerified: true,
-      skills: ['Patient Care', 'Medical Research', 'Anatomy', 'Clinical Skills'],
-      interests: ['Pediatrics', 'Medical Research', 'Public Health'],
-      achievements: ['Top of Class', 'Medical Scholarship Recipient', 'Volunteer at Local Clinic'],
-      about: 'First-year medical student with a strong commitment to healthcare and patient welfare. Volunteering at local clinics to gain practical experience and contribute to community health. Aspiring to specialize in pediatrics.',
-    },
-    {
-      id: 5,
-      name: 'Youssef Ibrahim',
-      major: 'Data Science',
-      year: '3rd Year',
-      university: 'Mesopotamia Science College',
-      image: 'https://i.pravatar.cc/150?img=51',
-      bio: 'Data enthusiast and problem solver',
-      email: 'youssef.ibrahim@student.edu',
-      phone: '+964 774 567 8901',
-      location: 'Basra, Iraq',
-      gpa: '3.85',
-      isVerified: false,
-      skills: ['Python', 'R', 'SQL', 'Data Visualization', 'Machine Learning'],
-      interests: ['Big Data', 'Predictive Analytics', 'Business Intelligence'],
-      achievements: ['Data Science Competition Winner', 'Research Publication', 'Industry Internship'],
-      about: 'Data science student with expertise in statistical analysis and machine learning. Experienced in working with large datasets and creating predictive models. Currently interning at a tech company focusing on business intelligence solutions.',
-    },
-  ]);
-
-  // Demo lecturers data (fallback)
-  const [demoLecturers] = useState([
-    {
-      id: 1,
-      name: 'Dr. Sarah Khan',
-      specialty: 'Computer Science',
-      experience: '10 years',
-      university: 'Baghdad International Academy',
-      image: 'https://i.pravatar.cc/150?img=20',
-      bio: 'PhD in AI, Published researcher',
-      email: 'sarah.khan@university.edu',
-      phone: '+964 770 987 6543',
-      location: 'Baghdad, Iraq',
-      isVerified: true,
-      education: 'PhD in Artificial Intelligence - MIT',
-      courses: ['Introduction to Programming', 'Machine Learning', 'Data Structures', 'AI Fundamentals'],
-      research: ['Neural Networks', 'Deep Learning', 'Computer Vision'],
-      publications: '25+ research papers in top-tier journals',
-      achievements: ['Best Teacher Award 2023', 'Research Excellence Award', 'IEEE Senior Member'],
-      about: 'Dr. Sarah Khan is a distinguished professor specializing in Artificial Intelligence and Machine Learning. With over 10 years of teaching experience and extensive research background, she has mentored hundreds of students and published numerous papers in leading journals. Her research focuses on neural networks and their applications in real-world problems.',
-    },
-    {
-      id: 2,
-      name: 'Prof. Ali Mahmoud',
-      specialty: 'Business Management',
-      experience: '15 years',
-      university: 'Tigris Business School',
-      image: 'https://i.pravatar.cc/150?img=13',
-      bio: 'MBA, Former CEO, Business consultant',
-      email: 'ali.mahmoud@university.edu',
-      phone: '+964 771 876 5432',
-      location: 'Erbil, Iraq',
-      isVerified: true,
-      education: 'MBA - Harvard Business School',
-      courses: ['Business Strategy', 'Leadership', 'Entrepreneurship', 'Marketing Management'],
-      research: ['Strategic Management', 'Digital Transformation', 'Innovation'],
-      publications: 'Author of 3 business books',
-      achievements: ['Former Fortune 500 CEO', 'Business Consultant for 50+ companies', 'TED Speaker'],
-      about: 'Professor Ali Mahmoud brings 15 years of real-world business experience to the classroom. As a former CEO and successful entrepreneur, he combines academic theory with practical insights. His teaching style focuses on case studies and real business scenarios, preparing students for leadership roles in the corporate world.',
-    },
-    {
-      id: 3,
-      name: 'Dr. Layla Hassan',
-      specialty: 'Medical Sciences',
-      experience: '12 years',
-      university: 'Euphrates Medical Institute',
-      image: 'https://i.pravatar.cc/150?img=38',
-      bio: 'MD, Specialized in Internal Medicine',
-      email: 'layla.hassan@university.edu',
-      phone: '+964 772 765 4321',
-      location: 'Najaf, Iraq',
-      isVerified: false,
-      education: 'MD, Fellowship in Internal Medicine',
-      courses: ['Human Anatomy', 'Physiology', 'Internal Medicine', 'Clinical Practice'],
-      research: ['Cardiovascular Health', 'Preventive Medicine', 'Patient Care'],
-      publications: '15+ medical journal publications',
-      achievements: ['Medical Excellence Award', 'Best Clinical Instructor', 'Healthcare Innovation Award'],
-      about: 'Dr. Layla Hassan is a practicing physician and dedicated educator with 12 years of experience in internal medicine. She combines her clinical expertise with teaching to provide students with comprehensive medical education. Her research focuses on cardiovascular health and preventive medicine.',
-    },
-    {
-      id: 4,
-      name: 'Prof. Karim Saleh',
-      specialty: 'Mathematics',
-      experience: '20 years',
-      university: 'Baghdad Technical University',
-      image: 'https://i.pravatar.cc/150?img=14',
-      bio: 'PhD in Applied Mathematics',
-      email: 'karim.saleh@university.edu',
-      phone: '+964 773 654 3210',
-      location: 'Baghdad, Iraq',
-      isVerified: true,
-      education: 'PhD in Applied Mathematics - Oxford University',
-      courses: ['Calculus', 'Linear Algebra', 'Differential Equations', 'Mathematical Modeling'],
-      research: ['Applied Mathematics', 'Numerical Analysis', 'Mathematical Physics'],
-      publications: '40+ research papers',
-      achievements: ['Distinguished Professor Award', 'Mathematics Society Fellow', 'Textbook Author'],
-      about: 'Professor Karim Saleh is a renowned mathematician with 20 years of teaching experience. His expertise in applied mathematics has helped countless students understand complex mathematical concepts. He has authored several textbooks and is known for his engaging teaching methods that make mathematics accessible and interesting.',
-    },
-    {
-      id: 5,
-      name: 'Dr. Noor Ahmed',
-      specialty: 'Engineering',
-      experience: '8 years',
-      university: 'Kurdistan Technical University',
-      image: 'https://i.pravatar.cc/150?img=44',
-      bio: 'PhD in Mechanical Engineering',
-      email: 'noor.ahmed@university.edu',
-      phone: '+964 774 543 2109',
-      location: 'Sulaymaniyah, Iraq',
-      isVerified: false,
-      education: 'PhD in Mechanical Engineering - Stanford University',
-      courses: ['Thermodynamics', 'Fluid Mechanics', 'Engineering Design', 'Robotics'],
-      research: ['Renewable Energy', 'Robotics', 'Sustainable Engineering'],
-      publications: '12+ engineering journals',
-      achievements: ['Young Engineer Award', 'Innovation in Teaching', 'Patent Holder'],
-      about: 'Dr. Noor Ahmed specializes in mechanical engineering with a focus on sustainable solutions and robotics. With 8 years of teaching and research experience, she brings innovative approaches to engineering education. Her work on renewable energy systems has been recognized internationally.',
-    },
-  ]);
-
-  // Demo positions/job posts data (fallback)
-  const [demoPositions] = useState([
-    {
-      id: 1,
-      lecturerName: 'Dr. Sarah Khan',
-      lecturerImage: 'https://i.pravatar.cc/150?img=20',
-      specialty: 'Computer Science',
-      experience: '10 years',
-      message: 'Looking for a teaching position in Computer Science. Specialized in AI and Machine Learning. Available for full-time or part-time positions.',
-      location: 'Baghdad, Iraq',
-      contact: 'sarah.khan@email.com',
-      timestamp: '5 hours ago',
-    },
-    {
-      id: 2,
-      lecturerName: 'Prof. Ali Mahmoud',
-      lecturerImage: 'https://i.pravatar.cc/150?img=13',
-      specialty: 'Business Management',
-      experience: '15 years',
-      message: 'Experienced business professor seeking opportunities to teach strategic management and entrepreneurship. Open to consulting roles as well.',
-      location: 'Erbil, Iraq',
-      contact: 'ali.mahmoud@email.com',
-      timestamp: '2 days ago',
-    },
-    {
-      id: 3,
-      lecturerName: 'Dr. Layla Hassan',
-      lecturerImage: 'https://i.pravatar.cc/150?img=38',
-      specialty: 'Medical Sciences',
-      experience: '12 years',
-      message: 'Medical professional with extensive teaching experience looking for a position in medical education. Specialized in Internal Medicine and Clinical Practice.',
-      location: 'Najaf, Iraq',
-      contact: 'layla.hassan@email.com',
-      timestamp: '4 days ago',
-    },
-  ]);
+  const [markingLecturer, setMarkingLecturer] = useState(null); // Track which lecturer is being marked
+  const [markedLecturers, setMarkedLecturers] = useState(new Set()); // Track marked lecturer IDs
+  const [enrollingCourseId, setEnrollingCourseId] = useState(null); // Track which course is being enrolled
+  const [showEnrollmentContradiction, setShowEnrollmentContradiction] = useState(false);
+  const [enrollmentContradiction, setEnrollmentContradiction] = useState(null);
+  
+  // Progress modal state
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [progressData, setProgressData] = useState(null);
+  const [loadingProgress, setLoadingProgress] = useState(false);
+  const [progressCourse, setProgressCourse] = useState(null);
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const searchInputRef = useRef(null);
+  const [username, setUsername] = useState(null);
+  const sidebarTimeoutRef = useRef(null);
+  
+  // Lecturer courses modal state
+  const [showLecturerCoursesModal, setShowLecturerCoursesModal] = useState(false);
+  const [lecturerCourses, setLecturerCourses] = useState([]);
+  const [isLoadingLecturerCourses, setIsLoadingLecturerCourses] = useState(false);
 
   const isInstitution = instituteData.userType === 'institution';
-  const { updateInstituteData } = useInstitute();
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (sidebarTimeoutRef.current) {
+        clearTimeout(sidebarTimeoutRef.current);
+      }
+    };
+  }, []);
+  
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onSearch: () => searchInputRef.current?.focus(),
+    onHelp: () => setShowKeyboardHelp(true),
+    userType: instituteData.userType,
+  });
+
+  // Fetch username from profile on mount
+  useEffect(() => {
+    const fetchUsername = async () => {
+      if (!instituteData.isAuthenticated || !instituteData.accessToken) {
+        return;
+      }
+
+      try {
+        // Fetch profile based on user type
+        let profileData = null;
+        if (instituteData.userType === 'institution') {
+          const data = await authService.getInstitutionProfile(instituteData.accessToken, {
+            refreshToken: instituteData.refreshToken,
+            onTokenRefreshed: (tokens) => {
+              updateInstituteData({
+                accessToken: tokens.access,
+                refreshToken: tokens.refresh || instituteData.refreshToken,
+              });
+            },
+            onSessionExpired: () => {
+              // Handle session expired
+            },
+          });
+          if (data?.success && data?.data?.username) {
+            setUsername(data.data.username);
+          }
+        } else if (instituteData.userType === 'student') {
+          const data = await authService.getStudentProfileSelf(instituteData.accessToken, {
+            refreshToken: instituteData.refreshToken,
+            onTokenRefreshed: (tokens) => {
+              updateInstituteData({
+                accessToken: tokens.access,
+                refreshToken: tokens.refresh || instituteData.refreshToken,
+              });
+            },
+            onSessionExpired: () => {
+              // Handle session expired
+            },
+          });
+          if (data?.success && data?.data?.username) {
+            setUsername(data.data.username);
+          }
+        } else if (instituteData.userType === 'lecturer') {
+          const data = await authService.getLecturerProfileSelf(instituteData.accessToken, {
+            refreshToken: instituteData.refreshToken,
+            onTokenRefreshed: (tokens) => {
+              updateInstituteData({
+                accessToken: tokens.access,
+                refreshToken: tokens.refresh || instituteData.refreshToken,
+              });
+            },
+            onSessionExpired: () => {
+              // Handle session expired
+            },
+          });
+          if (data?.success && data?.data?.username) {
+            setUsername(data.data.username);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching username:', error);
+        // Fallback to instituteData.username if fetch fails
+        if (instituteData.username) {
+          setUsername(instituteData.username);
+        }
+      }
+    };
+
+    fetchUsername();
+  }, [instituteData.isAuthenticated, instituteData.accessToken, instituteData.userType, instituteData.refreshToken, updateInstituteData]);
 
   // Helper function to convert relative image URLs to full URLs
   const getImageUrl = (imagePath) => {
@@ -521,19 +261,82 @@ const Explore = () => {
     return allJobPosts.flat();
   };
 
-  // Search API integration
+  // Check if lecturers are marked (for institution users)
   useEffect(() => {
-    const performSearch = async () => {
-      if (!searchQuery.trim()) {
-        // If no search query, use demo data
-        setStudents(demoStudents);
-        setLecturers(demoLecturers);
-        setPositions(demoPositions);
-        setCourses(demoCourses);
-        setAllResults([]);
+    const checkLecturersMarked = async () => {
+      if (!isInstitution || !instituteData.isAuthenticated || !instituteData.accessToken || !instituteData.isVerified) {
         return;
       }
 
+      // Get all lecturer IDs from current results
+      const lecturerIds = [];
+      
+      // From "All" tab
+      allResults.forEach(item => {
+        if (item.itemType === 'lecturer' && item.id) {
+          lecturerIds.push(item.id);
+        }
+      });
+      
+      // From "Lecturers" tab
+      lecturers.forEach(lecturer => {
+        if (lecturer.id) {
+          lecturerIds.push(lecturer.id);
+        }
+      });
+
+      if (lecturerIds.length === 0) {
+        return;
+      }
+
+      // Check each lecturer's marked status
+      const checkPromises = lecturerIds.map(async (lecturerId) => {
+        try {
+          const response = await authService.isLecturerMarked(
+            instituteData.accessToken,
+            lecturerId,
+            {
+              refreshToken: instituteData.refreshToken,
+              onTokenRefreshed: (tokens) => {
+                updateInstituteData({
+                  accessToken: tokens.access,
+                  refreshToken: tokens.refresh || instituteData.refreshToken,
+                });
+              },
+              onSessionExpired: () => {
+                // Handle session expired silently
+              },
+            }
+          );
+          
+          if (response?.success && response?.marked === true) {
+            return lecturerId;
+          }
+          return null;
+        } catch (error) {
+          // Silently fail - lecturer might not be marked
+          return null;
+        }
+      });
+
+      const markedIds = await Promise.all(checkPromises);
+      const validMarkedIds = markedIds.filter(id => id !== null);
+      
+      if (validMarkedIds.length > 0) {
+        setMarkedLecturers(prev => {
+          const newSet = new Set(prev);
+          validMarkedIds.forEach(id => newSet.add(id));
+          return newSet;
+        });
+      }
+    };
+
+    checkLecturersMarked();
+  }, [allResults, lecturers, isInstitution, instituteData.isAuthenticated, instituteData.accessToken, instituteData.isVerified, instituteData.refreshToken, updateInstituteData]);
+
+  // Search API integration
+  useEffect(() => {
+    const performSearch = async () => {
       setIsLoadingSearch(true);
       setSearchError(null);
 
@@ -549,7 +352,9 @@ const Explore = () => {
         else if (activeTab === 'courses') filter = 'courses';
         // Note: 'institutions' filter can be added if needed
 
-        const searchData = await authService.exploreSearch(searchQuery, filter, accessToken, {
+        // Use empty query to fetch all data from /explore/ endpoint
+        const query = searchQuery.trim() || '';
+        const searchData = await authService.exploreSearch(query, filter, accessToken, {
           refreshToken,
           onTokenRefreshed: (tokens) => {
             updateInstituteData({
@@ -562,64 +367,73 @@ const Explore = () => {
           },
         });
 
-        if (searchData?.success) {
+        // Handle API response structure: { success: true, results: {...} }
+        const results = searchData?.success === true && searchData?.results 
+          ? searchData.results 
+          : (searchData?.results || searchData);
+        
+        // Only process if we have valid results
+        if (searchData?.success === true || (results && typeof results === 'object')) {
           // Fetch institution job posts if positions tab is active or all tab
           let institutionJobs = [];
           if (activeTab === 'positions' || activeTab === 'all') {
             try {
               // Extract institution usernames from search results if available
               const institutionUsernames = [];
-              if (searchData.results?.institutions) {
-                searchData.results.institutions.forEach(inst => {
-                  if (inst.username) institutionUsernames.push(inst.username);
+              if (Array.isArray(results?.institutions)) {
+                results.institutions.forEach(inst => {
+                  if (inst?.username) institutionUsernames.push(inst.username);
                 });
               }
               institutionJobs = await fetchInstitutionJobPosts(institutionUsernames);
             } catch (error) {
               console.error('Error fetching institution job posts:', error);
+              institutionJobs = [];
             }
           }
 
           if (activeTab === 'all') {
             // Mixed results for "All" tab
             const mixed = [];
-            if (searchData.results?.students) {
-              mixed.push(...searchData.results.students.map(s => ({ ...s, itemType: 'student' })));
+            if (Array.isArray(results?.students)) {
+              mixed.push(...results.students.map(s => ({ ...s, itemType: 'student' })));
             }
-            if (searchData.results?.lecturers) {
-              mixed.push(...searchData.results.lecturers.map(l => ({ ...l, itemType: 'lecturer' })));
+            if (Array.isArray(results?.lecturers)) {
+              mixed.push(...results.lecturers.map(l => ({ ...l, itemType: 'lecturer' })));
             }
-            if (searchData.results?.institutions) {
-              mixed.push(...searchData.results.institutions.map(i => ({ ...i, itemType: 'institution' })));
-              setInstitutions(searchData.results.institutions);
+            if (Array.isArray(results?.institutions)) {
+              mixed.push(...results.institutions.map(i => ({ ...i, itemType: 'institution' })));
+              setInstitutions(results.institutions);
             }
-            if (searchData.results?.jobs) {
-              mixed.push(...searchData.results.jobs.map(j => ({ ...j, itemType: 'job' })));
+            if (Array.isArray(results?.jobs)) {
+              mixed.push(...results.jobs.map(j => ({ ...j, itemType: 'job' })));
             }
             // Add institution job posts
-            if (institutionJobs.length > 0) {
+            if (Array.isArray(institutionJobs) && institutionJobs.length > 0) {
               mixed.push(...institutionJobs);
             }
-            if (searchData.results?.courses) {
-              mixed.push(...searchData.results.courses.map(c => ({ ...c, itemType: 'course' })));
+            if (Array.isArray(results?.courses)) {
+              mixed.push(...results.courses.map(c => ({ ...c, itemType: 'course' })));
             }
             setAllResults(mixed);
             setStudents([]);
             setLecturers([]);
             setPositions([]);
-            setInstitutionJobPosts(institutionJobs);
+            setInstitutionJobPosts(institutionJobs || []);
             setCourses([]);
           } else {
-            // Filtered results
+            // Filtered results - extract from results object
             if (activeTab === 'students') {
-              setStudents(searchData.students || searchData.results?.students || []);
+              const studentsData = Array.isArray(results?.students) ? results.students : [];
+              setStudents(studentsData);
               setLecturers([]);
               setPositions([]);
               setInstitutionJobPosts([]);
               setCourses([]);
               setAllResults([]);
             } else if (activeTab === 'lecturers') {
-              setLecturers(searchData.lecturers || searchData.results?.lecturers || []);
+              const lecturersData = Array.isArray(results?.lecturers) ? results.lecturers : [];
+              setLecturers(lecturersData);
               setStudents([]);
               setPositions([]);
               setInstitutionJobPosts([]);
@@ -627,15 +441,16 @@ const Explore = () => {
               setAllResults([]);
             } else if (activeTab === 'positions') {
               // Jobs from search API
-              const jobsFromSearch = searchData.jobs || searchData.results?.jobs || [];
+              const jobsFromSearch = Array.isArray(results?.jobs) ? results.jobs : [];
               setPositions(jobsFromSearch);
-              setInstitutionJobPosts(institutionJobs);
+              setInstitutionJobPosts(Array.isArray(institutionJobs) ? institutionJobs : []);
               setStudents([]);
               setLecturers([]);
               setCourses([]);
               setAllResults([]);
             } else if (activeTab === 'courses') {
-              setCourses(searchData.courses || searchData.results?.courses || []);
+              const coursesData = Array.isArray(results?.courses) ? results.courses : [];
+              setCourses(coursesData);
               setStudents([]);
               setLecturers([]);
               setPositions([]);
@@ -644,6 +459,7 @@ const Explore = () => {
             }
           }
         } else {
+          // API returned success: false or invalid response
           setStudents([]);
           setLecturers([]);
           setPositions([]);
@@ -653,12 +469,13 @@ const Explore = () => {
         }
       } catch (error) {
         console.error('Error searching:', error);
-        setSearchError(error?.message || 'Failed to search. Please try again.');
-        // Fallback to demo data on error
-        setStudents(demoStudents);
-        setLecturers(demoLecturers);
-        setPositions(demoPositions);
-        setCourses(demoCourses);
+        setSearchError(error?.message || error?.data?.message || 'Failed to search. Please try again.');
+        // Clear all results on error instead of showing demo data
+        setStudents([]);
+        setLecturers([]);
+        setPositions([]);
+        setInstitutionJobPosts([]);
+        setCourses([]);
         setAllResults([]);
       } finally {
         setIsLoadingSearch(false);
@@ -673,33 +490,6 @@ const Explore = () => {
     return () => clearTimeout(timeoutId);
   }, [searchQuery, activeTab, instituteData.accessToken]);
 
-  // Load initial data (demo data when no search)
-  useEffect(() => {
-    const loadInitialData = async () => {
-      if (!searchQuery.trim()) {
-        setStudents(demoStudents);
-        setLecturers(demoLecturers);
-        setPositions(demoPositions);
-        setCourses(demoCourses);
-        setAllResults([]);
-        
-        // Fetch institution job posts if positions tab is active
-        if (activeTab === 'positions' || activeTab === 'all') {
-          try {
-            const institutionJobs = await fetchInstitutionJobPosts();
-            setInstitutionJobPosts(institutionJobs);
-          } catch (error) {
-            console.error('Error fetching initial institution job posts:', error);
-            setInstitutionJobPosts([]);
-          }
-        } else {
-          setInstitutionJobPosts([]);
-        }
-      }
-    };
-    
-    loadInitialData();
-  }, [demoStudents, demoLecturers, demoPositions, demoCourses, searchQuery, activeTab]);
 
   // Fetch Notifications for Students and Lecturers
   useEffect(() => {
@@ -807,8 +597,16 @@ const Explore = () => {
             if (response?.success && response?.data) {
               profileData = {
                 ...response.data,
-                name: `${response.data.first_name || ''} ${response.data.last_name || ''}`.trim() || response.data.username,
+                // Preserve original API fields
                 username: response.data.username,
+                first_name: response.data.first_name,
+                last_name: response.data.last_name,
+                city: response.data.city,
+                about: response.data.about,
+                profile_image: response.data.profile_image,
+                studying_level: response.data.studying_level,
+                // Also add mapped fields for compatibility
+                name: `${response.data.first_name || ''} ${response.data.last_name || ''}`.trim() || response.data.username,
                 image: getImageUrl(response.data.profile_image),
                 bio: response.data.about,
                 major: response.data.studying_level,
@@ -916,7 +714,8 @@ const Explore = () => {
     }
 
     setIsLoadingCourse(true);
-    setSelectedCourse(null);
+    // Set basic course data first to show modal with loading state
+    setSelectedCourse(course);
 
     try {
       const response = await authService.getCourseDetails(course.id);
@@ -924,11 +723,12 @@ const Explore = () => {
       if (response?.success && response?.data) {
         setSelectedCourse(response.data);
       } else {
-        toast.error(response?.message || t('feed.failedToLoadCourse') || 'Failed to load course details');
+        // Keep the basic data from search results if API fails
+        console.warn('Failed to fetch full course details, using basic data');
       }
     } catch (error) {
       console.error('Error fetching course details:', error);
-      toast.error(error?.message || t('feed.failedToLoadCourse') || 'Failed to load course details');
+      // Keep the basic data from search results if API fails
     } finally {
       setIsLoadingCourse(false);
     }
@@ -938,15 +738,174 @@ const Explore = () => {
     setSelectedCourse(null);
   };
 
+  // Handle course enrollment
+  const handleEnrollCourse = async (course, e) => {
+    if (e) {
+      e.stopPropagation();
+    }
+
+    // Check if user is authenticated
+    if (!instituteData.isAuthenticated) {
+      toast.error(t('common.loginRequired') || 'Please log in to enroll');
+      return;
+    }
+
+    // Check if user is a student
+    if (instituteData.userType !== 'student') {
+      toast.error(t('feed.studentOnly') || 'Only students can enroll in courses');
+      return;
+    }
+
+    // Check if user is verified
+    if (!instituteData.isVerified) {
+      setShowVerificationPopup(true);
+      return;
+    }
+
+    if (!course.id) {
+      toast.error(t('feed.courseNotFound') || 'Course ID not found');
+      return;
+    }
+
+    setEnrollingCourseId(course.id);
+
+    try {
+      // First check if student is free (no schedule conflict)
+      const checkResponse = await authService.checkStudentFree(
+        instituteData.accessToken,
+        course.id,
+        {
+          refreshToken: instituteData.refreshToken,
+          onTokenRefreshed: (tokens) => {
+            updateInstituteData({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh || instituteData.refreshToken,
+            });
+          },
+          onSessionExpired: () => {
+            toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+          },
+        }
+      );
+
+      // Check if there's a schedule conflict
+      if (checkResponse?.success === false && checkResponse?.contradiction) {
+        setEnrollmentContradiction(checkResponse.contradiction);
+        setShowEnrollmentContradiction(true);
+        return;
+      }
+
+      // If no conflict, proceed with enrollment
+      const enrollResponse = await authService.enrollInCourse(
+        instituteData.accessToken,
+        course.id,
+        {
+          refreshToken: instituteData.refreshToken,
+          onTokenRefreshed: (tokens) => {
+            updateInstituteData({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh || instituteData.refreshToken,
+            });
+          },
+          onSessionExpired: () => {
+            toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+          },
+        }
+      );
+
+      if (enrollResponse?.success) {
+        toast.success(enrollResponse.message || t('feed.enrollmentSuccess') || 'Enrolled successfully!');
+        // Close course modal if open
+        if (selectedCourse?.id === course.id) {
+          setSelectedCourse(null);
+        }
+      } else {
+        toast.error(enrollResponse?.message || t('feed.enrollmentFailed') || 'Failed to enroll');
+      }
+    } catch (error) {
+      console.error('Error enrolling in course:', error);
+      toast.error(error?.message || error?.data?.message || t('feed.enrollmentFailed') || 'Failed to enroll');
+    } finally {
+      setEnrollingCourseId(null);
+    }
+  };
+
+  // Handle viewing course progress
+  const handleViewProgress = async (course, e) => {
+    if (e) {
+      e.stopPropagation();
+    }
+
+    if (!course.id) {
+      toast.error(t('feed.courseNotFound') || 'Course ID not found');
+      return;
+    }
+
+    setProgressCourse(course);
+    setShowProgressModal(true);
+    setLoadingProgress(true);
+    setProgressData(null);
+
+    try {
+      const response = await authService.getCourseProgress(
+        course.id,
+        instituteData.accessToken || null,
+        {
+          refreshToken: instituteData.refreshToken,
+          onTokenRefreshed: (tokens) => {
+            updateInstituteData({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh || instituteData.refreshToken,
+            });
+          },
+          onSessionExpired: () => {
+            // Don't show error for public endpoint
+          },
+        }
+      );
+
+      if (response?.success) {
+        setProgressData(response);
+      } else {
+        toast.error(response?.message || t('feed.failedToLoadProgress') || 'Failed to load progress');
+      }
+    } catch (error) {
+      console.error('Error fetching progress:', error);
+      toast.error(error?.message || t('feed.failedToLoadProgress') || 'Failed to load progress');
+    } finally {
+      setLoadingProgress(false);
+    }
+  };
+
+  const isLecturer = instituteData.userType === 'lecturer';
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-navy-900 transition-colors flex">
+    <div className={`min-h-screen transition-colors flex ${
+      isLecturer 
+        ? 'bg-gray-50/95 dark:bg-navy-900' 
+        : 'bg-gray-50 dark:bg-navy-900'
+    }`} style={isLecturer ? { background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.03) 0%, transparent 50%)' } : undefined}>
       {/* Left Sidebar */}
       <aside 
-        className={`hidden lg:block bg-white dark:bg-navy-800 shadow-xl border-r border-gray-200 dark:border-navy-700 fixed left-0 top-0 bottom-0 overflow-y-auto z-40 transition-all duration-300 ${
+        className={`hidden lg:block shadow-xl border-r fixed left-0 top-0 bottom-0 overflow-y-auto z-40 transition-all duration-300 ${
           isSidebarExpanded ? 'w-80' : 'w-20'
+        } ${
+          isLecturer 
+            ? 'bg-white dark:bg-navy-800 border-gray-200 dark:border-navy-700 border-l-2 border-l-purple-400/30 dark:border-l-purple-500/20' 
+            : 'bg-white dark:bg-navy-800 border-gray-200 dark:border-navy-700'
         }`}
-        onMouseEnter={() => setIsSidebarExpanded(true)}
-        onMouseLeave={() => setIsSidebarExpanded(false)}
+        onMouseEnter={() => {
+          if (sidebarTimeoutRef.current) {
+            clearTimeout(sidebarTimeoutRef.current);
+          }
+          setIsSidebarExpanded(true);
+        }}
+        onMouseLeave={() => {
+          // Add delay before collapsing to allow clicks to register
+          sidebarTimeoutRef.current = setTimeout(() => {
+            setIsSidebarExpanded(false);
+          }, 200);
+        }}
       >
         <div className="p-6 flex flex-col h-full">
           <div className="flex-1">
@@ -963,7 +922,19 @@ const Explore = () => {
             animate={{ opacity: 1, x: 0 }}
             onClick={(e) => {
               e.stopPropagation();
-              navigate('/feed');
+              if (sidebarTimeoutRef.current) {
+                clearTimeout(sidebarTimeoutRef.current);
+              }
+              // Check if we're already on the feed page
+              if (location.pathname !== '/feed') {
+                navigate('/feed', { replace: false });
+              }
+            }}
+            onMouseEnter={() => {
+              if (sidebarTimeoutRef.current) {
+                clearTimeout(sidebarTimeoutRef.current);
+              }
+              setIsSidebarExpanded(true);
             }}
             className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 mb-6 cursor-pointer`}
             whileTap={{ scale: 0.95 }}
@@ -981,17 +952,25 @@ const Explore = () => {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (sidebarTimeoutRef.current) {
+                      clearTimeout(sidebarTimeoutRef.current);
+                    }
                     /* UNCOMMENT FOR PRODUCTION - Verification Check
                     if (!instituteData.isVerified) {
                       setShowVerificationPopup(true);
                       return;
                     }
                     */
-                    if (instituteData.userType === 'student') {
-                      navigate('/student/courses');
-                    } else {
-                      navigate('/lecturer/courses');
+                    const targetPath = instituteData.userType === 'student' ? '/student/courses' : '/lecturer/courses';
+                    if (location.pathname !== targetPath) {
+                      navigate(targetPath, { replace: false });
                     }
+                  }}
+                  onMouseEnter={() => {
+                    if (sidebarTimeoutRef.current) {
+                      clearTimeout(sidebarTimeoutRef.current);
+                    }
+                    setIsSidebarExpanded(true);
                   }}
                   className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
                   title={t('nav.currentCourses')}
@@ -1007,17 +986,25 @@ const Explore = () => {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (sidebarTimeoutRef.current) {
+                      clearTimeout(sidebarTimeoutRef.current);
+                    }
                     /* UNCOMMENT FOR PRODUCTION - Verification Check
                     if (!instituteData.isVerified) {
                       setShowVerificationPopup(true);
                       return;
                     }
                     */
-                    if (instituteData.userType === 'student') {
-                      navigate('/student/schedule');
-                    } else {
-                      navigate('/lecturer/schedule');
+                    const targetPath = instituteData.userType === 'student' ? '/student/schedule' : '/lecturer/schedule';
+                    if (location.pathname !== targetPath) {
+                      navigate(targetPath, { replace: false });
                     }
+                  }}
+                  onMouseEnter={() => {
+                    if (sidebarTimeoutRef.current) {
+                      clearTimeout(sidebarTimeoutRef.current);
+                    }
+                    setIsSidebarExpanded(true);
                   }}
                   className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
                   title={t('nav.schedule')}
@@ -1035,7 +1022,19 @@ const Explore = () => {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate('/dashboard');
+                    if (sidebarTimeoutRef.current) {
+                      clearTimeout(sidebarTimeoutRef.current);
+                    }
+                    // Check if we're already on the dashboard page
+                    if (!location.pathname.startsWith('/dashboard')) {
+                      navigate('/dashboard', { replace: false });
+                    }
+                  }}
+                  onMouseEnter={() => {
+                    if (sidebarTimeoutRef.current) {
+                      clearTimeout(sidebarTimeoutRef.current);
+                    }
+                    setIsSidebarExpanded(true);
                   }}
                   className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
                   title={t('nav.dashboard')}
@@ -1059,8 +1058,18 @@ const Explore = () => {
               <button
                 type="button"
                 onClick={(e) => {
+                  e.preventDefault();
                   e.stopPropagation();
+                  if (sidebarTimeoutRef.current) {
+                    clearTimeout(sidebarTimeoutRef.current);
+                  }
                   setShowProfileModal(true);
+                }}
+                onMouseEnter={() => {
+                  if (sidebarTimeoutRef.current) {
+                    clearTimeout(sidebarTimeoutRef.current);
+                  }
+                  setIsSidebarExpanded(true);
                 }}
                 className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
                 title={t('nav.profile') || 'Profile'}
@@ -1132,7 +1141,9 @@ const Explore = () => {
               animate={{ x: 0 }}
               exit={{ x: -320 }}
               transition={{ type: 'spring', damping: 20 }}
-              className="fixed left-0 top-0 bottom-0 w-80 bg-white dark:bg-navy-800 shadow-2xl z-50 lg:hidden overflow-y-auto"
+              className={`fixed left-0 top-0 bottom-0 w-80 shadow-2xl z-50 lg:hidden overflow-y-auto bg-white dark:bg-navy-800 ${
+                isLecturer ? 'border-l-2 border-l-purple-400/30 dark:border-l-purple-500/20' : ''
+              }`}
             >
               <div className="p-6">
                 {/* Mobile Sidebar Header */}
@@ -1333,7 +1344,9 @@ const Explore = () => {
       {/* Main Content */}
       <div className={`flex-1 transition-all duration-300 ${isSidebarExpanded ? 'lg:ml-80' : 'lg:ml-20'}`}>
         {/* Navigation Bar */}
-        <nav className="bg-white dark:bg-navy-800 shadow-lg sticky top-0 z-50 transition-colors">
+        <nav className={`shadow-lg sticky top-0 z-50 transition-colors bg-white dark:bg-navy-800 ${
+          isLecturer ? 'border-b-2 border-b-purple-400/20 dark:border-b-purple-500/15' : ''
+        }`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className={`flex ${isRTL ? 'flex-row-reverse' : 'flex-row'} justify-between items-center h-16 ${isRTL ? 'gap-4' : 'gap-4'}`}>
               {/* Logo - Clickable on Mobile to Open Sidebar */}
@@ -1495,7 +1508,7 @@ const Explore = () => {
                       <div className="relative">
                         <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-teal-500 rounded-full flex items-center justify-center">
                           <span className="text-white font-bold text-sm">
-                            {instituteData.name?.[0]?.toUpperCase() || 'U'}
+                            {(username || instituteData.username || instituteData.name)?.[0]?.toUpperCase() || 'U'}
                           </span>
                         </div>
                         {/* Verification Badge on Avatar */}
@@ -1508,7 +1521,7 @@ const Explore = () => {
                         )}
                       </div>
                       <span className="hidden sm:block text-gray-800 dark:text-white font-medium">
-                        {instituteData.name || instituteData.username || 'User'}
+                        {username || instituteData.username || instituteData.name || 'User'}
                       </span>
                     </motion.button>
 
@@ -1523,7 +1536,7 @@ const Explore = () => {
                           <div className={`p-3 border-b border-gray-200 dark:border-navy-700 ${isRTL ? 'text-right' : 'text-left'}`}>
                             <div className={`flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 mb-1`}>
                               <p className="text-sm font-semibold text-gray-800 dark:text-white">
-                                {instituteData.name || instituteData.username}
+                                {username || instituteData.username || instituteData.name}
                               </p>
                               {/* Verification Badge */}
                               {instituteData.isVerified ? (
@@ -1776,7 +1789,7 @@ const Explore = () => {
             {/* All Tab - Mixed Results */}
             {!isLoadingSearch && !searchError && activeTab === 'all' && (
               <>
-                {(searchQuery.trim() ? allResults.length === 0 : students.length === 0 && lecturers.length === 0 && positions.length === 0 && courses.length === 0) ? (
+                {allResults.length === 0 ? (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1799,10 +1812,14 @@ const Explore = () => {
                     className="space-y-8"
                   >
                     {/* Mixed Results from API */}
-                    {searchQuery.trim() && allResults.length > 0 && (
+                    {allResults.length > 0 && (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {allResults.map((item, index) => {
+                        {allResults.filter(item => item && item.id).map((item, index) => {
                           if (item.itemType === 'student') {
+                            // Default avatar for students without profile image
+                            const defaultStudentAvatar = 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="#6366f1" width="100" height="100"/><text x="50" y="55" font-family="Arial" font-size="40" fill="white" text-anchor="middle" dominant-baseline="middle">${(item.name || item.username || 'S').charAt(0).toUpperCase()}</text></svg>`);
+                            const studentImage = item.profile_image ? getImageUrl(item.profile_image) : (item.image ? getImageUrl(item.image) : defaultStudentAvatar);
+                            
                             return (
                               <motion.div
                                 key={`student-${item.id}`}
@@ -1814,67 +1831,203 @@ const Explore = () => {
                               >
                                 <div className="flex items-start gap-4 mb-4">
                                   <img
-                                    src={getImageUrl(item.image) || 'https://i.pravatar.cc/150?img=12'}
-                                    alt={item.name}
+                                    src={studentImage}
+                                    alt={item.name || item.username}
                                     className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
+                                    onError={(e) => { e.target.src = defaultStudentAvatar; }}
                                   />
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1">
-                                      <h3 className="font-bold text-gray-800 dark:text-white">{item.name}</h3>
+                                      <h3 className="font-bold text-gray-800 dark:text-white">{item.name || item.username}</h3>
                                       {item.is_verified && (
                                         <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">✓</span>
                                       )}
                                     </div>
-                                    <p className="text-sm text-primary-600 dark:text-teal-400 mb-1">{item.major}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-500">{item.year} • {item.university}</p>
+                                    {(item.studying_level || item.major) && (
+                                      <p className="text-sm text-primary-600 dark:text-teal-400 mb-1">
+                                        {t(`profile.${item.studying_level}`) || item.studying_level || item.major}
+                                      </p>
+                                    )}
+                                    {item.city && (
+                                      <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-500">
+                                        <FaMapMarkerAlt className="w-3 h-3" />
+                                        <span>{item.city}</span>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">{item.bio || item.about}</p>
-                                {item.location && (
-                                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
-                                    <FaMapMarkerAlt className="w-3 h-3" />
-                                    <span>{item.location}</span>
-                                  </div>
+                                {(item.bio || item.about) && (
+                                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">{item.bio || item.about}</p>
                                 )}
                               </motion.div>
                             );
                           } else if (item.itemType === 'lecturer') {
+                            // Default avatar for lecturers without profile image
+                            const defaultLecturerAvatar = 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="#0d9488" width="100" height="100"/><text x="50" y="55" font-family="Arial" font-size="40" fill="white" text-anchor="middle" dominant-baseline="middle">${(item.name || item.username || 'L').charAt(0).toUpperCase()}</text></svg>`);
+                            const lecturerImage = item.profile_image ? getImageUrl(item.profile_image) : (item.image ? getImageUrl(item.image) : defaultLecturerAvatar);
+                            
                             return (
                               <motion.div
                                 key={`lecturer-${item.id}`}
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: index * 0.05 }}
-                                onClick={() => handleViewProfile(item, 'lecturer')}
-                                className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
+                                className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all"
                               >
-                                <div className="flex items-start gap-4 mb-4">
-                                  <img
-                                    src={getImageUrl(item.image) || 'https://i.pravatar.cc/150?img=20'}
-                                    alt={item.name}
-                                    className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
-                                  />
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <h3 className="font-bold text-gray-800 dark:text-white">{item.name}</h3>
-                                      {item.is_verified && (
-                                        <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">✓</span>
+                                <div 
+                                  onClick={() => handleViewProfile(item, 'lecturer')}
+                                  className="cursor-pointer"
+                                >
+                                  <div className="flex items-start gap-4 mb-4">
+                                    <img
+                                      src={lecturerImage}
+                                      alt={item.name || item.username}
+                                      className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
+                                      onError={(e) => { e.target.src = defaultLecturerAvatar; }}
+                                    />
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <h3 className="font-bold text-gray-800 dark:text-white">{item.name || item.username}</h3>
+                                        {item.is_verified && (
+                                          <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">✓</span>
+                                        )}
+                                      </div>
+                                      {item.specialty && (
+                                        <p className="text-sm text-primary-600 dark:text-teal-400 mb-1">{item.specialty}</p>
                                       )}
+                                      <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
+                                        {item.city && (
+                                          <div className="flex items-center gap-1">
+                                            <FaMapMarkerAlt className="w-3 h-3" />
+                                            <span>{item.city}</span>
+                                          </div>
+                                        )}
+                                        {item.institutions && item.institutions.length > 0 && (
+                                          <span>• {item.institutions.join(', ')}</span>
+                                        )}
+                                      </div>
                                     </div>
-                                    <p className="text-sm text-primary-600 dark:text-teal-400 mb-1">{item.specialty}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-500">{item.experience} • {item.university}</p>
                                   </div>
+                                  {(item.bio || item.about) && (
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">{item.bio || item.about}</p>
+                                  )}
                                 </div>
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">{item.bio || item.about}</p>
-                                {item.location && (
-                                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
-                                    <FaMapMarkerAlt className="w-3 h-3" />
-                                    <span>{item.location}</span>
-                                  </div>
+                                {/* Mark Button - Only for Institution Users */}
+                                {isInstitution && instituteData.isVerified && (
+                                  <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      if (!item.id) {
+                                        toast.error(t('feed.lecturerIdNotFound') || 'Lecturer ID not found');
+                                        return;
+                                      }
+                                      if (!instituteData.accessToken) {
+                                        toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+                                        return;
+                                      }
+                                      
+                                      const isMarked = markedLecturers.has(item.id);
+                                      
+                                      setMarkingLecturer(item.id);
+                                      try {
+                                        let response;
+                                        if (isMarked) {
+                                          // Unmark lecturer
+                                          response = await authService.removeMarkedLecturer(
+                                            instituteData.accessToken,
+                                            item.id,
+                                            {
+                                              refreshToken: instituteData.refreshToken,
+                                              onTokenRefreshed: (tokens) => {
+                                                updateInstituteData({
+                                                  accessToken: tokens.access,
+                                                  refreshToken: tokens.refresh || instituteData.refreshToken,
+                                                });
+                                              },
+                                              onSessionExpired: () => {
+                                                toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+                                              },
+                                            }
+                                          );
+                                          
+                                          if (response?.success) {
+                                            toast.success(response.message || t('feed.lecturerUnmarked') || 'Lecturer removed from marked list');
+                                            setMarkedLecturers(prev => {
+                                              const newSet = new Set(prev);
+                                              newSet.delete(item.id);
+                                              return newSet;
+                                            });
+                                          } else {
+                                            toast.error(response?.message || t('feed.failedToUnmarkLecturer') || 'Failed to unmark lecturer');
+                                          }
+                                        } else {
+                                          // Mark lecturer
+                                          response = await authService.markLecturer(
+                                            instituteData.accessToken,
+                                            item.id,
+                                            {
+                                              refreshToken: instituteData.refreshToken,
+                                              onTokenRefreshed: (tokens) => {
+                                                updateInstituteData({
+                                                  accessToken: tokens.access,
+                                                  refreshToken: tokens.refresh || instituteData.refreshToken,
+                                                });
+                                              },
+                                              onSessionExpired: () => {
+                                                toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+                                              },
+                                            }
+                                          );
+                                          
+                                          if (response?.success) {
+                                            toast.success(response.message || t('feed.lecturerMarked') || 'Lecturer marked successfully!');
+                                            setMarkedLecturers(prev => new Set([...prev, item.id]));
+                                          } else {
+                                            toast.error(response?.message || t('feed.failedToMarkLecturer') || 'Failed to mark lecturer');
+                                          }
+                                        }
+                                      } catch (error) {
+                                        console.error('Error marking/unmarking lecturer:', error);
+                                        toast.error(error?.message || error?.data?.message || (isMarked ? t('feed.failedToUnmarkLecturer') : t('feed.failedToMarkLecturer')) || 'Failed to update lecturer status');
+                                      } finally {
+                                        setMarkingLecturer(null);
+                                      }
+                                    }}
+                                    disabled={markingLecturer === item.id}
+                                    className={`w-full mt-3 px-4 py-2 rounded-lg font-semibold text-sm transition-colors flex items-center justify-center gap-2 ${
+                                      markedLecturers.has(item.id)
+                                        ? 'bg-green-600 hover:bg-green-500 text-white'
+                                        : 'bg-primary-600 hover:bg-primary-500 text-white'
+                                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                  >
+                                    {markingLecturer === item.id ? (
+                                      <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        <span>{markedLecturers.has(item.id) ? (t('feed.unmarking') || 'Unmarking...') : (t('feed.marking') || 'Marking...')}</span>
+                                      </>
+                                    ) : markedLecturers.has(item.id) ? (
+                                      <>
+                                        <FaBookmark className="w-4 h-4" />
+                                        <span>{t('feed.marked') || 'Marked'}</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <FaBookmark className="w-4 h-4" />
+                                        <span>{t('feed.mark') || 'Mark'}</span>
+                                      </>
+                                    )}
+                                  </motion.button>
                                 )}
                               </motion.div>
                             );
                           } else if (item.itemType === 'job') {
+                            // Default avatar for job publisher - use first letter of institution name
+                            const institutionName = item.institution || item.publisher_username || 'J';
+                            const defaultJobAvatar = 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="#8b5cf6" width="100" height="100"/><text x="50" y="55" font-family="Arial" font-size="40" fill="white" text-anchor="middle" dominant-baseline="middle">${institutionName.charAt(0).toUpperCase()}</text></svg>`);
+                            const publisherImage = item.publisher_profile_image ? getImageUrl(item.publisher_profile_image) : defaultJobAvatar;
+                            
                             return (
                               <motion.div
                                 key={`job-${item.id}`}
@@ -1884,27 +2037,35 @@ const Explore = () => {
                                 onClick={() => handleViewJob(item)}
                                 className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
                               >
-                                <div className="mb-4">
-                                  <h3 className="font-bold text-gray-800 dark:text-white mb-2 text-lg">{item.title}</h3>
-                                  {item.institution && (
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <FaUniversity className="text-primary-600 dark:text-teal-400" />
-                                      <span className="text-sm text-primary-600 dark:text-teal-400 font-medium">{item.institution}</span>
-                                    </div>
-                                  )}
-                                  {item.city && (
-                                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500 mb-2">
-                                      <FaMapMarkerAlt className="w-3 h-3" />
-                                      <span>{item.city}</span>
-                                    </div>
-                                  )}
+                                <div className="flex items-start gap-4 mb-4">
+                                  <img
+                                    src={publisherImage}
+                                    alt={item.institution || item.publisher_username}
+                                    className="w-12 h-12 rounded-full object-cover border-2 border-purple-200 dark:border-purple-800"
+                                    onError={(e) => { e.target.src = defaultJobAvatar; }}
+                                  />
+                                  <div className="flex-1">
+                                    <h3 className="font-bold text-gray-800 dark:text-white mb-1 text-lg">{item.title}</h3>
+                                    {item.institution && (
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <FaUniversity className="text-primary-600 dark:text-teal-400 w-3 h-3" />
+                                        <span className="text-sm text-primary-600 dark:text-teal-400 font-medium">{item.institution}</span>
+                                      </div>
+                                    )}
+                                    {item.city && (
+                                      <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-500">
+                                        <FaMapMarkerAlt className="w-3 h-3" />
+                                        <span>{item.city}</span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                                 {item.description && (
                                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
                                     {item.description}
                                   </p>
                                 )}
-                                {/* Apply Button - For all lecturers */}
+                                {/* Apply Button - For lecturers only (not for institutions) */}
                                 {instituteData.isAuthenticated && 
                                  instituteData.userType === 'lecturer' && (
                                   <motion.button
@@ -1927,6 +2088,10 @@ const Explore = () => {
                               </motion.div>
                             );
                           } else if (item.itemType === 'institution_job') {
+                            // Default avatar for institution job
+                            const defaultInstJobAvatar = 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="#8b5cf6" width="100" height="100"/><text x="50" y="55" font-family="Arial" font-size="40" fill="white" text-anchor="middle" dominant-baseline="middle">${(item.institution_username || 'J').charAt(0).toUpperCase()}</text></svg>`);
+                            const instJobImage = item.publisher_profile_image ? getImageUrl(item.publisher_profile_image) : defaultInstJobAvatar;
+                            
                             return (
                               <motion.div
                                 key={`institution-job-${item.id}`}
@@ -1936,21 +2101,29 @@ const Explore = () => {
                                 onClick={() => handleViewJob(item)}
                                 className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
                               >
-                                <div className="mb-4">
-                                  <h3 className="font-bold text-gray-800 dark:text-white mb-2 text-lg">{item.title}</h3>
-                                  {item.institution_username && (
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <FaUniversity className="text-primary-600 dark:text-teal-400" />
-                                      <span className="text-sm text-primary-600 dark:text-teal-400 font-medium">{item.institution_username}</span>
-                                    </div>
-                                  )}
+                                <div className="flex items-start gap-4 mb-4">
+                                  <img
+                                    src={instJobImage}
+                                    alt={item.institution_username}
+                                    className="w-12 h-12 rounded-full object-cover border-2 border-purple-200 dark:border-purple-800"
+                                    onError={(e) => { e.target.src = defaultInstJobAvatar; }}
+                                  />
+                                  <div className="flex-1">
+                                    <h3 className="font-bold text-gray-800 dark:text-white mb-1 text-lg">{item.title}</h3>
+                                    {item.institution_username && (
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <FaUniversity className="text-primary-600 dark:text-teal-400 w-3 h-3" />
+                                        <span className="text-sm text-primary-600 dark:text-teal-400 font-medium">{item.institution_username}</span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                                 {item.description && (
                                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
                                     {item.description}
                                   </p>
                                 )}
-                                {/* Apply Button - For all lecturers */}
+                                {/* Apply Button - For lecturers only (not for institutions) */}
                                 {instituteData.isAuthenticated && 
                                  instituteData.userType === 'lecturer' && (
                                   <motion.button
@@ -2017,38 +2190,75 @@ const Explore = () => {
                                 onClick={() => handleViewCourse(item)}
                                 className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
                               >
-                                <div className="relative h-32 overflow-hidden">
-                                  <img
-                                    src={getImageUrl(item.image) || item.image || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&q=80'}
-                                    alt={item.title}
-                                    className="w-full h-full object-cover"
-                                  />
-                                  <div className="absolute top-2 right-2">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                      item.level === 'Beginner' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
-                                      item.level === 'Intermediate' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' :
-                                      'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
-                                    }`}>
-                                      {item.level}
-                                    </span>
-                                  </div>
+                                <div className="relative h-32 overflow-hidden bg-gradient-to-br from-primary-100 to-teal-100 dark:from-primary-900 dark:to-teal-900">
+                                  {item.publisher_profile_image && (
+                                    <img
+                                      src={getImageUrl(item.publisher_profile_image)}
+                                      alt={item.title}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  )}
                                 </div>
                                 <div className="p-4">
                                   <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-1 line-clamp-2">
                                     {item.title}
                                   </h3>
                                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                                    {item.code} • {item.institution}
+                                    {item.institution && (
+                                      <>
+                                        <FaUniversity className="inline w-3 h-3 mr-1" />
+                                        {item.institution}
+                                      </>
+                                    )}
+                                    {item.city && (
+                                      <>
+                                        {item.institution && ' • '}
+                                        <FaMapMarkerAlt className="inline w-3 h-3 mr-1" />
+                                        {item.city}
+                                      </>
+                                    )}
                                   </p>
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
-                                      <FaChalkboardTeacher className="w-3 h-3" />
-                                      <span className="truncate">{item.instructor}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1 text-primary-600 dark:text-teal-400 font-bold text-sm">
-                                      <FaDollarSign className="w-3 h-3" />
-                                      <span>${item.price}</span>
-                                    </div>
+                                  {item.about && (
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
+                                      {item.about}
+                                    </p>
+                                  )}
+                                  {item.publisher_username && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-500 mb-3">
+                                      @{item.publisher_username}
+                                    </p>
+                                  )}
+                                  {/* Buttons */}
+                                  <div className="flex gap-2">
+                                    {/* Progress button - always visible */}
+                                    <motion.button
+                                      whileHover={{ scale: 1.02 }}
+                                      whileTap={{ scale: 0.98 }}
+                                      onClick={(e) => handleViewProgress(item, e)}
+                                      className="px-3 py-2 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-400 rounded-lg transition-colors font-medium text-sm flex items-center gap-1"
+                                    >
+                                      <FaChartLine className="text-sm" />
+                                      <span>{t('feed.progress') || 'Progress'}</span>
+                                    </motion.button>
+                                    {/* Enroll button for verified students */}
+                                    {instituteData.isAuthenticated && instituteData.userType === 'student' && (
+                                      <motion.button
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        onClick={(e) => handleEnrollCourse(item, e)}
+                                        disabled={enrollingCourseId === item.id}
+                                        className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                      >
+                                        {enrollingCourseId === item.id ? (
+                                          <>
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            <span>{t('feed.enrolling') || 'Enrolling...'}</span>
+                                          </>
+                                        ) : (
+                                          <span>{t('feed.enroll') || 'Enroll'}</span>
+                                        )}
+                                      </motion.button>
+                                    )}
                                   </div>
                                 </div>
                               </motion.div>
@@ -2057,247 +2267,6 @@ const Explore = () => {
                           return null;
                         })}
                       </div>
-                    )}
-
-                    {/* Demo Data when no search */}
-                    {!searchQuery.trim() && (
-                      <>
-                        {students.length > 0 && (
-                          <div>
-                            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">{t('feed.students')}</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                              {students.slice(0, 3).map((student, index) => (
-                                <motion.div
-                                  key={student.id}
-                                  initial={{ opacity: 0, y: 20 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ delay: index * 0.1 }}
-                                  onClick={() => handleViewProfile(student, 'student')}
-                                  className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
-                                >
-                                  <div className="flex items-start gap-4 mb-4">
-                                    <img
-                                      src={student.image}
-                                      alt={student.name}
-                                      className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
-                                    />
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <h3 className="font-bold text-gray-800 dark:text-white">{student.name}</h3>
-                                        {student.isVerified && (
-                                          <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">✓</span>
-                                        )}
-                                      </div>
-                                      <p className="text-sm text-primary-600 dark:text-teal-400 mb-1">{student.major}</p>
-                                      <p className="text-xs text-gray-500 dark:text-gray-500">{student.year} • {student.university}</p>
-                                    </div>
-                                  </div>
-                                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">{student.bio}</p>
-                                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
-                                    <FaMapMarkerAlt className="w-3 h-3" />
-                                    <span>{student.location}</span>
-                                  </div>
-                                </motion.div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {lecturers.length > 0 && (
-                          <div>
-                            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">{t('feed.lecturers')}</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                              {lecturers.slice(0, 3).map((lecturer, index) => (
-                                <motion.div
-                                  key={lecturer.id}
-                                  initial={{ opacity: 0, y: 20 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ delay: index * 0.1 }}
-                                  onClick={() => handleViewProfile(lecturer, 'lecturer')}
-                                  className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
-                                >
-                                  <div className="flex items-start gap-4 mb-4">
-                                    <img
-                                      src={lecturer.image}
-                                      alt={lecturer.name}
-                                      className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
-                                    />
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <h3 className="font-bold text-gray-800 dark:text-white">{lecturer.name}</h3>
-                                        {lecturer.isVerified && (
-                                          <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">✓</span>
-                                        )}
-                                      </div>
-                                      <p className="text-sm text-primary-600 dark:text-teal-400 mb-1">{lecturer.specialty}</p>
-                                      <p className="text-xs text-gray-500 dark:text-gray-500">{lecturer.experience} • {lecturer.university}</p>
-                                    </div>
-                                  </div>
-                                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">{lecturer.bio}</p>
-                                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
-                                    <FaMapMarkerAlt className="w-3 h-3" />
-                                    <span>{lecturer.location}</span>
-                                  </div>
-                                </motion.div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {positions.length > 0 && (
-                          <div>
-                            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">{t('feed.lookingForJob')}</h3>
-                            <div className="space-y-6">
-                              {positions.slice(0, 3).map((position, index) => (
-                                <motion.div
-                                  key={position.id}
-                                  initial={{ opacity: 0, y: 20 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ delay: index * 0.1 }}
-                                  className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all"
-                                >
-                                  <div className="flex items-start gap-4 mb-4">
-                                    <img
-                                      src={position.lecturerImage}
-                                      alt={position.lecturerName}
-                                      className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
-                                    />
-                                    <div className="flex-1">
-                                      <h3 className="font-bold text-gray-800 dark:text-white mb-1">{position.lecturerName}</h3>
-                                      <p className="text-sm text-primary-600 dark:text-teal-400 mb-1">{position.specialty} • {position.experience}</p>
-                                      <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
-                                        <FaMapMarkerAlt className="w-3 h-3" />
-                                        <span>{position.location}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <FaBriefcase className="text-blue-600 dark:text-blue-400" />
-                                      <span className="font-semibold text-blue-800 dark:text-blue-300">{t('feed.lookingForJob')}</span>
-                                    </div>
-                                    <p className="text-gray-700 dark:text-gray-300">{position.message}</p>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                                      {t('feed.contact')}: <span className="font-medium">{position.contact}</span>
-                                    </p>
-                                  </div>
-                                  {isInstitution && (
-                                    <motion.button
-                                      whileHover={{ scale: 1.02 }}
-                                      whileTap={{ scale: 0.98 }}
-                                      onClick={() => window.location.href = `mailto:${position.contact}`}
-                                      className="w-full px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold"
-                                    >
-                                      {t('feed.contactLecturer')}
-                                    </motion.button>
-                                  )}
-                                </motion.div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {institutionJobPosts.length > 0 && (
-                          <div>
-                            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">{t('feed.jobPostings') || 'Job Postings from Institutions'}</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                              {institutionJobPosts.slice(0, 3).map((job, index) => (
-                                <motion.div
-                                  key={`institution-job-${job.id}`}
-                                  initial={{ opacity: 0, y: 20 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ delay: index * 0.1 }}
-                                  onClick={() => handleViewJob(job)}
-                                  className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
-                                >
-                                  <div className="mb-4">
-                                    <h3 className="font-bold text-gray-800 dark:text-white mb-2 text-lg">{job.title}</h3>
-                                    {job.institution_username && (
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <FaUniversity className="text-primary-600 dark:text-teal-400" />
-                                        <span className="text-sm text-primary-600 dark:text-teal-400 font-medium">{job.institution_username}</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                  {job.description && (
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
-                                      {job.description}
-                                    </p>
-                                  )}
-                                  {/* Apply Button - For all lecturers */}
-                                  {instituteData.isAuthenticated && 
-                                   instituteData.userType === 'lecturer' && (
-                                    <motion.button
-                                      whileHover={{ scale: 1.02 }}
-                                      whileTap={{ scale: 0.98 }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (!instituteData.isVerified) {
-                                          setShowVerificationPopup(true);
-                                        } else {
-                                          setSelectedJob(job);
-                                          setShowApplyJobModal(true);
-                                        }
-                                      }}
-                                      className="w-full px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold text-sm"
-                                    >
-                                      {t('feed.applyJob') || 'Apply'}
-                                    </motion.button>
-                                  )}
-                                </motion.div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {courses.length > 0 && (
-                          <div>
-                            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">{t('feed.exploreCourses') || 'Courses'}</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                              {courses.slice(0, 3).map((course, index) => (
-                                <motion.div
-                                  key={course.id}
-                                  initial={{ opacity: 0, y: 20 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ delay: index * 0.1 }}
-                                  className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
-                                >
-                                  <div className="relative h-32 overflow-hidden">
-                                    <img
-                                      src={course.image}
-                                      alt={course.title}
-                                      className="w-full h-full object-cover"
-                                    />
-                                    <div className="absolute top-2 right-2">
-                                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                        course.level === 'Beginner' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
-                                        course.level === 'Intermediate' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' :
-                                        'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
-                                      }`}>
-                                        {course.level}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div className="p-4">
-                                    <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-1 line-clamp-2">
-                                      {course.title}
-                                    </h3>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                                      {course.code} • {course.institution}
-                                    </p>
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
-                                        <FaChalkboardTeacher className="w-3 h-3" />
-                                        <span className="truncate">{course.instructor}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1 text-primary-600 dark:text-teal-400 font-bold text-sm">
-                                        <FaDollarSign className="w-3 h-3" />
-                                        <span>${course.price}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </motion.div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </>
                     )}
                   </motion.div>
                 )}
@@ -2329,49 +2298,59 @@ const Explore = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                   >
-                    {students.map((student, index) => (
-                  <motion.div
-                    key={student.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    onClick={() => handleViewProfile(student, 'student')}
-                    className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
-                  >
-                    <div className="flex items-start gap-4 mb-4">
-                      <img
-                        src={student.image}
-                        alt={student.name}
-                        className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-gray-800 dark:text-white">
-                            {student.name}
-                          </h3>
-                          {student.isVerified && (
-                            <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">
-                              ✓
-                            </span>
+                    {students.map((student, index) => {
+                      // Default avatar for students without profile image
+                      const defaultStudentAvatarTab = 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="#6366f1" width="100" height="100"/><text x="50" y="55" font-family="Arial" font-size="40" fill="white" text-anchor="middle" dominant-baseline="middle">${(student.name || student.username || 'S').charAt(0).toUpperCase()}</text></svg>`);
+                      const studentImgTab = student.profile_image ? getImageUrl(student.profile_image) : (student.image ? getImageUrl(student.image) : defaultStudentAvatarTab);
+                      
+                      return (
+                        <motion.div
+                          key={student.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          onClick={() => handleViewProfile(student, 'student')}
+                          className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
+                        >
+                          <div className="flex items-start gap-4 mb-4">
+                            <img
+                              src={studentImgTab}
+                              alt={student.name || student.username}
+                              className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
+                              onError={(e) => { e.target.src = defaultStudentAvatarTab; }}
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-bold text-gray-800 dark:text-white">
+                                  {student.name || student.username}
+                                </h3>
+                                {student.is_verified && (
+                                  <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">
+                                    ✓
+                                  </span>
+                                )}
+                              </div>
+                              {(student.studying_level || student.major) && (
+                                <p className="text-sm text-primary-600 dark:text-teal-400 mb-1">
+                                  {t(`profile.${student.studying_level}`) || student.studying_level || student.major}
+                                </p>
+                              )}
+                              {student.city && (
+                                <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-500">
+                                  <FaMapMarkerAlt className="w-3 h-3" />
+                                  <span>{student.city}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {(student.bio || student.about) && (
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
+                              {student.bio || student.about}
+                            </p>
                           )}
-                        </div>
-                        <p className="text-sm text-primary-600 dark:text-teal-400 mb-1">
-                          {student.major}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500">
-                          {student.year} • {student.university}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
-                      {student.bio}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
-                      <FaMapMarkerAlt className="w-3 h-3" />
-                      <span>{student.location}</span>
-                    </div>
-                  </motion.div>
-                    ))}
+                        </motion.div>
+                      );
+                    })}
                   </motion.div>
                 )}
               </>
@@ -2402,49 +2381,176 @@ const Explore = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                   >
-                    {lecturers.map((lecturer, index) => (
-                  <motion.div
-                    key={lecturer.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    onClick={() => handleViewProfile(lecturer, 'lecturer')}
-                    className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
-                  >
-                    <div className="flex items-start gap-4 mb-4">
-                      <img
-                        src={lecturer.image}
-                        alt={lecturer.name}
-                        className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-gray-800 dark:text-white">
-                            {lecturer.name}
-                          </h3>
-                          {lecturer.isVerified && (
-                            <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">
-                              ✓
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-primary-600 dark:text-teal-400 mb-1">
-                          {lecturer.specialty}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500">
-                          {lecturer.experience} • {lecturer.university}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
-                      {lecturer.bio}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
-                      <FaMapMarkerAlt className="w-3 h-3" />
-                      <span>{lecturer.location}</span>
-                    </div>
-                  </motion.div>
-                    ))}
+                    {lecturers.filter(lecturer => lecturer && lecturer.id).map((lecturer, index) => {
+                      // Default avatar for lecturers without profile image
+                      const defaultLecturerAvatarTab = 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="#0d9488" width="100" height="100"/><text x="50" y="55" font-family="Arial" font-size="40" fill="white" text-anchor="middle" dominant-baseline="middle">${(lecturer.name || lecturer.username || 'L').charAt(0).toUpperCase()}</text></svg>`);
+                      const lecturerImgTab = lecturer.profile_image ? getImageUrl(lecturer.profile_image) : (lecturer.image ? getImageUrl(lecturer.image) : defaultLecturerAvatarTab);
+                      
+                      return (
+                        <motion.div
+                          key={lecturer.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all"
+                        >
+                          <div 
+                            onClick={() => handleViewProfile(lecturer, 'lecturer')}
+                            className="cursor-pointer"
+                          >
+                            <div className="flex items-start gap-4 mb-4">
+                              <img
+                                src={lecturerImgTab}
+                                alt={lecturer.name || lecturer.username}
+                                className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
+                                onError={(e) => { e.target.src = defaultLecturerAvatarTab; }}
+                              />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="font-bold text-gray-800 dark:text-white">
+                                    {lecturer.name || lecturer.username}
+                                  </h3>
+                                  {lecturer.is_verified && (
+                                    <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">
+                                      ✓
+                                    </span>
+                                  )}
+                                </div>
+                                {lecturer.specialty && (
+                                  <p className="text-sm text-primary-600 dark:text-teal-400 mb-1">
+                                    {lecturer.specialty}
+                                  </p>
+                                )}
+                                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
+                                  {lecturer.city && (
+                                    <div className="flex items-center gap-1">
+                                      <FaMapMarkerAlt className="w-3 h-3" />
+                                      <span>{lecturer.city}</span>
+                                    </div>
+                                  )}
+                                  {lecturer.institutions && lecturer.institutions.length > 0 && (
+                                    <span>• {lecturer.institutions.join(', ')}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            {(lecturer.bio || lecturer.about) && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
+                                {lecturer.bio || lecturer.about}
+                              </p>
+                            )}
+                          </div>
+                    {/* Mark Button - Only for Institution Users */}
+                    {isInstitution && instituteData.isVerified && (
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (!lecturer.id) {
+                            toast.error(t('feed.lecturerIdNotFound') || 'Lecturer ID not found');
+                            return;
+                          }
+                          if (!instituteData.accessToken) {
+                            toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+                            return;
+                          }
+                          
+                          const isMarked = markedLecturers.has(lecturer.id);
+                          
+                          setMarkingLecturer(lecturer.id);
+                          try {
+                            let response;
+                            if (isMarked) {
+                              // Unmark lecturer
+                              response = await authService.removeMarkedLecturer(
+                                instituteData.accessToken,
+                                lecturer.id,
+                                {
+                                  refreshToken: instituteData.refreshToken,
+                                  onTokenRefreshed: (tokens) => {
+                                    updateInstituteData({
+                                      accessToken: tokens.access,
+                                      refreshToken: tokens.refresh || instituteData.refreshToken,
+                                    });
+                                  },
+                                  onSessionExpired: () => {
+                                    toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+                                  },
+                                }
+                              );
+                              
+                              if (response?.success) {
+                                toast.success(response.message || t('feed.lecturerUnmarked') || 'Lecturer removed from marked list');
+                                setMarkedLecturers(prev => {
+                                  const newSet = new Set(prev);
+                                  newSet.delete(lecturer.id);
+                                  return newSet;
+                                });
+                              } else {
+                                toast.error(response?.message || t('feed.failedToUnmarkLecturer') || 'Failed to unmark lecturer');
+                              }
+                            } else {
+                              // Mark lecturer
+                              response = await authService.markLecturer(
+                                instituteData.accessToken,
+                                lecturer.id,
+                                {
+                                  refreshToken: instituteData.refreshToken,
+                                  onTokenRefreshed: (tokens) => {
+                                    updateInstituteData({
+                                      accessToken: tokens.access,
+                                      refreshToken: tokens.refresh || instituteData.refreshToken,
+                                    });
+                                  },
+                                  onSessionExpired: () => {
+                                    toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+                                  },
+                                }
+                              );
+                              
+                              if (response?.success) {
+                                toast.success(response.message || t('feed.lecturerMarked') || 'Lecturer marked successfully!');
+                                setMarkedLecturers(prev => new Set([...prev, lecturer.id]));
+                              } else {
+                                toast.error(response?.message || t('feed.failedToMarkLecturer') || 'Failed to mark lecturer');
+                              }
+                            }
+                          } catch (error) {
+                            console.error('Error marking/unmarking lecturer:', error);
+                            toast.error(error?.message || error?.data?.message || (isMarked ? t('feed.failedToUnmarkLecturer') : t('feed.failedToMarkLecturer')) || 'Failed to update lecturer status');
+                          } finally {
+                            setMarkingLecturer(null);
+                          }
+                        }}
+                        disabled={markingLecturer === lecturer.id}
+                        className={`w-full mt-3 px-4 py-2 rounded-lg font-semibold text-sm transition-colors flex items-center justify-center gap-2 ${
+                          markedLecturers.has(lecturer.id)
+                            ? 'bg-green-600 hover:bg-green-500 text-white'
+                            : 'bg-primary-600 hover:bg-primary-500 text-white'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {markingLecturer === lecturer.id ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            <span>{markedLecturers.has(lecturer.id) ? (t('feed.unmarking') || 'Unmarking...') : (t('feed.marking') || 'Marking...')}</span>
+                          </>
+                        ) : markedLecturers.has(lecturer.id) ? (
+                          <>
+                            <FaBookmark className="w-4 h-4" />
+                            <span>{t('feed.marked') || 'Marked'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <FaBookmark className="w-4 h-4" />
+                            <span>{t('feed.mark') || 'Mark'}</span>
+                          </>
+                        )}
+                      </motion.button>
+                    )}
+                        </motion.div>
+                      );
+                    })}
                   </motion.div>
                 )}
               </>
@@ -2475,123 +2581,153 @@ const Explore = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="space-y-6"
                   >
-                    {/* Institution Job Posts */}
-                    {institutionJobPosts.length > 0 && (
+                    {/* Jobs from API */}
+                    {positions.length > 0 && (
                       <div className="mb-8">
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">{t('feed.jobPostings') || 'Job Postings from Institutions'}</h3>
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">{t('feed.jobPostings') || 'Job Postings'}</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                          {institutionJobPosts.map((job, index) => (
-                            <motion.div
-                              key={`institution-job-${job.id}`}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: index * 0.1 }}
-                              onClick={() => handleViewJob(job)}
-                              className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
-                            >
-                              <div className="mb-4">
-                                <h3 className="font-bold text-gray-800 dark:text-white mb-2 text-lg">{job.title}</h3>
-                                {job.institution_username && (
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <FaUniversity className="text-primary-600 dark:text-teal-400" />
-                                    <span className="text-sm text-primary-600 dark:text-teal-400 font-medium">{job.institution_username}</span>
+                          {positions.map((job, index) => {
+                            // Default avatar for job - use first letter of institution name
+                            const institutionName = job.institution || job.publisher_username || 'J';
+                            const defaultJobAvatarTab = 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="#8b5cf6" width="100" height="100"/><text x="50" y="55" font-family="Arial" font-size="40" fill="white" text-anchor="middle" dominant-baseline="middle">${institutionName.charAt(0).toUpperCase()}</text></svg>`);
+                            const jobImgTab = job.publisher_profile_image ? getImageUrl(job.publisher_profile_image) : defaultJobAvatarTab;
+                            
+                            return (
+                              <motion.div
+                                key={`job-${job.id}`}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.1 }}
+                                onClick={() => handleViewJob(job)}
+                                className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
+                              >
+                                <div className="flex items-start gap-4 mb-4">
+                                  <img
+                                    src={jobImgTab}
+                                    alt={job.institution || job.publisher_username}
+                                    className="w-12 h-12 rounded-full object-cover border-2 border-purple-200 dark:border-purple-800"
+                                    onError={(e) => { e.target.src = defaultJobAvatarTab; }}
+                                  />
+                                  <div className="flex-1">
+                                    <h3 className="font-bold text-gray-800 dark:text-white mb-1 text-lg">{job.title}</h3>
+                                    {job.institution && (
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <FaUniversity className="text-primary-600 dark:text-teal-400 w-3 h-3" />
+                                        <span className="text-sm text-primary-600 dark:text-teal-400 font-medium">{job.institution}</span>
+                                      </div>
+                                    )}
+                                    {job.city && (
+                                      <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-500">
+                                        <FaMapMarkerAlt className="w-3 h-3" />
+                                        <span>{job.city}</span>
+                                      </div>
+                                    )}
                                   </div>
+                                </div>
+                                {job.description && (
+                                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
+                                    {job.description}
+                                  </p>
                                 )}
-                              </div>
-                              {job.description && (
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
-                                  {job.description}
-                                </p>
-                              )}
-                              {/* Apply Button - For all lecturers */}
-                              {instituteData.isAuthenticated && 
-                               instituteData.userType === 'lecturer' && (
-                                <motion.button
-                                  whileHover={{ scale: 1.02 }}
-                                  whileTap={{ scale: 0.98 }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (!instituteData.isVerified) {
-                                      setShowVerificationPopup(true);
-                                    } else {
-                                      setSelectedJob(job);
-                                      setShowApplyJobModal(true);
-                                    }
-                                  }}
-                                  className="w-full px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold text-sm"
-                                >
-                                  {t('feed.applyJob') || 'Apply'}
-                                </motion.button>
-                              )}
-                            </motion.div>
-                          ))}
+                                {/* Apply Button - For lecturers only (not for institutions) */}
+                                {instituteData.isAuthenticated && 
+                                 instituteData.userType === 'lecturer' && (
+                                  <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!instituteData.isVerified) {
+                                        setShowVerificationPopup(true);
+                                      } else {
+                                        setSelectedJob(job);
+                                        setShowApplyJobModal(true);
+                                      }
+                                    }}
+                                    className="w-full px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold text-sm"
+                                  >
+                                    {t('feed.applyJob') || 'Apply'}
+                                  </motion.button>
+                                )}
+                              </motion.div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
                     
-                    {/* Lecturer Positions (Looking for Job) */}
-                    {positions.length > 0 && (
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">{t('feed.lookingForJob')}</h3>
-                        {positions.map((position, index) => (
-                          <motion.div
-                            key={position.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                            className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all"
-                          >
-                            <div className="flex items-start gap-4 mb-4">
-                              <img
-                                src={position.lecturerImage}
-                                alt={position.lecturerName}
-                                className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
-                              />
-                              <div className="flex-1">
-                                <h3 className="font-bold text-gray-800 dark:text-white mb-1">
-                                  {position.lecturerName}
-                                </h3>
-                                <p className="text-sm text-primary-600 dark:text-teal-400 mb-1">
-                                  {position.specialty} • {position.experience} {t('feed.experience')}
-                                </p>
-                                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
-                                  <FaMapMarkerAlt className="w-3 h-3" />
-                                  <span>{position.location}</span>
-                                </div>
-                              </div>
-                              <span className="text-xs text-gray-500 dark:text-gray-500">
-                                {position.timestamp}
-                              </span>
-                            </div>
-
-                            <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
-                              <div className="flex items-center gap-2 mb-2">
-                                <FaBriefcase className="text-blue-600 dark:text-blue-400" />
-                                <span className="font-semibold text-blue-800 dark:text-blue-300">
-                                  {t('feed.lookingForJob')}
-                                </span>
-                              </div>
-                              <p className="text-gray-700 dark:text-gray-300 mb-2">
-                                {position.message}
-                              </p>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {t('feed.contact')}: <span className="font-medium">{position.contact}</span>
-                              </p>
-                            </div>
-
-                            {/* Contact Button for Institutions */}
-                            {isInstitution && (
-                              <motion.button
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={() => window.location.href = `mailto:${position.contact}`}
-                                className="w-full px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold"
+                    {/* Institution Job Posts (from separate API) */}
+                    {institutionJobPosts.length > 0 && (
+                      <div className="mb-8">
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">{t('feed.jobPostingsFromInstitutions') || 'Job Postings from Institutions'}</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                          {institutionJobPosts.map((job, index) => {
+                            // Default avatar for job
+                            const institutionName = job.institution_username || job.institution || 'J';
+                            const defaultJobAvatarTab = 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="#8b5cf6" width="100" height="100"/><text x="50" y="55" font-family="Arial" font-size="40" fill="white" text-anchor="middle" dominant-baseline="middle">${institutionName.charAt(0).toUpperCase()}</text></svg>`);
+                            const jobImgTab = job.publisher_profile_image ? getImageUrl(job.publisher_profile_image) : defaultJobAvatarTab;
+                            
+                            return (
+                              <motion.div
+                                key={`institution-job-${job.id}`}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.1 }}
+                                onClick={() => handleViewJob(job)}
+                                className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
                               >
-                                {t('feed.contactLecturer')}
-                              </motion.button>
-                            )}
-                          </motion.div>
-                        ))}
+                                <div className="flex items-start gap-4 mb-4">
+                                  <img
+                                    src={jobImgTab}
+                                    alt={job.institution_username || job.institution}
+                                    className="w-12 h-12 rounded-full object-cover border-2 border-purple-200 dark:border-purple-800"
+                                    onError={(e) => { e.target.src = defaultJobAvatarTab; }}
+                                  />
+                                  <div className="flex-1">
+                                    <h3 className="font-bold text-gray-800 dark:text-white mb-1 text-lg">{job.title}</h3>
+                                    {(job.institution_username || job.institution) && (
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <FaUniversity className="text-primary-600 dark:text-teal-400 w-3 h-3" />
+                                        <span className="text-sm text-primary-600 dark:text-teal-400 font-medium">{job.institution_username || job.institution}</span>
+                                      </div>
+                                    )}
+                                    {job.city && (
+                                      <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-500">
+                                        <FaMapMarkerAlt className="w-3 h-3" />
+                                        <span>{job.city}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                {job.description && (
+                                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
+                                    {job.description}
+                                  </p>
+                                )}
+                                {/* Apply Button - For lecturers only (not for institutions) */}
+                                {instituteData.isAuthenticated && 
+                                 instituteData.userType === 'lecturer' && (
+                                  <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!instituteData.isVerified) {
+                                        setShowVerificationPopup(true);
+                                      } else {
+                                        setSelectedJob(job);
+                                        setShowApplyJobModal(true);
+                                      }
+                                    }}
+                                    className="w-full px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold text-sm"
+                                  >
+                                    {t('feed.applyJob') || 'Apply'}
+                                  </motion.button>
+                                )}
+                              </motion.div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </motion.div>
@@ -2609,27 +2745,13 @@ const Explore = () => {
                     <div className="flex-1 relative">
                       <FaSearch className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 transform -translate-y-1/2 text-gray-400`} />
                       <input
+                        ref={searchInputRef}
                         type="text"
                         placeholder={t('coursesPage.searchPlaceholder') || 'Search courses...'}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white`}
                       />
-                    </div>
-
-                    {/* Level Filter */}
-                    <div className="relative">
-                      <FaFilter className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 transform -translate-y-1/2 text-gray-400`} />
-                      <select
-                        value={selectedLevel}
-                        onChange={(e) => setSelectedLevel(e.target.value)}
-                        className={`${isRTL ? 'pr-12 pl-10' : 'pl-12 pr-10'} py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white appearance-none cursor-pointer`}
-                      >
-                        <option value="all">{t('coursesPage.allLevels') || 'All Levels'}</option>
-                        <option value="Beginner">{t('coursesPage.beginner') || 'Beginner'}</option>
-                        <option value="Intermediate">{t('coursesPage.intermediate') || 'Intermediate'}</option>
-                        <option value="Advanced">{t('coursesPage.advanced') || 'Advanced'}</option>
-                      </select>
                     </div>
 
                     {/* Institution Filter */}
@@ -2652,12 +2774,12 @@ const Explore = () => {
                 {(() => {
                   const filteredCourses = courses.filter(course => {
                     const matchesSearch = !searchQuery.trim() || 
-                      course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      course.instructor.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      course.category.toLowerCase().includes(searchQuery.toLowerCase());
-                    const matchesLevel = selectedLevel === 'all' || course.level === selectedLevel;
-                    const matchesInstitution = selectedInstitution === 'all' || course.institution === selectedInstitution;
-                    return matchesSearch && matchesLevel && matchesInstitution;
+                      (course.title && course.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                      (course.about && course.about.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                      (course.institution && course.institution.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                      (course.publisher_username && course.publisher_username.toLowerCase().includes(searchQuery.toLowerCase()));
+                    const matchesInstitution = selectedInstitution === 'all' || (course.institution && course.institution === selectedInstitution);
+                    return matchesSearch && matchesInstitution;
                   });
 
                   return filteredCourses.length === 0 ? (
@@ -2670,7 +2792,7 @@ const Explore = () => {
                       <p className="text-gray-600 dark:text-gray-400 text-lg">
                         {t('coursesPage.noCoursesFound') || 'No courses found'}
                       </p>
-                      {(searchQuery || selectedLevel !== 'all' || selectedInstitution !== 'all') && (
+                      {(searchQuery || selectedInstitution !== 'all') && (
                         <p className="text-gray-500 dark:text-gray-500 text-sm mt-2">
                           {t('coursesPage.tryAdjustingFilters') || 'Try adjusting your filters'}
                         </p>
@@ -2692,26 +2814,14 @@ const Explore = () => {
                           className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
                         >
                           {/* Course Image */}
-                          <div className="relative h-48 overflow-hidden">
-                            <img
-                              src={getImageUrl(course.image) || course.image}
-                              alt={course.title}
-                              className="w-full h-full object-cover"
-                            />
-                            <div className="absolute top-4 right-4">
-                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                course.level === 'Beginner' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
-                                course.level === 'Intermediate' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' :
-                                'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
-                              }`}>
-                                {course.level}
-                              </span>
-                            </div>
-                            <div className="absolute bottom-4 left-4">
-                              <span className="px-3 py-1 bg-black/50 backdrop-blur-sm rounded-lg text-white text-sm font-semibold">
-                                {course.category}
-                              </span>
-                            </div>
+                          <div className="relative h-48 overflow-hidden bg-gradient-to-br from-primary-100 to-teal-100 dark:from-primary-900 dark:to-teal-900">
+                            {course.publisher_profile_image && (
+                              <img
+                                src={getImageUrl(course.publisher_profile_image)}
+                                alt={course.title}
+                                className="w-full h-full object-cover"
+                              />
+                            )}
                           </div>
 
                           {/* Course Content */}
@@ -2721,57 +2831,69 @@ const Explore = () => {
                                 {course.title}
                               </h3>
                               <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {course.code} • {course.institution}
+                                {course.institution && (
+                                  <>
+                                    <FaUniversity className="inline w-3 h-3 mr-1" />
+                                    {course.institution}
+                                  </>
+                                )}
+                                {course.city && (
+                                  <>
+                                    {course.institution && ' • '}
+                                    <FaMapMarkerAlt className="inline w-3 h-3 mr-1" />
+                                    {course.city}
+                                  </>
+                                )}
                               </p>
                             </div>
 
-                            <div className="flex items-center gap-2 mb-4">
-                              <div className="flex items-center gap-1">
-                                <FaStar className="w-4 h-4 text-yellow-400" />
-                                <span className="text-sm font-semibold text-gray-800 dark:text-white">
-                                  {course.rating}
-                                </span>
-                              </div>
-                              <span className="text-sm text-gray-500 dark:text-gray-500">
-                                ({course.reviews} {t('coursesPage.reviews') || 'reviews'})
-                              </span>
+                            {course.about && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
+                                {course.about}
+                              </p>
+                            )}
+
+                            {course.publisher_username && (
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mb-4">
+                                @{course.publisher_username}
+                              </p>
+                            )}
+
+                            {/* Buttons */}
+                            <div className="flex gap-2 mt-4">
+                              {/* Progress button - always visible */}
+                              <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={(e) => handleViewProgress(course, e)}
+                                className="px-3 py-2 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-400 rounded-lg transition-colors font-medium text-sm flex items-center gap-1"
+                              >
+                                <FaChartLine className="text-sm" />
+                                <span>{t('feed.progress') || 'Progress'}</span>
+                              </motion.button>
+                              {/* Enroll button for verified students */}
+                              {instituteData.isAuthenticated && instituteData.userType === 'student' ? (
+                                <motion.button
+                                  whileHover={{ scale: 1.02 }}
+                                  whileTap={{ scale: 0.98 }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEnrollCourse(course, e);
+                                  }}
+                                  disabled={enrollingCourseId === course.id}
+                                  className="flex-1 px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                  {enrollingCourseId === course.id ? (
+                                    <>
+                                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                      <span>{t('feed.enrolling') || 'Enrolling...'}</span>
+                                    </>
+                                  ) : (
+                                    <span>{t('feed.enroll') || 'Enroll'}</span>
+                                  )}
+                                </motion.button>
+                              ) : null}
                             </div>
-
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
-                              {course.description}
-                            </p>
-
-                            <div className="flex items-center gap-4 mb-4 text-sm text-gray-600 dark:text-gray-400">
-                              <div className="flex items-center gap-1">
-                                <FaChalkboardTeacher className="w-4 h-4" />
-                                <span>{course.instructor}</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <FaClock className="w-4 h-4" />
-                                <span>{course.duration}</span>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-navy-700">
-                              <div className="flex items-center gap-4 text-sm">
-                                <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
-                                  <FaUsers className="w-4 h-4" />
-                                  <span>{course.students} {t('coursesPage.studentsLabel') || 'students'}</span>
-                                </div>
-                                <div className="flex items-center gap-1 text-primary-600 dark:text-teal-400 font-bold">
-                                  <FaDollarSign className="w-4 h-4" />
-                                  <span className="text-lg">${course.price}</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <motion.button
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
-                              className="w-full mt-4 px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-semibold transition-colors"
-                            >
-                              {t('coursesPage.enrollNow') || 'Enroll Now'}
-                            </motion.button>
                           </div>
                         </motion.div>
                       ))}
@@ -2801,11 +2923,18 @@ const Explore = () => {
               {/* Profile Header */}
               <div className="flex items-start gap-6">
                 <div className="relative">
-                  <img
-                    src={selectedProfile.image || getImageUrl(selectedProfile.profile_image) || 'https://i.pravatar.cc/150?img=12'}
-                    alt={selectedProfile.name || selectedProfile.title || selectedProfile.username}
-                    className="w-32 h-32 rounded-full object-cover border-4 border-primary-200 dark:border-primary-800"
-                  />
+                  {(() => {
+                    const defaultProfileAvatar = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="${profileType === 'student' ? '#6366f1' : profileType === 'lecturer' ? '#0d9488' : '#8b5cf6'}" width="100" height="100"/><text x="50" y="55" font-family="Arial" font-size="40" fill="white" text-anchor="middle" dominant-baseline="middle">${(selectedProfile.name || selectedProfile.title || selectedProfile.username || 'P').charAt(0).toUpperCase()}</text></svg>`)}`;
+                    const profileImg = selectedProfile.image || getImageUrl(selectedProfile.profile_image) || defaultProfileAvatar;
+                    return (
+                      <img
+                        src={profileImg}
+                        alt={selectedProfile.name || selectedProfile.title || selectedProfile.username}
+                        className="w-32 h-32 rounded-full object-cover border-4 border-primary-200 dark:border-primary-800"
+                        onError={(e) => { e.target.src = defaultProfileAvatar; }}
+                      />
+                    );
+                  })()}
                 {selectedProfile.isVerified && (
                   <div className="absolute bottom-0 right-0 w-10 h-10 bg-green-500 rounded-full flex items-center justify-center border-4 border-white dark:border-navy-800">
                     <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -2819,6 +2948,8 @@ const Explore = () => {
                   <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
                     {profileType === 'institution' 
                       ? (selectedProfile.title || selectedProfile.name || selectedProfile.username)
+                      : profileType === 'student'
+                      ? (selectedProfile.name || `${selectedProfile.first_name || ''} ${selectedProfile.last_name || ''}`.trim() || selectedProfile.username)
                       : selectedProfile.name}
                   </h2>
                   {selectedProfile.isVerified ? (
@@ -2852,15 +2983,34 @@ const Explore = () => {
                       </p>
                     )}
                   </>
+                ) : profileType === 'student' ? (
+                  <>
+                    {/* Username */}
+                    {selectedProfile.username && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                        @{selectedProfile.username}
+                      </p>
+                    )}
+                    {/* Studying Level */}
+                    {selectedProfile.studying_level && (
+                      <p className="text-lg text-primary-600 dark:text-teal-400 mb-1">
+                        {t(`profile.${selectedProfile.studying_level}`) || selectedProfile.studying_level}
+                      </p>
+                    )}
+                    {/* City */}
+                    {selectedProfile.city && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        📍 {selectedProfile.city}
+                      </p>
+                    )}
+                  </>
                 ) : (
                   <>
                     <p className="text-lg text-primary-600 dark:text-teal-400 mb-1">
-                      {profileType === 'student' ? selectedProfile.major || selectedProfile.studying_level : selectedProfile.specialty}
+                      {selectedProfile.specialty}
                     </p>
                     <p className="text-gray-600 dark:text-gray-400">
-                      {profileType === 'student' 
-                        ? `${selectedProfile.year || ''} ${selectedProfile.year ? '•' : ''} ${selectedProfile.university || ''}`.trim()
-                        : `${selectedProfile.experience || ''} ${selectedProfile.experience ? 'Experience' : ''} ${selectedProfile.experience && selectedProfile.university ? '•' : ''} ${selectedProfile.university || ''}`.trim()}
+                      {`${selectedProfile.experience || ''} ${selectedProfile.experience ? 'Experience' : ''} ${selectedProfile.experience && selectedProfile.university ? '•' : ''} ${selectedProfile.university || ''}`.trim()}
                     </p>
                   </>
                 )}
@@ -2873,9 +3023,11 @@ const Explore = () => {
             </div>
 
             {/* Contact Information / Location Details */}
-            {(selectedProfile.email || selectedProfile.phone || selectedProfile.location || selectedProfile.city) && (
+            {(selectedProfile.email || selectedProfile.phone || selectedProfile.phone_number || selectedProfile.location || selectedProfile.city) && (
               <div className="bg-gray-50 dark:bg-navy-900 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-800 dark:text-white mb-3">{t('feed.contactInformation') || 'Contact Information'}</h3>
+                <h3 className="font-semibold text-gray-800 dark:text-white mb-3">
+                  {profileType === 'student' ? (t('feed.location') || 'Location') : (t('feed.contactInformation') || 'Contact Information')}
+                </h3>
                 <div className="space-y-2 text-sm">
                   {selectedProfile.email && (
                     <div className="flex items-center gap-2">
@@ -2924,52 +3076,55 @@ const Explore = () => {
             {/* Student-specific content */}
             {profileType === 'student' && (
               <>
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.academicPerformance')}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-semibold">{t('feed.gpa')}:</span> {selectedProfile.gpa}
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.skills')}</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedProfile.skills.map((skill, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1 bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full text-sm"
-                      >
-                        {skill}
-                      </span>
-                    ))}
+                {/* Studying Level - Only show if available */}
+                {selectedProfile.studying_level && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('profile.studyingLevel') || 'Studying Level'}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                      {t(`profile.${selectedProfile.studying_level}`) || selectedProfile.studying_level}
+                    </p>
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.interests')}</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedProfile.interests.map((interest, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1 bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300 rounded-full text-sm"
-                      >
-                        {interest}
-                      </span>
-                    ))}
+                {/* Show additional fields only if they exist (from full profile, not public) */}
+                {selectedProfile.interesting_keywords && (
+                  <div>
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.interests') || 'Interests'}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {selectedProfile.interesting_keywords}
+                    </p>
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.achievements')}</h3>
-                  <ul className="space-y-2">
-                    {selectedProfile.achievements.map((achievement, index) => (
-                      <li key={index} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
-                        <span className="text-primary-600 dark:text-teal-400">✓</span>
-                        {achievement}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                {selectedProfile.skills && Array.isArray(selectedProfile.skills) && selectedProfile.skills.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.skills') || 'Skills'}</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedProfile.skills.map((skill, index) => (
+                        <span
+                          key={index}
+                          className="px-3 py-1 bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full text-sm"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedProfile.achievements && Array.isArray(selectedProfile.achievements) && selectedProfile.achievements.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.achievements') || 'Achievements'}</h3>
+                    <ul className="space-y-2">
+                      {selectedProfile.achievements.map((achievement, index) => (
+                        <li key={index} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
+                          <span className="text-primary-600 dark:text-teal-400">✓</span>
+                          {achievement}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </>
             )}
 
@@ -3006,55 +3161,83 @@ const Explore = () => {
             {/* Lecturer-specific content */}
             {profileType === 'lecturer' && (
               <>
-                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.education')}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {selectedProfile.education}
-                  </p>
-                </div>
+                {/* Academic Achievement */}
+                {selectedProfile.academic_achievement && (
+                  <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('profile.academicAchievement') || 'Academic Achievement'}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {selectedProfile.academic_achievement}
+                    </p>
+                  </div>
+                )}
 
-                {selectedProfile.courses && selectedProfile.courses.length > 0 && (
+                {/* Specialty */}
+                {selectedProfile.specialty && (
+                  <div className="bg-teal-50 dark:bg-teal-900/20 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('profile.specialty') || 'Specialty'}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                      {selectedProfile.specialty}
+                    </p>
+                  </div>
+                )}
+
+                {/* Experience */}
+                {selectedProfile.experience && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('profile.experience') || 'Experience'}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {selectedProfile.experience} {t('profile.years') || 'years'}
+                    </p>
+                  </div>
+                )}
+
+                {/* Free Time / Availability */}
+                {selectedProfile.free_time && (
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('profile.freeTime') || 'Available Time'}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {selectedProfile.free_time}
+                    </p>
+                  </div>
+                )}
+
+                {/* Institutions */}
+                {selectedProfile.institutions && selectedProfile.institutions.length > 0 && (
                   <div>
-                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.coursesTaught')}</h3>
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('profile.institutions') || 'Institutions'}</h3>
                     <div className="flex flex-wrap gap-2">
-                      {selectedProfile.courses.map((course, index) => (
+                      {selectedProfile.institutions.map((inst, index) => (
                         <span
                           key={index}
                           className="px-3 py-1 bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full text-sm"
                         >
-                          {course}
+                          {inst}
                         </span>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {selectedProfile.research && selectedProfile.research.length > 0 && (
+                {/* Skills */}
+                {selectedProfile.skills && (
                   <div>
-                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.researchInterests')}</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedProfile.research.map((topic, index) => (
-                        <span
-                          key={index}
-                          className="px-3 py-1 bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300 rounded-full text-sm"
-                        >
-                          {topic}
-                        </span>
-                      ))}
-                    </div>
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('profile.skills') || 'Skills'}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {selectedProfile.skills}
+                    </p>
                   </div>
                 )}
 
                 {selectedProfile.publications && (
                   <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
-                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.publications')}</h3>
+                    <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.publications') || 'Publications'}</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       {selectedProfile.publications}
                     </p>
                   </div>
                 )}
 
-                {selectedProfile.achievements && selectedProfile.achievements.length > 0 && (
+                {selectedProfile.achievements && Array.isArray(selectedProfile.achievements) && selectedProfile.achievements.length > 0 && (
                   <div>
                     <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.achievementsAwards')}</h3>
                     <ul className="space-y-2">
@@ -3066,6 +3249,45 @@ const Explore = () => {
                       ))}
                     </ul>
                   </div>
+                )}
+
+                {/* Courses Button */}
+                {selectedProfile.username && (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={async () => {
+                      if (!selectedProfile.username) {
+                        toast.error(t('feed.lecturerUsernameNotFound') || 'Lecturer username not found');
+                        return;
+                      }
+                      
+                      setShowLecturerCoursesModal(true);
+                      setIsLoadingLecturerCourses(true);
+                      setLecturerCourses([]);
+                      
+                      try {
+                        const response = await authService.getLecturerCourses(selectedProfile.username);
+                        if (response?.results && Array.isArray(response.results)) {
+                          setLecturerCourses(response.results);
+                        } else if (Array.isArray(response)) {
+                          setLecturerCourses(response);
+                        } else {
+                          setLecturerCourses([]);
+                        }
+                      } catch (error) {
+                        console.error('Error fetching lecturer courses:', error);
+                        toast.error(error?.message || t('feed.failedToLoadCourses') || 'Failed to load courses');
+                        setLecturerCourses([]);
+                      } finally {
+                        setIsLoadingLecturerCourses(false);
+                      }
+                    }}
+                    className="w-full mt-4 px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                  >
+                    <FaBook className="w-4 h-4" />
+                    <span>{t('feed.viewCourses') || 'View Courses'}</span>
+                  </motion.button>
                 )}
               </>
             )}
@@ -3292,7 +3514,7 @@ const Explore = () => {
         <Modal
           isOpen={!!selectedCourse}
           onClose={handleCloseCourse}
-          title={selectedCourse.title || 'Course Details'}
+          title={selectedCourse.title || t('feed.courseDetails') || 'Course Details'}
         >
           {isLoadingCourse ? (
             <div className="flex items-center justify-center py-12">
@@ -3302,10 +3524,10 @@ const Explore = () => {
           ) : (
             <div className="space-y-6">
               {/* Course Image */}
-              {selectedCourse.course_image && (
+              {(selectedCourse.course_image || selectedCourse.publisher_profile_image) && (
                 <div className="relative h-64 overflow-hidden rounded-xl">
                   <img
-                    src={getImageUrl(selectedCourse.course_image)}
+                    src={getImageUrl(selectedCourse.course_image || selectedCourse.publisher_profile_image)}
                     alt={selectedCourse.title}
                     className="w-full h-full object-cover"
                   />
@@ -3334,7 +3556,7 @@ const Explore = () => {
               {selectedCourse.about && (
                 <div className="bg-gray-50 dark:bg-navy-900 rounded-lg p-4">
                   <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{t('feed.about') || 'About'}</h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                  <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed whitespace-pre-wrap">
                     {selectedCourse.about}
                   </p>
                 </div>
@@ -3343,16 +3565,27 @@ const Explore = () => {
               {/* Course Details Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Institution */}
-                {selectedCourse.institution_name && (
+                {(selectedCourse.institution_name || selectedCourse.institution) && (
                   <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-1">
                       <FaUniversity className="text-indigo-600 dark:text-indigo-400" />
                       <h3 className="font-semibold text-gray-800 dark:text-white text-sm">{t('feed.institution') || 'Institution'}</h3>
                     </div>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm">{selectedCourse.institution_name}</p>
-                    {selectedCourse.institution_username && (
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">@{selectedCourse.institution_username}</p>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">{selectedCourse.institution_name || selectedCourse.institution}</p>
+                    {(selectedCourse.institution_username || selectedCourse.publisher_username) && (
+                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">@{selectedCourse.institution_username || selectedCourse.publisher_username}</p>
                     )}
+                  </div>
+                )}
+
+                {/* City */}
+                {selectedCourse.city && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FaMapMarkerAlt className="text-blue-600 dark:text-blue-400" />
+                      <h3 className="font-semibold text-gray-800 dark:text-white text-sm">{t('feed.city') || 'City'}</h3>
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">{selectedCourse.city}</p>
                   </div>
                 )}
 
@@ -3406,7 +3639,7 @@ const Explore = () => {
                       <h3 className="font-semibold text-gray-800 dark:text-white text-sm">{t('feed.schedule') || 'Schedule'}</h3>
                     </div>
                     <div className="space-y-1">
-                      {selectedCourse.days && selectedCourse.days.length > 0 && (
+                      {selectedCourse.days && Array.isArray(selectedCourse.days) && selectedCourse.days.length > 0 && (
                         <p className="text-gray-600 dark:text-gray-400 text-sm">
                           <span className="font-medium">{t('feed.days') || 'Days'}:</span> {selectedCourse.days.map(day => day.charAt(0).toUpperCase() + day.slice(1)).join(', ')}
                         </p>
@@ -3420,6 +3653,29 @@ const Explore = () => {
                   </div>
                 )}
               </div>
+
+              {/* Enroll button for verified students */}
+              {instituteData.isAuthenticated && instituteData.userType === 'student' && (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEnrollCourse(selectedCourse, e);
+                  }}
+                  disabled={enrollingCourseId === selectedCourse.id}
+                  className="w-full mt-4 px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {enrollingCourseId === selectedCourse.id ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>{t('feed.enrolling') || 'Enrolling...'}</span>
+                    </>
+                  ) : (
+                    <span>{t('feed.enroll') || 'Enroll'}</span>
+                  )}
+                </motion.button>
+              )}
             </div>
           )}
         </Modal>
@@ -3495,6 +3751,386 @@ const Explore = () => {
                     {t('verification.goToProfile') || 'Go to Profile'}
                   </motion.button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Enrollment Contradiction Modal */}
+      <AnimatePresence>
+        {showEnrollmentContradiction && enrollmentContradiction && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => {
+              setShowEnrollmentContradiction(false);
+              setEnrollmentContradiction(null);
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-navy-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-red-500 to-orange-500 p-6 text-center">
+                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FaInfoCircle className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-white">
+                  {t('feed.scheduleConflict') || 'Schedule Conflict'}
+                </h3>
+              </div>
+
+              {/* Content */}
+              <div className="p-6">
+                <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
+                  {t('feed.conflictMessage') || 'You cannot enroll in this course because you have a scheduling conflict with another course.'}
+                </p>
+
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+                  <h4 className="font-semibold text-gray-800 dark:text-white mb-3">
+                    {t('feed.conflictingCourse') || 'Conflicting Course:'}
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <p className="text-gray-700 dark:text-gray-300">
+                      <span className="font-medium">{t('feed.course') || 'Course'}:</span> {enrollmentContradiction.course_title}
+                    </p>
+                    <p className="text-gray-700 dark:text-gray-300">
+                      <span className="font-medium">{t('feed.institution') || 'Institution'}:</span> {enrollmentContradiction.institution}
+                    </p>
+                    <p className="text-gray-700 dark:text-gray-300">
+                      <span className="font-medium">{t('feed.day') || 'Day'}:</span> {enrollmentContradiction.day}
+                    </p>
+                    <p className="text-gray-700 dark:text-gray-300">
+                      <span className="font-medium">{t('feed.time') || 'Time'}:</span> {enrollmentContradiction.time}
+                    </p>
+                  </div>
+                </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setShowEnrollmentContradiction(false);
+                    setEnrollmentContradiction(null);
+                  }}
+                  className="w-full px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-medium transition-colors"
+                >
+                  {t('common.close') || 'Close'}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Progress Modal */}
+      <AnimatePresence>
+        {showProgressModal && progressCourse && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => {
+              setShowProgressModal(false);
+              setProgressCourse(null);
+              setProgressData(null);
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-navy-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                      <FaChartLine className="text-2xl text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">
+                        {t('feed.courseProgress') || 'Course Progress'}
+                      </h3>
+                      <p className="text-white/80 text-sm">{progressCourse.title}</p>
+                    </div>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => {
+                      setShowProgressModal(false);
+                      setProgressCourse(null);
+                      setProgressData(null);
+                    }}
+                    className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
+                  >
+                    <FaTimes className="text-white text-lg" />
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-6">
+                {loadingProgress ? (
+                  <div className="text-center py-12">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                      className="w-10 h-10 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full mx-auto mb-4"
+                    />
+                    <p className="text-gray-600 dark:text-gray-400">
+                      {t('feed.loadingProgress') || 'Loading progress...'}
+                    </p>
+                  </div>
+                ) : progressData ? (
+                  <>
+                    {/* Progress Stats */}
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      <div className="bg-gray-50 dark:bg-navy-700 rounded-xl p-4 text-center">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                          {t('feed.totalLectures') || 'Total Lectures'}
+                        </p>
+                        <p className="text-2xl font-bold text-gray-800 dark:text-white">
+                          {progressData.progress?.total_lectures || 0}
+                        </p>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-navy-700 rounded-xl p-4 text-center">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                          {t('feed.completed') || 'Completed'}
+                        </p>
+                        <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                          {progressData.progress?.completed_lectures !== null 
+                            ? progressData.progress?.completed_lectures 
+                            : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="mb-6">
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-gray-600 dark:text-gray-400">
+                          {t('feed.progressPercentage') || 'Progress'}
+                        </span>
+                        <span className={`font-semibold ${
+                          (progressData.progress?.progress_percentage || 0) >= 80 
+                            ? 'text-green-600 dark:text-green-400'
+                            : (progressData.progress?.progress_percentage || 0) >= 50 
+                              ? 'text-blue-600 dark:text-blue-400'
+                              : 'text-yellow-600 dark:text-yellow-400'
+                        }`}>
+                          {(progressData.progress?.progress_percentage || 0).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="h-4 bg-gray-200 dark:bg-navy-700 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${progressData.progress?.progress_percentage || 0}%` }}
+                          transition={{ duration: 0.8, ease: 'easeOut' }}
+                          className={`h-full rounded-full ${
+                            (progressData.progress?.progress_percentage || 0) >= 80 
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-500' 
+                              : (progressData.progress?.progress_percentage || 0) >= 50 
+                                ? 'bg-gradient-to-r from-blue-500 to-cyan-500'
+                                : 'bg-gradient-to-r from-yellow-500 to-amber-500'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Note */}
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <FaInfoCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm text-blue-800 dark:text-blue-300">
+                            {progressData.progress?.completed_lectures !== null 
+                              ? (t('feed.personalProgress') || 'This is your personal progress in this course.')
+                              : (t('feed.averageProgress') || 'This shows the average progress of all students in this course.')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-12">
+                    <FaChartLine className="text-4xl text-gray-400 dark:text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-600 dark:text-gray-400">
+                      {t('feed.noProgressData') || 'No progress data available'}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-gray-200 dark:border-navy-700">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setShowProgressModal(false);
+                    setProgressCourse(null);
+                    setProgressData(null);
+                  }}
+                  className="w-full px-4 py-3 bg-gray-100 dark:bg-navy-700 hover:bg-gray-200 dark:hover:bg-navy-600 text-gray-800 dark:text-white rounded-lg font-medium transition-colors"
+                >
+                  {t('common.close') || 'Close'}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Keyboard Shortcuts Help Modal */}
+      <KeyboardShortcutsHelp 
+        isOpen={showKeyboardHelp} 
+        onClose={() => setShowKeyboardHelp(false)} 
+      />
+
+      {/* Lecturer Courses Modal */}
+      <AnimatePresence>
+        {showLecturerCoursesModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => {
+              setShowLecturerCoursesModal(false);
+              setLecturerCourses([]);
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-navy-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col"
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-primary-600 to-teal-500 p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                      <FaBook className="text-2xl text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">
+                        {t('feed.lecturerCourses') || 'Lecturer Courses'}
+                      </h3>
+                      {selectedProfile?.name && (
+                        <p className="text-white/80 text-sm">{selectedProfile.name}</p>
+                      )}
+                    </div>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => {
+                      setShowLecturerCoursesModal(false);
+                      setLecturerCourses([]);
+                    }}
+                    className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
+                  >
+                    <FaTimes className="text-white text-lg" />
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                {isLoadingLecturerCourses ? (
+                  <div className="text-center py-12">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                      className="w-10 h-10 border-4 border-primary-200 dark:border-primary-800 border-t-primary-600 dark:border-t-primary-400 rounded-full mx-auto mb-4"
+                    />
+                    <p className="text-gray-600 dark:text-gray-400">
+                      {t('feed.loadingCourses') || 'Loading courses...'}
+                    </p>
+                  </div>
+                ) : lecturerCourses.length === 0 ? (
+                  <div className="text-center py-12">
+                    <FaBook className="text-4xl text-gray-400 dark:text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-600 dark:text-gray-400">
+                      {t('feed.noCoursesFound') || 'No courses found for this lecturer'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {lecturerCourses.map((course, index) => (
+                      <motion.div
+                        key={course.id || index}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        onClick={() => {
+                          handleViewCourse(course);
+                          setShowLecturerCoursesModal(false);
+                        }}
+                        className="bg-gray-50 dark:bg-navy-700 rounded-xl p-4 hover:shadow-lg transition-all cursor-pointer border border-gray-200 dark:border-navy-600"
+                      >
+                        {/* Course Image */}
+                        {course.course_image && (
+                          <div className="relative h-32 overflow-hidden rounded-lg mb-3 bg-gradient-to-br from-primary-100 to-teal-100 dark:from-primary-900 dark:to-teal-900">
+                            <img
+                              src={getImageUrl(course.course_image)}
+                              alt={course.title}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                        
+                        {/* Course Title */}
+                        <h4 className="font-bold text-gray-800 dark:text-white mb-2 line-clamp-2">
+                          {course.title}
+                        </h4>
+                        
+                        {/* Course About */}
+                        {course.about && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
+                            {course.about}
+                          </p>
+                        )}
+                        
+                        {/* Course Details */}
+                        <div className="space-y-1 text-xs text-gray-500 dark:text-gray-500">
+                          {course.level && (
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium">{t('feed.level') || 'Level'}:</span>
+                              <span className="capitalize">{course.level}</span>
+                            </div>
+                          )}
+                          {course.price && (
+                            <div className="flex items-center gap-1">
+                              <FaDollarSign className="w-3 h-3" />
+                              <span>{parseFloat(course.price).toFixed(2)}</span>
+                            </div>
+                          )}
+                          {course.starting_date && (
+                            <div className="flex items-center gap-1">
+                              <FaClock className="w-3 h-3" />
+                              <span>{new Date(course.starting_date).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>

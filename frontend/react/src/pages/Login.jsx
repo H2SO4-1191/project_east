@@ -44,7 +44,7 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100 dark:from-navy-900 dark:via-navy-800 dark:to-navy-900 flex items-center justify-center p-4 relative">
       {/* Theme Toggle & Language Switcher - Fixed Position */}
-      <div className="fixed top-4 right-4 flex items-center gap-3 z-50">
+      <div className="fixed top-4 right-4 flex flex-col items-end gap-3 z-50">
         {/* Theme Toggle */}
         <motion.button
           whileHover={{ scale: 1.05 }}
@@ -139,7 +139,7 @@ const Login = () => {
         <p className="text-center text-gray-600 dark:text-gray-400 text-sm mt-6">
           {t('login.noAccount') || "Don't have an account?"}{' '}
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/home', { state: { showSignUp: true } })}
             className="text-primary-600 dark:text-teal-400 hover:text-primary-700 dark:hover:text-teal-300 font-semibold"
           >
             {t('login.signUpHere') || 'Sign up here'}

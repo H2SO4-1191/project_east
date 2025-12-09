@@ -29,6 +29,7 @@ const LecturerSchedule = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isNotVerified, setIsNotVerified] = useState(false);
+  const [coursesInfo, setCoursesInfo] = useState({}); // Store course dates
 
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
   const [selectedDay, setSelectedDay] = useState('monday');
@@ -83,25 +84,68 @@ const LecturerSchedule = () => {
         });
 
         if (scheduleData?.success && Array.isArray(scheduleData.schedule)) {
-          // Group schedule by day
+          // Store course info (dates) and group schedule by day
           const groupedSchedule = {};
+          const coursesData = {};
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
           scheduleData.schedule.forEach((item) => {
-            const day = item.day.toLowerCase();
-            if (!groupedSchedule[day]) {
-              groupedSchedule[day] = [];
+            // Store course dates
+            if (item.course_id && item.starting_date && item.ending_date) {
+              coursesData[item.course_id] = {
+                starting_date: item.starting_date,
+                ending_date: item.ending_date,
+                course_title: item.course_title
+              };
             }
-            groupedSchedule[day].push({
-              id: item.course_id,
-              course: item.course_title,
-              startTime: item.start_time,
-              endTime: item.end_time,
-              institution: item.institution,
-              type: 'Lecture', // Default type since API doesn't provide it
-            });
+            
+            // Filter: only include schedule items if course is active (between start and end dates)
+            if (item.starting_date && item.ending_date) {
+              const startDate = new Date(item.starting_date);
+              const endDate = new Date(item.ending_date);
+              startDate.setHours(0, 0, 0, 0);
+              endDate.setHours(23, 59, 59, 999);
+              
+              // Only add to schedule if course is currently active
+              if (today >= startDate && today <= endDate) {
+                const day = item.day.toLowerCase();
+                if (!groupedSchedule[day]) {
+                  groupedSchedule[day] = [];
+                }
+                groupedSchedule[day].push({
+                  id: item.course_id,
+                  course: item.course_title,
+                  startTime: item.start_time,
+                  endTime: item.end_time,
+                  institution: item.institution,
+                  starting_date: item.starting_date,
+                  ending_date: item.ending_date,
+                  type: 'Lecture', // Default type since API doesn't provide it
+                });
+              }
+            } else {
+              // If no dates provided, include it (backward compatibility)
+              const day = item.day.toLowerCase();
+              if (!groupedSchedule[day]) {
+                groupedSchedule[day] = [];
+              }
+              groupedSchedule[day].push({
+                id: item.course_id,
+                course: item.course_title,
+                startTime: item.start_time,
+                endTime: item.end_time,
+                institution: item.institution,
+                type: 'Lecture',
+              });
+            }
           });
+          
+          setCoursesInfo(coursesData);
           setSchedule(groupedSchedule);
         } else {
           setSchedule({});
+          setCoursesInfo({});
         }
       } catch (error) {
         console.error('Error fetching schedule:', error);
@@ -356,6 +400,23 @@ const LecturerSchedule = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Course Dates */}
+                  {session.starting_date && session.ending_date && (
+                    <div className={`mt-4 pt-4 border-t border-gray-200 dark:border-navy-700 ${isRTL ? 'text-right' : ''}`}>
+                      <div className={`flex items-center gap-3 text-gray-600 dark:text-gray-400 text-sm ${isRTL ? 'flex-row-reverse' : ''}`}>
+                        <FaCalendarAlt className="text-primary-600 dark:text-teal-400" />
+                        <div>
+                          <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">
+                            {t('schedule.courseDates') || 'Course Dates'}
+                          </p>
+                          <p className="font-medium">
+                            {new Date(session.starting_date).toLocaleDateString()} - {new Date(session.ending_date).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             ))
