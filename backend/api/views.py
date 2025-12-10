@@ -14,6 +14,7 @@ from ai.predict_doc import classify_document
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 import datetime
+import stripe
 
 class FeedPagination(PageNumberPagination):
     page_size = 20
@@ -452,7 +453,7 @@ class InstitutionWeeklyScheduleView(APIView):
         })
 
 class InstitutionVerificationView(APIView):
-    permission_classes = [IsInstitution]
+    permission_classes = [IsAuthenticated, IsInstitution]
 
     def put(self, request):
         user = request.user
@@ -1862,9 +1863,105 @@ class ExpectedStudentsView(APIView):
             "students": students_list,
         })
 
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
+class CreateInstitutionSubscriptionCheckout(APIView):
+    permission_classes = [IsAuthenticated, IsInstitution, IsVerified]
 
+    def post(self, request):
+        user = request.user
 
+        plan = request.data.get("plan")  # "3m", "6m", "12m"
 
+        price_map = {
+            "3m": settings.STRIPE_PRICE_3_MONTHS,
+            "6m": settings.STRIPE_PRICE_6_MONTHS,
+            "12m": settings.STRIPE_PRICE_12_MONTHS,
+        }
+
+        print(price_map)
+
+        price_id = price_map.get(plan)
+        if not price_id:
+            return Response({"success": False, "message": "Invalid plan."}, status=400)
+
+        success_url = f"{settings.FRONTEND_DOMAIN}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
+        cancel_url = f"{settings.FRONTEND_DOMAIN}/payment/cancel"
+
+        try:
+            checkout_session = stripe.checkout.Session.create(
+                mode="subscription",
+                customer_email=user.email,
+                line_items=[{"price": price_id, "quantity": 1}],
+                success_url=success_url,
+                cancel_url=cancel_url,
+            )
+
+            return Response({
+                "success": True,
+                "checkout_url": checkout_session.url
+            })
+        
+        except Exception as e:
+            import traceback
+            error_text = traceback.format_exc()
+
+            return Response({
+                "success": False,
+                "error": error_text
+            }, status=400)
+
+class InstitutionSetupPaymentsView(APIView):
+    permission_classes = [IsAuthenticated, IsInstitution]
+
+    def post(self, request):
+        user = request.user
+        institution = user.institution
+
+        # Create account if missing
+        if not institution.stripe_account_id:
+            acct = stripe.Account.create(type="standard")
+            institution.stripe_account_id = acct.id
+            institution.save()
+
+        onboarding_link = stripe.AccountLink.create(
+            account=institution.stripe_account_id,
+            refresh_url=f"{settings.FRONTEND_DOMAIN}/payments/refresh",
+            return_url=f"{settings.FRONTEND_DOMAIN}/payments/complete",
+            type="account_onboarding",
+        )
+
+        return Response({
+            "success": True,
+            "onboarding_url": onboarding_link.url
+        })
+
+class StudentSetupPaymentMethodView(APIView):
+    permission_classes = [IsAuthenticated, IsStudent]
+
+    def post(self, request):
+        user = request.user
+
+        if user.user_type != "student":
+            return Response({"success": False, "message": "Only students."}, status=403)
+
+        student = user.student
+
+        # Create customer if needed
+        if not student.stripe_customer_id:
+            customer = stripe.Customer.create(email=user.email, name=user.username)
+            student.stripe_customer_id = customer.id
+            student.save()
+
+        # Billing Portal → manage/add cards
+        session = stripe.billing_portal.Session.create(
+            customer=student.stripe_customer_id,
+            return_url=f"{settings.FRONTEND_DOMAIN}/payments/complete"
+        )
+
+        return Response({
+            "success": True,
+            "portal_url": session.url
+        })
 
 
