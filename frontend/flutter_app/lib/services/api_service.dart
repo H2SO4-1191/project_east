@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 
 class ApiException implements Exception {
@@ -19,7 +20,7 @@ class ApiException implements Exception {
 }
 
 class ApiService {
-  static const String baseUrl = 'https://projecteastapi.ddns.net';
+  static const String baseUrl = 'http://192.168.0.249:8000';
   
   static final Map<String, String> _defaultHeaders = {
     'Content-Type': 'application/json',
@@ -298,27 +299,6 @@ class ApiService {
   }
 
   /// Check verification status
-  static Future<Map<String, dynamic>> checkVerificationStatus(String email) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/registration/is-verified/'),
-        headers: _defaultHeaders,
-      );
-
-      final data = _parseResponse(response.body);
-
-      if (response.statusCode != 200) {
-        throw _buildError(response.statusCode, data);
-      }
-
-      return data;
-    } catch (e) {
-      if (e is ApiException) rethrow;
-      throw ApiException(
-        message: 'Network error. Please check your connection and try again.',
-      );
-    }
-  }
 
   /// Verify institution with documents
   static Future<Map<String, dynamic>> verifyInstitution({
@@ -504,6 +484,504 @@ class ApiService {
       }
 
       final data = _parseResponse(response.body);
+
+      if (response.statusCode != 200) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  /// Check verification status
+  static Future<Map<String, dynamic>> checkVerificationStatus(
+    String email, {
+    required String accessToken,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      var response = await http.get(
+        Uri.parse('$baseUrl/registration/is-verified/?email=${Uri.encodeComponent(email)}'),
+        headers: {
+          ..._defaultHeaders,
+          'Authorization': 'Bearer $accessToken',
+        },
+      );
+
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+          response = await http.get(
+            Uri.parse('$baseUrl/registration/is-verified/?email=${Uri.encodeComponent(email)}'),
+            headers: {
+              ..._defaultHeaders,
+              'Authorization': 'Bearer ${refreshed['access']}',
+            },
+          );
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      final data = _parseResponse(response.body);
+
+      if (response.statusCode != 200) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  /// Get institution profile
+  static Future<Map<String, dynamic>> getInstitutionProfile({
+    required String accessToken,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    return getProtected(
+      endpoint: '/institution/profile/self/',
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      onTokenRefreshed: onTokenRefreshed,
+      onSessionExpired: onSessionExpired,
+    );
+  }
+
+  /// Get institution students list (JWT required)
+  static Future<Map<String, dynamic>> getInstitutionStudentsList({
+    required String accessToken,
+    int page = 1,
+    String? search,
+    String? status,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    final params = <String, String>{'page': page.toString()};
+    if (search != null && search.isNotEmpty) {
+      params['search'] = search;
+    }
+    if (status != null && status != 'all') {
+      params['active'] = status == 'Active' ? 'true' : 'false';
+    }
+
+    final endpoint = '/institution/students-list/?${Uri(queryParameters: params).query}';
+
+    return getProtected(
+      endpoint: endpoint,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      onTokenRefreshed: onTokenRefreshed,
+      onSessionExpired: onSessionExpired,
+    );
+  }
+
+  /// Get institution student profile (JWT required)
+  static Future<Map<String, dynamic>> getInstitutionStudentProfile({
+    required String accessToken,
+    required int studentId,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    return getProtected(
+      endpoint: '/institution/student/$studentId/',
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      onTokenRefreshed: onTokenRefreshed,
+      onSessionExpired: onSessionExpired,
+    );
+  }
+
+  /// Get institution lecturers list (JWT required)
+  static Future<Map<String, dynamic>> getInstitutionLecturersList({
+    required String accessToken,
+    int page = 1,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    final endpoint = '/institution/lecturers-list/?page=$page';
+
+    return getProtected(
+      endpoint: endpoint,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      onTokenRefreshed: onTokenRefreshed,
+      onSessionExpired: onSessionExpired,
+    );
+  }
+
+  /// Get institution lecturer profile (JWT required)
+  static Future<Map<String, dynamic>> getInstitutionLecturerProfile({
+    required String accessToken,
+    required int lecturerId,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    return getProtected(
+      endpoint: '/institution/lecturer/$lecturerId/',
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      onTokenRefreshed: onTokenRefreshed,
+      onSessionExpired: onSessionExpired,
+    );
+  }
+
+  /// Get institution staff list (JWT required)
+  static Future<Map<String, dynamic>> getInstitutionStaffList({
+    required String accessToken,
+    int page = 1,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    final endpoint = '/institution/staff-list/?page=$page';
+
+    return getProtected(
+      endpoint: endpoint,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      onTokenRefreshed: onTokenRefreshed,
+      onSessionExpired: onSessionExpired,
+    );
+  }
+
+  /// Create staff member (JWT required)
+  static Future<Map<String, dynamic>> createStaff({
+    required String accessToken,
+    required Map<String, dynamic> payload,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/institution/staff/create/'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $accessToken';
+
+      // Add text fields
+      if (payload['first_name'] != null) request.fields['first_name'] = payload['first_name'].toString();
+      if (payload['last_name'] != null) request.fields['last_name'] = payload['last_name'].toString();
+      if (payload['phone_number'] != null) request.fields['phone_number'] = payload['phone_number'].toString();
+      if (payload['duty'] != null) request.fields['duty'] = payload['duty'].toString();
+      if (payload['salary'] != null) request.fields['salary'] = payload['salary'].toString();
+
+      // Add files
+      if (payload['personal_image'] != null) {
+        request.files.add(await http.MultipartFile.fromPath('personal_image', payload['personal_image'].path));
+      }
+      if (payload['idcard_front'] != null) {
+        request.files.add(await http.MultipartFile.fromPath('idcard_front', payload['idcard_front'].path));
+      }
+      if (payload['idcard_back'] != null) {
+        request.files.add(await http.MultipartFile.fromPath('idcard_back', payload['idcard_back'].path));
+      }
+      if (payload['residence_front'] != null) {
+        request.files.add(await http.MultipartFile.fromPath('residence_front', payload['residence_front'].path));
+      }
+      if (payload['residence_back'] != null) {
+        request.files.add(await http.MultipartFile.fromPath('residence_back', payload['residence_back'].path));
+      }
+
+      var response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      final data = _parseResponse(responseBody);
+
+      // Handle token refresh on 401
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+
+          // Retry request with new token
+          final retryRequest = http.MultipartRequest(
+            'POST',
+            Uri.parse('$baseUrl/institution/staff/create/'),
+          );
+          retryRequest.headers['Authorization'] = 'Bearer ${refreshed['access']}';
+          retryRequest.fields.addAll(request.fields);
+          retryRequest.files.addAll(request.files);
+
+          response = await retryRequest.send();
+          final retryBody = await response.stream.bytesToString();
+          final retryData = _parseResponse(retryBody);
+
+          if (response.statusCode != 200 && response.statusCode != 201) {
+            throw _buildError(response.statusCode, retryData);
+          }
+
+          return retryData;
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  /// Get staff details (JWT required)
+  static Future<Map<String, dynamic>> getStaffDetails({
+    required String accessToken,
+    required int staffId,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    return getProtected(
+      endpoint: '/institution/staff/$staffId/',
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      onTokenRefreshed: onTokenRefreshed,
+      onSessionExpired: onSessionExpired,
+    );
+  }
+
+  /// Edit staff member (JWT required)
+  static Future<Map<String, dynamic>> editStaff({
+    required String accessToken,
+    required int staffId,
+    required Map<String, dynamic> payload,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'PUT',
+        Uri.parse('$baseUrl/institution/staff/$staffId/edit/'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $accessToken';
+
+      // Add text fields (only if provided)
+      if (payload['first_name'] != null) request.fields['first_name'] = payload['first_name'].toString();
+      if (payload['last_name'] != null) request.fields['last_name'] = payload['last_name'].toString();
+      if (payload['phone_number'] != null) request.fields['phone_number'] = payload['phone_number'].toString();
+      if (payload['duty'] != null) request.fields['duty'] = payload['duty'].toString();
+      if (payload['salary'] != null) request.fields['salary'] = payload['salary'].toString();
+
+      // Add files (only if provided)
+      if (payload['personal_image'] != null) {
+        request.files.add(await http.MultipartFile.fromPath('personal_image', payload['personal_image'].path));
+      }
+      if (payload['idcard_front'] != null) {
+        request.files.add(await http.MultipartFile.fromPath('idcard_front', payload['idcard_front'].path));
+      }
+      if (payload['idcard_back'] != null) {
+        request.files.add(await http.MultipartFile.fromPath('idcard_back', payload['idcard_back'].path));
+      }
+      if (payload['residence_front'] != null) {
+        request.files.add(await http.MultipartFile.fromPath('residence_front', payload['residence_front'].path));
+      }
+      if (payload['residence_back'] != null) {
+        request.files.add(await http.MultipartFile.fromPath('residence_back', payload['residence_back'].path));
+      }
+
+      var response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      final data = _parseResponse(responseBody);
+
+      // Handle token refresh on 401
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+
+          // Retry request with new token
+          final retryRequest = http.MultipartRequest(
+            'PUT',
+            Uri.parse('$baseUrl/institution/staff/$staffId/edit/'),
+          );
+          retryRequest.headers['Authorization'] = 'Bearer ${refreshed['access']}';
+          retryRequest.fields.addAll(request.fields);
+          retryRequest.files.addAll(request.files);
+
+          response = await retryRequest.send();
+          final retryBody = await response.stream.bytesToString();
+          final retryData = _parseResponse(retryBody);
+
+          if (response.statusCode != 200) {
+            throw _buildError(response.statusCode, retryData);
+          }
+
+          return retryData;
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      if (response.statusCode != 200) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  /// Delete staff member (JWT required)
+  static Future<Map<String, dynamic>> deleteStaff({
+    required String accessToken,
+    required int staffId,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      var response = await http.delete(
+        Uri.parse('$baseUrl/institution/staff/$staffId/delete/'),
+        headers: {
+          ..._defaultHeaders,
+          'Authorization': 'Bearer $accessToken',
+        },
+      );
+
+      // Handle token refresh on 401
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+
+          // Retry request with new token
+          response = await http.delete(
+            Uri.parse('$baseUrl/institution/staff/$staffId/delete/'),
+            headers: {
+              ..._defaultHeaders,
+              'Authorization': 'Bearer ${refreshed['access']}',
+            },
+          );
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      final data = _parseResponse(response.body);
+
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  /// Check document using AI (JWT required)
+  static Future<Map<String, dynamic>> checkDocument({
+    required String accessToken,
+    required File file,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/ai/doc/'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $accessToken';
+      request.files.add(await http.MultipartFile.fromPath('file', file.path));
+
+      var response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      final data = _parseResponse(responseBody);
+
+      // Handle token refresh on 401
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+
+          // Retry request with new token
+          final retryRequest = http.MultipartRequest(
+            'POST',
+            Uri.parse('$baseUrl/ai/doc/'),
+          );
+          retryRequest.headers['Authorization'] = 'Bearer ${refreshed['access']}';
+          retryRequest.files.add(await http.MultipartFile.fromPath('file', file.path));
+
+          response = await retryRequest.send();
+          final retryBody = await response.stream.bytesToString();
+          final retryData = _parseResponse(retryBody);
+
+          if (response.statusCode != 200) {
+            throw _buildError(response.statusCode, retryData);
+          }
+
+          return retryData;
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
 
       if (response.statusCode != 200) {
         throw _buildError(response.statusCode, data);

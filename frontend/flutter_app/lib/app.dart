@@ -1,15 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'config/theme.dart';
 import 'providers/theme_provider.dart';
-import 'providers/auth_provider.dart';
+import 'providers/language_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
+import 'screens/signup_student_screen.dart';
+import 'screens/signup_lecturer_screen.dart';
+import 'screens/account_type_selection_screen.dart';
 import 'screens/otp_screen.dart';
 import 'screens/feed_screen.dart';
+import 'screens/explore_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
+import 'screens/lecturer/lecturer_courses_screen.dart';
+import 'screens/lecturer/lecturer_schedule_screen.dart';
+import 'screens/student/student_courses_screen.dart';
+import 'screens/student/student_schedule_screen.dart';
+import 'screens/institution_profile_screen.dart';
 import 'widgets/protected_route.dart';
 
 class MyApp extends StatelessWidget {
@@ -17,8 +27,8 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, child) {
+    return Consumer2<ThemeProvider, LanguageProvider>(
+      builder: (context, themeProvider, languageProvider, child) {
         // Set system UI overlay style based on theme
         SystemChrome.setSystemUIOverlayStyle(
           SystemUiOverlayStyle(
@@ -34,6 +44,22 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'Project East',
           debugShowCheckedModeBanner: false,
+          locale: languageProvider.locale,
+          supportedLocales: const [
+            Locale('en', ''), // English
+            Locale('ar', ''), // Arabic
+          ],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          builder: (context, child) {
+            return Directionality(
+              textDirection: languageProvider.isArabic ? TextDirection.rtl : TextDirection.ltr,
+              child: child!,
+            );
+          },
           theme: AppTheme.lightTheme.copyWith(
             pageTransitionsTheme: const PageTransitionsTheme(
               builders: {
@@ -57,10 +83,25 @@ class MyApp extends StatelessWidget {
             '/home': (context) => const HomeScreen(),
             '/login': (context) => const LoginScreen(),
             '/signup': (context) => const SignupScreen(),
+            '/signup/student': (context) => const SignupStudentScreen(),
+            '/signup/lecturer': (context) => const SignupLecturerScreen(),
+            '/signup/institution': (context) => const SignupScreen(),
+            '/account-type-selection': (context) => const AccountTypeSelectionScreen(),
             '/otp': (context) => const OTPScreen(),
+            '/explore': (context) => const ExploreScreen(),
             '/dashboard': (context) => const ProtectedRoute(
               child: DashboardScreen(),
             ),
+            '/lecturer/courses': (context) => const LecturerCoursesScreen(),
+            '/lecturer/schedule': (context) => const LecturerScheduleScreen(),
+            '/student/courses': (context) => const StudentCoursesScreen(),
+            '/student/schedule': (context) => const StudentScheduleScreen(),
+            '/institution-profile': (context) {
+              final args = ModalRoute.of(context)!.settings.arguments;
+              return InstitutionProfileScreen(
+                username: args is String ? args : args.toString(),
+              );
+            },
           },
         );
       },

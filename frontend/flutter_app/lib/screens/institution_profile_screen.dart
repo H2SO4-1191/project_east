@@ -1,0 +1,1501 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../config/theme.dart';
+import '../providers/theme_provider.dart';
+import '../services/profile_service.dart';
+import '../services/api_service.dart';
+import '../services/explore_service.dart';
+import '../providers/auth_provider.dart';
+import '../widgets/language_switcher.dart';
+
+class InstitutionProfileScreen extends StatefulWidget {
+  final String username;
+
+  const InstitutionProfileScreen({
+    super.key,
+    required this.username,
+  });
+
+  @override
+  State<InstitutionProfileScreen> createState() => _InstitutionProfileScreenState();
+}
+
+class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  
+  Map<String, dynamic>? _profile;
+  List<dynamic> _posts = [];
+  List<dynamic> _courses = [];
+  List<dynamic> _jobs = [];
+  
+  bool _isLoadingProfile = true;
+  bool _isLoadingPosts = false;
+  bool _isLoadingCourses = false;
+  bool _isLoadingJobs = false;
+  
+  String? _error;
+  
+  // Expanded state for descriptions
+  Map<int, bool> _expandedCourses = {};
+  Map<int, bool> _expandedJobs = {};
+  
+  // Course modal state
+  Map<String, dynamic>? _selectedCourse;
+  Map<String, dynamic>? _courseProgress;
+  bool _isLoadingCourseProgress = false;
+  
+  // Job modal state
+  Map<String, dynamic>? _selectedJob;
+  bool _isLoadingJobDetails = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _loadProfile();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() {
+      _isLoadingProfile = true;
+      _error = null;
+    });
+
+    try {
+      final response = await ProfileService.getInstitutionPublicProfile(widget.username);
+      final profileData = response['data'] is Map<String, dynamic>
+          ? response['data']
+          : response;
+
+      setState(() {
+        _profile = profileData;
+        _isLoadingProfile = false;
+      });
+
+      // Load all data
+      _loadPosts();
+      _loadCourses();
+      _loadJobs();
+    } catch (e) {
+      setState(() {
+        _error = e is ApiException ? e.message : 'Failed to load profile';
+        _isLoadingProfile = false;
+      });
+    }
+  }
+
+  Future<void> _loadTabData(int index) async {
+    if (index == 0 && _posts.isEmpty && !_isLoadingPosts) {
+      await _loadPosts();
+    } else if (index == 1 && _courses.isEmpty && !_isLoadingCourses) {
+      await _loadCourses();
+    } else if (index == 2 && _jobs.isEmpty && !_isLoadingJobs) {
+      await _loadJobs();
+    }
+  }
+
+  Future<void> _loadPosts() async {
+    setState(() {
+      _isLoadingPosts = true;
+    });
+
+    try {
+      final response = await ProfileService.getInstitutionPosts(widget.username);
+      final posts = response['results'] is List
+          ? List<dynamic>.from(response['results'])
+          : (response['data'] is List
+              ? List<dynamic>.from(response['data'])
+              : []);
+
+      setState(() {
+        _posts = posts;
+        _isLoadingPosts = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingPosts = false;
+      });
+    }
+  }
+
+  Future<void> _loadCourses() async {
+    setState(() {
+      _isLoadingCourses = true;
+    });
+
+    try {
+      final response = await ProfileService.getInstitutionCourses(widget.username);
+      final courses = response['results'] is List
+          ? List<dynamic>.from(response['results'])
+          : (response['data'] is List
+              ? List<dynamic>.from(response['data'])
+              : []);
+
+      setState(() {
+        _courses = courses;
+        _isLoadingCourses = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingCourses = false;
+      });
+    }
+  }
+
+  Future<void> _loadJobs() async {
+    setState(() {
+      _isLoadingJobs = true;
+    });
+
+    try {
+      final response = await ProfileService.getInstitutionJobs(widget.username);
+      final jobs = response['results'] is List
+          ? List<dynamic>.from(response['results'])
+          : (response['data'] is List
+              ? List<dynamic>.from(response['data'])
+              : []);
+
+      setState(() {
+        _jobs = jobs;
+        _isLoadingJobs = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingJobs = false;
+      });
+    }
+  }
+
+  String? _getImageUrl(dynamic imagePath) {
+    if (imagePath == null || imagePath.toString().isEmpty) return null;
+    final path = imagePath.toString();
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    final baseUrl = ApiService.baseUrl;
+    final cleanPath = path.startsWith('/') ? path : '/$path';
+    return '$baseUrl$cleanPath';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: isDark ? AppTheme.navy900 : Colors.white,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: _isLoadingProfile
+            ? null
+            : Text(
+                _profile?['title'] ?? _profile?['username'] ?? 'Profile',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+        actions: [
+          const LanguageSwitcher(),
+          IconButton(
+            icon: Icon(isDark ? Icons.wb_sunny : Icons.nightlight_round),
+            onPressed: () {
+              Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
+            },
+          ),
+        ],
+      ),
+      body: _isLoadingProfile
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(_error!),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadProfile,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : _profile == null
+                  ? const Center(child: Text('Profile not found'))
+                  : _buildProfileContent(context, isDark),
+    );
+  }
+
+  Widget _buildProfileContent(BuildContext context, bool isDark) {
+    final profileImageUrl = _getImageUrl(_profile!['profile_image']);
+    final name = _profile!['title'] ?? _profile!['username'] ?? 'Institution';
+    final city = _profile!['city'] ?? '';
+    final about = _profile!['about'] ?? '';
+
+    return NestedScrollView(
+      headerSliverBuilder: (context, innerBoxIsScrolled) {
+        return [
+          SliverToBoxAdapter(
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  // Profile Header (Instagram-like)
+                  Row(
+                    children: [
+                      // Profile Image
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isDark ? AppTheme.navy700 : Colors.grey.shade300,
+                            width: 3,
+                          ),
+                          image: profileImageUrl != null
+                              ? DecorationImage(
+                                  image: NetworkImage(profileImageUrl),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: profileImageUrl == null
+                            ? Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppTheme.primary600,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    name[0].toUpperCase(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 40,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 20),
+                      // Stats
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildStatColumn(
+                              _posts.length.toString(),
+                              'Posts',
+                              isDark,
+                            ),
+                            _buildStatColumn(
+                              _courses.length.toString(),
+                              'Courses',
+                              isDark,
+                            ),
+                            _buildStatColumn(
+                              _jobs.length.toString(),
+                              'Jobs',
+                              isDark,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // Name and Bio
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (city.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(Icons.location_on, size: 16, color: Colors.grey.shade600),
+                              const SizedBox(width: 4),
+                              Text(
+                                city,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        if (about.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            about,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ];
+      },
+      body: Column(
+        children: [
+          // Tab Bar
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? AppTheme.navy800 : Colors.white,
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade300),
+              ),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicatorColor: AppTheme.primary600,
+              labelColor: AppTheme.primary600,
+              unselectedLabelColor: Colors.grey.shade600,
+              onTap: (index) {
+                _loadTabData(index);
+              },
+              tabs: const [
+                Tab(icon: Icon(Icons.grid_on), text: 'Posts'),
+                Tab(icon: Icon(Icons.book), text: 'Courses'),
+                Tab(icon: Icon(Icons.work), text: 'Jobs'),
+              ],
+            ),
+          ),
+          // Tab Content
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildPostsTab(isDark),
+                _buildCoursesTab(isDark),
+                _buildJobsTab(isDark),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatColumn(String count, String label, bool isDark) {
+    return Column(
+      children: [
+        Text(
+          count,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPostsTab(bool isDark) {
+    if (_isLoadingPosts) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_posts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.article, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'No posts yet',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _posts.length,
+      itemBuilder: (context, index) {
+        final post = _posts[index];
+        dynamic imageData = post['image'] ?? post['images'];
+        String? imageUrl;
+        
+        if (imageData is List && imageData.isNotEmpty) {
+          imageUrl = _getImageUrl(imageData[0]);
+        } else if (imageData is String) {
+          imageUrl = _getImageUrl(imageData);
+        } else if (imageData is Map) {
+          imageUrl = _getImageUrl(imageData['image'] ?? imageData['url']);
+        }
+        
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.navy800 : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              if (imageUrl != null)
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    bottomLeft: Radius.circular(12),
+                  ),
+                  child: Image.network(
+                    imageUrl,
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: 120,
+                        height: 120,
+                        color: AppTheme.primary100,
+                        child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                      );
+                    },
+                  ),
+                )
+              else
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary100,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      bottomLeft: Radius.circular(12),
+                    ),
+                  ),
+                  child: const Icon(Icons.article, color: Colors.grey, size: 40),
+                ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post['title'] ?? 'Post',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (post['description'] != null) ...[
+                        const SizedBox(height: 4),
+                        _buildExpandableText(
+                          post['description'],
+                          index,
+                          _expandedCourses, // Reuse expandedCourses map for posts
+                          (idx, expanded) {
+                            setState(() {
+                              _expandedCourses[idx] = expanded;
+                            });
+                          },
+                        ),
+                      ],
+                      if (post['created_at'] != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _formatPostDate(post['created_at']),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCoursesTab(bool isDark) {
+    if (_isLoadingCourses) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_courses.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.book, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'No courses yet',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _courses.length,
+      itemBuilder: (context, index) {
+        final course = _courses[index];
+        final imageUrl = _getImageUrl(course['course_image']);
+        
+        return GestureDetector(
+          onTap: () => _showCourseModal(course),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: isDark ? AppTheme.navy800 : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+            children: [
+              if (imageUrl != null)
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    bottomLeft: Radius.circular(12),
+                  ),
+                  child: Image.network(
+                    imageUrl,
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        course['title'] ?? 'Course',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (course['about'] != null) ...[
+                        const SizedBox(height: 4),
+                        _buildExpandableText(
+                          course['about'],
+                          index,
+                          _expandedCourses,
+                          (idx, expanded) {
+                            setState(() {
+                              _expandedCourses[idx] = expanded;
+                            });
+                          },
+                        ),
+                      ],
+                      if (course['price'] != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          '\$${course['price']}',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primary600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildJobsTab(bool isDark) {
+    if (_isLoadingJobs) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_jobs.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.work, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'No jobs yet',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _jobs.length,
+      itemBuilder: (context, index) {
+        final job = _jobs[index];
+        
+        return GestureDetector(
+          onTap: () => _showJobModal(job),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: isDark ? AppTheme.navy800 : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // Job Icon/Image placeholder
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary100,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      bottomLeft: Radius.circular(12),
+                    ),
+                  ),
+                  child: const Icon(Icons.work, color: AppTheme.primary600, size: 50),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          job['title'] ?? 'Job',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (job['description'] != null) ...[
+                          const SizedBox(height: 4),
+                          _buildExpandableText(
+                            job['description'],
+                            index,
+                            _expandedJobs,
+                            (idx, expanded) {
+                              setState(() {
+                                _expandedJobs[idx] = expanded;
+                              });
+                            },
+                          ),
+                        ],
+                        if (job['salary_offer'] != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            '\$${job['salary_offer']}',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primary600,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildExpandableText(
+    String text,
+    int index,
+    Map<int, bool> expandedMap,
+    Function(int, bool) onToggle,
+  ) {
+    final isExpanded = expandedMap[index] ?? false;
+    final shouldShowExpand = text.length > 100;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isExpanded ? text : (shouldShowExpand ? '${text.substring(0, 100)}...' : text),
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey.shade600,
+          ),
+        ),
+        if (shouldShowExpand)
+          GestureDetector(
+            onTap: () => onToggle(index, !isExpanded),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                isExpanded ? 'Show less' : 'Show more',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.primary600,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _showCourseModal(Map<String, dynamic> course) async {
+    setState(() {
+      _selectedCourse = course;
+      _isLoadingCourseProgress = true;
+      _courseProgress = null;
+    });
+
+    // Fetch course progress
+    Map<String, dynamic>? progress;
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final accessToken = authProvider.instituteData['accessToken'];
+      final refreshToken = authProvider.instituteData['refreshToken'];
+
+      progress = await ExploreService.getCourseProgress(
+        courseId: course['id'] as int,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        onTokenRefreshed: (tokens) {
+          authProvider.onTokenRefreshed(tokens);
+        },
+        onSessionExpired: () {
+          authProvider.onSessionExpired();
+        },
+      );
+    } catch (e) {
+      // Progress fetch failed, continue without it
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => _buildCourseModal(context, course, progress),
+    ).then((_) {
+      setState(() {
+        _selectedCourse = null;
+        _courseProgress = null;
+        _isLoadingCourseProgress = false;
+      });
+    });
+  }
+
+  Widget _buildCourseModal(BuildContext context, Map<String, dynamic> course, Map<String, dynamic>? progressData) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final courseImageUrl = _getImageUrl(course['course_image']);
+    final progress = progressData?['progress'];
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(16),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.navy800 : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header with image
+            Stack(
+              children: [
+                if (courseImageUrl != null)
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    child: Image.network(
+                      courseImageUrl,
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          height: 200,
+                          color: AppTheme.primary600,
+                          child: Center(
+                            child: Text(
+                              (course['title'] ?? 'C')[0].toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 64,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                else
+                  Container(
+                    height: 200,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary600,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    child: Center(
+                      child: Text(
+                        (course['title'] ?? 'C')[0].toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 64,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                // Close button
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, color: Colors.white, size: 20),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            // Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    Text(
+                      course['title'] ?? 'Course',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Course Details Grid
+                    Row(
+                      children: [
+                        if (course['level'] != null)
+                          Expanded(
+                            child: _buildDetailChip(
+                              Icons.school,
+                              course['level'].toString().toUpperCase(),
+                              isDark,
+                            ),
+                          ),
+                        if (course['price'] != null) ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildDetailChip(
+                              Icons.attach_money,
+                              '\$${course['price']}',
+                              isDark,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Dates
+                    if (course['starting_date'] != null || course['ending_date'] != null)
+                      Row(
+                        children: [
+                          if (course['starting_date'] != null)
+                            Expanded(
+                              child: _buildDateInfo(
+                                Icons.calendar_today,
+                                'Start',
+                                course['starting_date'],
+                                isDark,
+                              ),
+                            ),
+                          if (course['ending_date'] != null) ...[
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildDateInfo(
+                                Icons.event,
+                                'End',
+                                course['ending_date'],
+                                isDark,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    const SizedBox(height: 16),
+                    // About
+                    if (course['about'] != null) ...[
+                      const Text(
+                        'About',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        course['about'],
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                    // Progress Section
+                    if (progress != null) ...[
+                      const Divider(),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Course Progress',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppTheme.navy700 : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Progress',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                Text(
+                                  '${(progress['progress_percentage'] ?? 0).toStringAsFixed(1)}%',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primary600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            LinearProgressIndicator(
+                              value: ((progress['progress_percentage'] ?? 0) as num) / 100,
+                              backgroundColor: Colors.grey.shade300,
+                              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary600),
+                              minHeight: 8,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                _buildProgressStat(
+                                  'Total Lectures',
+                                  '${progress['total_lectures'] ?? 0}',
+                                  isDark,
+                                ),
+                                if (progress['completed_lectures'] != null)
+                                  _buildProgressStat(
+                                    'Completed',
+                                    '${progress['completed_lectures']}',
+                                    isDark,
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else if (_isLoadingCourseProgress) ...[
+                      const Divider(),
+                      const SizedBox(height: 16),
+                      const Center(child: CircularProgressIndicator()),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailChip(IconData icon, String label, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.navy700 : AppTheme.primary50,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: AppTheme.primary600),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.primary600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateInfo(IconData icon, String label, String date, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.navy700 : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppTheme.primary600),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _formatDate(date),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressStat(String label, String value, bool isDark) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return '${date.month}/${date.day}/${date.year}';
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  String _formatPostDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      final now = DateTime.now();
+      final difference = now.difference(date);
+
+      if (difference.inDays == 0) {
+        if (difference.inHours == 0) {
+          if (difference.inMinutes == 0) {
+            return 'Just now';
+          }
+          return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
+        }
+        return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
+      } else if (difference.inDays < 7) {
+        return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
+      } else {
+        return '${date.month}/${date.day}/${date.year}';
+      }
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  Future<void> _showJobModal(Map<String, dynamic> job) async {
+    setState(() {
+      _selectedJob = job;
+      _isLoadingJobDetails = true;
+    });
+
+    // Fetch job details
+    Map<String, dynamic>? jobDetails;
+    try {
+      final response = await ExploreService.getJobDetails(job['id'] as int);
+      jobDetails = response['data'] is Map<String, dynamic>
+          ? response['data'] as Map<String, dynamic>
+          : response;
+    } catch (e) {
+      // If fetch fails, use the job data we already have
+      jobDetails = job;
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => _buildJobModal(context, jobDetails ?? job),
+    ).then((_) {
+      setState(() {
+        _selectedJob = null;
+        _isLoadingJobDetails = false;
+      });
+    });
+  }
+
+  Widget _buildJobModal(BuildContext context, Map<String, dynamic> job) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(16),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.navy800 : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppTheme.primary600, AppTheme.teal500],
+                ),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.work, color: Colors.white, size: 30),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          job['title'] ?? 'Job',
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        if (job['specialty'] != null)
+                          Text(
+                            job['specialty'],
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.white70,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, color: Colors.white, size: 20),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            // Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Salary
+                    if (job['salary_offer'] != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppTheme.navy700 : AppTheme.primary50,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.attach_money, color: AppTheme.primary600, size: 28),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Salary Offer',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '\$${job['salary_offer']}',
+                                    style: const TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.primary600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    // Description
+                    if (job['description'] != null) ...[
+                      const Text(
+                        'Description',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        job['description'],
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                    // Requirements Grid
+                    if (job['experience_required'] != null || job['skills_required'] != null) ...[
+                      const Divider(),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Requirements',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (job['experience_required'] != null)
+                        _buildRequirementItem(
+                          Icons.trending_up,
+                          'Experience Required',
+                          '${job['experience_required']} ${job['experience_required'] == 1 ? 'year' : 'years'}',
+                          isDark,
+                        ),
+                      if (job['skills_required'] != null) ...[
+                        const SizedBox(height: 12),
+                        _buildRequirementItem(
+                          Icons.star,
+                          'Skills Required',
+                          job['skills_required'],
+                          isDark,
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                    ],
+                    // Posted Date
+                    if (job['created_at'] != null) ...[
+                      const Divider(),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Posted: ${_formatPostDate(job['created_at'])}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRequirementItem(IconData icon, String label, String value, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.navy700 : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppTheme.primary600, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

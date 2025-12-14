@@ -124,13 +124,29 @@ class _OTPScreenState extends State<OTPScreen> {
             [firstName, lastName].where((s) => s.isNotEmpty).join(' ').ifEmpty ?? 
             username;
 
+        // Extract tokens
+        final accessToken = result['access'];
+        final refreshToken = result['refresh'];
+
         // Check verification status
         bool isVerified = false;
-        try {
-          final verificationStatus = await ApiService.checkVerificationStatus(resolvedEmail);
-          isVerified = verificationStatus['is_verified'] ?? false;
-        } catch (e) {
-          print('Failed to check verification status: $e');
+        if (accessToken != null) {
+          try {
+            final verificationStatus = await ApiService.checkVerificationStatus(
+              resolvedEmail,
+              accessToken: accessToken,
+              refreshToken: refreshToken,
+              onTokenRefreshed: (tokens) {
+                // Token refreshed, but we're already setting it below
+              },
+              onSessionExpired: () {
+                // Session expired during verification check
+              },
+            );
+            isVerified = verificationStatus['is_verified'] ?? false;
+          } catch (e) {
+            print('Failed to check verification status: $e');
+          }
         }
 
         // Update auth provider with all data
@@ -142,8 +158,8 @@ class _OTPScreenState extends State<OTPScreen> {
           'lastName': lastName,
           'userId': result['user_id'],
           'userType': result['user_type'] ?? _recentSignup?['userType'] ?? 'institution',
-          'accessToken': result['access'],
-          'refreshToken': result['refresh'],
+          'accessToken': accessToken,
+          'refreshToken': refreshToken,
           'isAuthenticated': true,
           'isVerified': isVerified,
         });

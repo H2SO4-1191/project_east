@@ -3,8 +3,11 @@ import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
+import '../widgets/language_switcher.dart';
 import '../services/api_service.dart';
 import '../models/feed_item.dart';
+import '../services/profile_service.dart';
+import '../services/explore_service.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -89,6 +92,8 @@ class _FeedScreenState extends State<FeedScreen> {
       backgroundColor: isDark ? AppTheme.navy900 : const Color(0xFFF9FAFB),
       drawer: _buildDrawer(context, isDark, isAuthenticated, instituteData),
       appBar: _buildAppBar(context, isDark, isAuthenticated, instituteData),
+      floatingActionButton: _buildFloatingMenuButton(context, isDark, isAuthenticated, instituteData),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       body: RefreshIndicator(
         onRefresh: _loadFeed,
         child: CustomScrollView(
@@ -196,45 +201,19 @@ class _FeedScreenState extends State<FeedScreen> {
     return AppBar(
       elevation: 0,
       backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
-      leading: IconButton(
-        icon: const Icon(Icons.menu),
-        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-      ),
-      title: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: const LinearGradient(
-                colors: [AppTheme.primary600, AppTheme.teal500],
-              ),
-            ),
-            child: const Icon(Icons.school, color: Colors.white, size: 24),
-          ),
-          const SizedBox(width: 12),
-          const Text(
+      automaticallyImplyLeading: false, // Remove default back button
+      title: const Text(
             'Project East',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
-          ),
-        ],
       ),
       actions: [
-        // Search button
+        // Account button (always visible)
         IconButton(
-          icon: const Icon(Icons.search),
-          onPressed: () {
-            // TODO: Implement search
-          },
-        ),
-        // User menu or login button
-        if (isAuthenticated)
-          PopupMenuButton<String>(
-            icon: CircleAvatar(
+          icon: isAuthenticated
+              ? CircleAvatar(
               radius: 16,
               backgroundColor: AppTheme.primary600,
               child: Text(
@@ -244,44 +223,11 @@ class _FeedScreenState extends State<FeedScreen> {
                     .toUpperCase(),
                 style: const TextStyle(color: Colors.white, fontSize: 14),
               ),
-            ),
-            onSelected: (value) {
-              if (value == 'logout') {
-                _handleLogout(context);
-              } else if (value == 'profile') {
-                // TODO: Navigate to profile
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'profile',
-                child: Row(
-                  children: [
-                    const Icon(Icons.person, size: 20),
-                    const SizedBox(width: 8),
-                    Text(instituteData['username'] ?? instituteData['name'] ?? 'User'),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, size: 20, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Logout', style: TextStyle(color: Colors.red)),
-                  ],
-                ),
-              ),
-            ],
-          )
-        else
-          TextButton(
+                )
+              : const Icon(Icons.account_circle),
             onPressed: () {
-              Navigator.pushNamed(context, '/login');
+            _showAccountOptions(context, isDark, isAuthenticated, instituteData);
             },
-            child: const Text('Login'),
           ),
       ],
     );
@@ -295,7 +241,17 @@ class _FeedScreenState extends State<FeedScreen> {
   ) {
     return Drawer(
       backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
-      child: ListView(
+      child: _buildDrawerContent(context, isDark, isAuthenticated, instituteData),
+    );
+  }
+
+  Widget _buildDrawerContent(
+    BuildContext context,
+    bool isDark,
+    bool isAuthenticated,
+    Map<String, dynamic> instituteData,
+  ) {
+    return ListView(
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
@@ -330,7 +286,59 @@ class _FeedScreenState extends State<FeedScreen> {
               ],
             ),
           ),
+        // Explore button - Public (visible to everyone)
+        ListTile(
+          leading: const Icon(Icons.explore),
+          title: const Text('Explore'),
+          onTap: () {
+            Navigator.pop(context);
+            Navigator.pushNamed(context, '/explore');
+          },
+        ),
           if (isAuthenticated) ...[
+          const Divider(),
+          // Lecturer-specific buttons
+          if (instituteData['userType'] == 'lecturer') ...[
+            ListTile(
+              leading: const Icon(Icons.book),
+              title: const Text('Current Courses'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/lecturer/courses');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_today),
+              title: const Text('Schedules'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/lecturer/schedule');
+              },
+            ),
+            const Divider(),
+          ],
+          // Student-specific buttons
+          if (instituteData['userType'] == 'student') ...[
+            ListTile(
+              leading: const Icon(Icons.book),
+              title: const Text('My Courses'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/student/courses');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_today),
+              title: const Text('My Schedule'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/student/schedule');
+              },
+            ),
+            const Divider(),
+          ],
+          // Institution-specific buttons
+          if (instituteData['userType'] == 'institution') ...[
             ListTile(
               leading: const Icon(Icons.dashboard),
               title: const Text('Dashboard'),
@@ -339,14 +347,7 @@ class _FeedScreenState extends State<FeedScreen> {
                 Navigator.pushNamed(context, '/dashboard');
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.explore),
-              title: const Text('Explore'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Navigate to explore
-              },
-            ),
+          ],
             ListTile(
               leading: const Icon(Icons.person),
               title: const Text('Profile'),
@@ -364,27 +365,18 @@ class _FeedScreenState extends State<FeedScreen> {
               Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
             },
           ),
-          if (!isAuthenticated) ...[
+        const Divider(),
+        const LanguageSwitcher(isInDrawer: true),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.login),
-              title: const Text('Login'),
+          leading: Icon(isAuthenticated ? Icons.account_circle : Icons.account_circle_outlined),
+          title: Text(isAuthenticated ? 'Account' : 'Account'),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/login');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_add),
-              title: const Text('Sign Up'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/signup');
+            _showAccountOptions(context, isDark, isAuthenticated, instituteData);
               },
             ),
           ],
-        ],
-      ),
     );
   }
 
@@ -451,6 +443,7 @@ class _FeedScreenState extends State<FeedScreen> {
   Widget _buildPostCard(BuildContext context, FeedItem item, bool isDark) {
     final theme = Theme.of(context);
     final imageUrl = item.getImageUrl(item.publisherProfileImage);
+    final publisherUsername = item.publisherUsername ?? item.publisherName;
     
     return Card(
       elevation: 2,
@@ -466,7 +459,15 @@ class _FeedScreenState extends State<FeedScreen> {
             padding: const EdgeInsets.all(16.0),
             child: Row(
               children: [
-                CircleAvatar(
+                GestureDetector(
+                  onTap: publisherUsername == null
+                      ? null
+                      : () => Navigator.pushNamed(
+                            context,
+                            '/institution-profile',
+                            arguments: publisherUsername,
+                          ),
+                  child: CircleAvatar(
                   radius: 24,
                   backgroundColor: AppTheme.primary600,
                   backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
@@ -476,16 +477,29 @@ class _FeedScreenState extends State<FeedScreen> {
                           style: const TextStyle(color: Colors.white),
                         )
                       : null,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      GestureDetector(
+                        onTap: publisherUsername == null
+                            ? null
+                            : () => Navigator.pushNamed(
+                                  context,
+                                  '/institution-profile',
+                                  arguments: publisherUsername,
+                                ),
+                        child: Text(
                         item.publisherName ?? 'Publisher',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
+                            color: publisherUsername != null
+                                ? AppTheme.primary600
+                                : null,
+                          ),
                         ),
                       ),
                       if (item.timestamp != null)
@@ -534,7 +548,9 @@ class _FeedScreenState extends State<FeedScreen> {
     final isStudent = authProvider.instituteData['userType'] == 'student';
     final courseImageUrl = item.getImageUrl(item.courseImage);
     
-    return Card(
+    return GestureDetector(
+      onTap: () => _showCourseModalFromFeed(item),
+      child: Card(
       elevation: 2,
       color: isDark ? AppTheme.navy800 : Colors.white,
       shape: RoundedRectangleBorder(
@@ -717,6 +733,7 @@ class _FeedScreenState extends State<FeedScreen> {
               ),
           ],
         ),
+        ),
       ),
     );
   }
@@ -724,8 +741,11 @@ class _FeedScreenState extends State<FeedScreen> {
   Widget _buildJobCard(BuildContext context, FeedItem item, bool isDark) {
     final theme = Theme.of(context);
     final imageUrl = item.getImageUrl(item.publisherProfileImage);
+    final publisherUsername = item.publisherUsername;
     
-    return Card(
+    return GestureDetector(
+      onTap: () => _showJobModalFromFeed(item),
+      child: Card(
       elevation: 2,
       color: isDark ? AppTheme.navy800 : Colors.white,
       shape: RoundedRectangleBorder(
@@ -738,7 +758,11 @@ class _FeedScreenState extends State<FeedScreen> {
           children: [
             Row(
               children: [
-                CircleAvatar(
+                GestureDetector(
+                  onTap: publisherUsername == null
+                      ? null
+                      : () => _openProfileByUsername(publisherUsername),
+                  child: CircleAvatar(
                   radius: 28,
                   backgroundColor: AppTheme.primary600,
                   backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
@@ -748,6 +772,7 @@ class _FeedScreenState extends State<FeedScreen> {
                           style: const TextStyle(color: Colors.white),
                         )
                       : null,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -761,10 +786,18 @@ class _FeedScreenState extends State<FeedScreen> {
                         ),
                       ),
                       if (item.publisherUsername != null)
-                        Text(
+                        GestureDetector(
+                          onTap: () => Navigator.pushNamed(
+                                context,
+                                '/institution-profile',
+                                arguments: item.publisherUsername,
+                              ),
+                          child: Text(
                           '@${item.publisherUsername}',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.grey.shade600,
+                              color: AppTheme.primary600,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       if (item.timestamp != null)
@@ -872,6 +905,845 @@ class _FeedScreenState extends State<FeedScreen> {
               ),
           ],
         ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCourseModalFromFeed(FeedItem item) async {
+    if (item.id == null) return;
+
+    // Fetch course details
+    Map<String, dynamic>? courseData;
+    try {
+      courseData = await ExploreService.getCourseDetails(item.id!);
+      courseData = courseData['data'] is Map<String, dynamic>
+          ? courseData['data'] as Map<String, dynamic>
+          : courseData;
+    } catch (e) {
+      // If fetch fails, use item data
+      courseData = {
+        'id': item.id,
+        'title': item.title,
+        'about': item.description,
+        'course_image': item.courseImage,
+        'starting_date': item.startingDate,
+        'ending_date': item.endingDate,
+        'level': item.level,
+        'price': item.price,
+      };
+    }
+
+    // Fetch course progress
+    Map<String, dynamic>? progress;
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final accessToken = authProvider.instituteData['accessToken'];
+      final refreshToken = authProvider.instituteData['refreshToken'];
+
+      progress = await ExploreService.getCourseProgress(
+        courseId: item.id!,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        onTokenRefreshed: (tokens) {
+          authProvider.onTokenRefreshed(tokens);
+        },
+        onSessionExpired: () {
+          authProvider.onSessionExpired();
+        },
+      );
+    } catch (e) {
+      // Progress fetch failed, continue without it
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => _buildCourseModal(context, courseData!, progress),
+    );
+  }
+
+  Future<void> _showJobModalFromFeed(FeedItem item) async {
+    if (item.id == null) return;
+
+    // Fetch job details
+    Map<String, dynamic>? jobData;
+    try {
+      jobData = await ExploreService.getJobDetails(item.id!);
+      jobData = jobData['data'] is Map<String, dynamic>
+          ? jobData['data'] as Map<String, dynamic>
+          : jobData;
+    } catch (e) {
+      // If fetch fails, use item data
+      jobData = {
+        'id': item.id,
+        'title': item.title,
+        'description': item.description,
+        'salary_offer': null,
+      };
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => _buildJobModal(context, jobData!, item.publisherUsername),
+    );
+  }
+
+  Widget _buildCourseModal(BuildContext context, Map<String, dynamic> course, Map<String, dynamic>? progressData) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    dynamic courseImageUrlData = course['course_image'];
+    String? courseImageUrl;
+    if (courseImageUrlData != null) {
+      courseImageUrl = courseImageUrlData.toString();
+      if (!courseImageUrl.startsWith('http')) {
+        courseImageUrl = '${ApiService.baseUrl}${courseImageUrl.startsWith('/') ? courseImageUrl : '/$courseImageUrl'}';
+      }
+    }
+    final progress = progressData?['progress'];
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(16),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.navy800 : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header with image
+            Stack(
+              children: [
+                if (courseImageUrl != null)
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    child: Image.network(
+                      courseImageUrl,
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          height: 200,
+                          color: AppTheme.primary600,
+                          child: Center(
+                            child: Text(
+                              (course['title'] ?? 'C')[0].toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 64,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                else
+                  Container(
+                    height: 200,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary600,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    child: Center(
+                      child: Text(
+                        (course['title'] ?? 'C')[0].toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 64,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                // Close button
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, color: Colors.white, size: 20),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+              ],
+            ),
+            // Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    Text(
+                      course['title'] ?? 'Course',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Course Details Grid
+                    Row(
+                      children: [
+                        if (course['level'] != null)
+                          Expanded(
+                            child: _buildDetailChip(
+                              Icons.school,
+                              course['level'].toString().toUpperCase(),
+                              isDark,
+                            ),
+                          ),
+                        if (course['price'] != null) ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildDetailChip(
+                              Icons.attach_money,
+                              '\$${course['price']}',
+                              isDark,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Dates
+                    if (course['starting_date'] != null || course['ending_date'] != null)
+                      Row(
+                        children: [
+                          if (course['starting_date'] != null)
+                            Expanded(
+                              child: _buildDateInfo(
+                                Icons.calendar_today,
+                                'Start',
+                                course['starting_date'],
+                                isDark,
+                              ),
+                            ),
+                          if (course['ending_date'] != null) ...[
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildDateInfo(
+                                Icons.event,
+                                'End',
+                                course['ending_date'],
+                                isDark,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    const SizedBox(height: 16),
+                    // About
+                    if (course['about'] != null) ...[
+                      const Text(
+                        'About',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        course['about'],
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                    // Progress Section
+                    if (progress != null) ...[
+                      const Divider(),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Course Progress',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppTheme.navy700 : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Progress',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                Text(
+                                  '${(progress['progress_percentage'] ?? 0).toStringAsFixed(1)}%',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primary600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            LinearProgressIndicator(
+                              value: ((progress['progress_percentage'] ?? 0) as num) / 100,
+                              backgroundColor: Colors.grey.shade300,
+                              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary600),
+                              minHeight: 8,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                _buildProgressStat(
+                                  'Total Lectures',
+                                  '${progress['total_lectures'] ?? 0}',
+                                  isDark,
+                                ),
+                                if (progress['completed_lectures'] != null)
+                                  _buildProgressStat(
+                                    'Completed',
+                                    '${progress['completed_lectures']}',
+                                    isDark,
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJobModal(BuildContext context, Map<String, dynamic> job, String? institutionUsername) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(16),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.navy800 : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppTheme.primary600, AppTheme.teal500],
+                ),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.work, color: Colors.white, size: 30),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          job['title'] ?? 'Job',
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        if (job['specialty'] != null)
+                          Text(
+                            job['specialty'],
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        if (institutionUsername != null) ...[
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                              Navigator.pushNamed(
+                                context,
+                                '/institution-profile',
+                                arguments: institutionUsername,
+                              );
+                            },
+                            child: Text(
+                              '@$institutionUsername',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.white,
+                                decoration: TextDecoration.underline,
+                                decorationColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, color: Colors.white, size: 20),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            // Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Salary
+                    if (job['salary_offer'] != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppTheme.navy700 : AppTheme.primary50,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.attach_money, color: AppTheme.primary600, size: 28),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Salary Offer',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '\$${job['salary_offer']}',
+                                    style: const TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.primary600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    // Description
+                    if (job['description'] != null) ...[
+                      const Text(
+                        'Description',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        job['description'],
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                    // Requirements Grid
+                    if (job['experience_required'] != null || job['skills_required'] != null) ...[
+                      const Divider(),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Requirements',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (job['experience_required'] != null)
+                        _buildRequirementItem(
+                          Icons.trending_up,
+                          'Experience Required',
+                          '${job['experience_required']} ${job['experience_required'] == 1 ? 'year' : 'years'}',
+                          isDark,
+                        ),
+                      if (job['skills_required'] != null) ...[
+                        const SizedBox(height: 12),
+                        _buildRequirementItem(
+                          Icons.star,
+                          'Skills Required',
+                          job['skills_required'],
+                          isDark,
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                    ],
+                    // Posted Date
+                    if (job['created_at'] != null) ...[
+                      const Divider(),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Posted: ${_formatPostDate(job['created_at'])}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailChip(IconData icon, String label, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.navy700 : AppTheme.primary50,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: AppTheme.primary600),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.primary600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateInfo(IconData icon, String label, String date, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.navy700 : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppTheme.primary600),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _formatDate(date),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressStat(String label, String value, bool isDark) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRequirementItem(IconData icon, String label, String value, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.navy700 : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppTheme.primary600, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return '${date.month}/${date.day}/${date.year}';
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  String _formatPostDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      final now = DateTime.now();
+      final difference = now.difference(date);
+
+      if (difference.inDays == 0) {
+        if (difference.inHours == 0) {
+          if (difference.inMinutes == 0) {
+            return 'Just now';
+          }
+          return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
+        }
+        return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
+      } else if (difference.inDays < 7) {
+        return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
+      } else {
+        return '${date.month}/${date.day}/${date.year}';
+      }
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  Future<void> _openProfileByUsername(String username) async {
+    Map<String, dynamic>? profile;
+    String? type;
+
+    Future<Map<String, dynamic>?> tryFetch(
+        Future<Map<String, dynamic>> Function(String) fn, String t) async {
+      try {
+        final res = await fn(username);
+        final data = res['data'] is Map<String, dynamic>
+            ? res['data']
+            : res;
+        type ??= t;
+        return data;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    profile ??= await tryFetch(ProfileService.getStudentPublicProfile, 'student');
+    profile ??= await tryFetch(ProfileService.getLecturerPublicProfile, 'lecturer');
+    profile ??= await tryFetch(ProfileService.getInstitutionPublicProfile, 'institution');
+
+    if (profile == null || type == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not load profile for $username')),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => _buildProfileSheet(profile!, type!),
+    );
+  }
+
+  Widget _buildProfileSheet(Map<String, dynamic> profile, String type) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    String? imageUrl = profile['profile_image'];
+    if (imageUrl is String && imageUrl.isNotEmpty && !(imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
+      imageUrl = '${ApiService.baseUrl}${imageUrl.startsWith('/') ? imageUrl : '/$imageUrl'}';
+    }
+    final fullName = '${profile['first_name'] ?? ''} ${profile['last_name'] ?? ''}'.trim();
+    final displayName = fullName.isEmpty ? (profile['username'] ?? 'User') : fullName;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.navy800 : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.all(24),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 32,
+                  backgroundColor: AppTheme.primary600,
+                  backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
+                  child: imageUrl == null
+                      ? Text(
+                          displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
+                          style: const TextStyle(color: Colors.white, fontSize: 20),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName,
+                        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      if (profile['city'] != null)
+                        Text(
+                          profile['city'],
+                          style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                        ),
+                      Text(
+                        type.toUpperCase(),
+                        style: theme.textTheme.bodySmall?.copyWith(color: AppTheme.primary600),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (profile['about'] != null) ...[
+              const SizedBox(height: 16),
+              Text('About', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(profile['about'], style: theme.textTheme.bodyMedium),
+            ],
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -956,5 +1828,243 @@ class _FeedScreenState extends State<FeedScreen> {
       Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
     }
   }
+
+  Widget _buildFloatingMenuButton(
+    BuildContext context,
+    bool isDark,
+    bool isAuthenticated,
+    Map<String, dynamic> instituteData,
+  ) {
+    return FloatingActionButton(
+      onPressed: () {
+        _showAnimatedDrawer(context, isDark, isAuthenticated, instituteData);
+      },
+      backgroundColor: AppTheme.primary600,
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: const LinearGradient(
+            colors: [AppTheme.primary600, AppTheme.teal500],
+          ),
+        ),
+        child: const Icon(
+          Icons.school,
+          color: Colors.white,
+          size: 28,
+        ),
+      ),
+    );
+  }
+
+  void _showAnimatedDrawer(
+    BuildContext context,
+    bool isDark,
+    bool isAuthenticated,
+    Map<String, dynamic> instituteData,
+  ) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black.withOpacity(0.5),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return _AnimatedDrawerContent(
+          animation: animation,
+          isDark: isDark,
+          isAuthenticated: isAuthenticated,
+          instituteData: instituteData,
+          drawerContent: _buildDrawerContent(context, isDark, isAuthenticated, instituteData),
+        );
+      },
+    );
+  }
+
+  void _showAccountOptions(
+    BuildContext context,
+    bool isDark,
+    bool isAuthenticated,
+    Map<String, dynamic> instituteData,
+  ) {
+    if (isAuthenticated) {
+      // Show user menu
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (context) => Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.navy800 : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.person),
+                  title: Text(instituteData['username'] ?? instituteData['name'] ?? 'User'),
+                  subtitle: Text(instituteData['userType'] ?? 'User'),
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.logout, color: Colors.red),
+                  title: const Text('Logout', style: TextStyle(color: Colors.red)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _handleLogout(context);
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      );
+    } else {
+      // Show Login/Sign Up options
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (context) => Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.navy800 : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Welcome',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.pushNamed(context, '/login');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary600,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('Login'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.pushNamed(context, '/account-type-selection');
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primary600,
+                        side: const BorderSide(color: AppTheme.primary600, width: 2),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('Sign Up'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+  }
 }
 
+class _AnimatedDrawerContent extends StatelessWidget {
+  final Animation<double> animation;
+  final bool isDark;
+  final bool isAuthenticated;
+  final Map<String, dynamic> instituteData;
+  final Widget drawerContent;
+
+  const _AnimatedDrawerContent({
+    required this.animation,
+    required this.isDark,
+    required this.isAuthenticated,
+    required this.instituteData,
+    required this.drawerContent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(
+      CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    final slideAnimation = Tween<Offset>(
+      begin: const Offset(-1.0, 0.0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    return GestureDetector(
+      onTap: () => Navigator.of(context).pop(),
+      child: Container(
+        color: Colors.transparent,
+        child: Stack(
+          children: [
+            // Backdrop
+            FadeTransition(
+              opacity: fadeAnimation,
+              child: Container(
+                color: Colors.black.withOpacity(0.5),
+              ),
+            ),
+            // Drawer
+            SlideTransition(
+              position: slideAnimation,
+              child: FadeTransition(
+                opacity: fadeAnimation,
+                child: GestureDetector(
+                  onTap: () {}, // Prevent closing when tapping inside drawer
+                  child: Material(
+                    color: isDark ? AppTheme.navy800 : Colors.white,
+                    child: Container(
+                      width: MediaQuery.of(context).size.width * 0.75,
+                      child: SafeArea(
+                        child: drawerContent,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
