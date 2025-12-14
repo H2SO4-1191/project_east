@@ -19,11 +19,16 @@ class SignupSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'city', 'user_type']
+        extra_kwargs = {
+            "email": {"required": True},
+        }
+
     def create(self, validated_data):
         user = User.objects.create(**validated_data)
         user.set_unusable_password()
         user.save()
         return user
+
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
