@@ -1,169 +1,433 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
+import 'package:provider/provider.dart';
 import '../../config/theme.dart';
-import '../../widgets/card_widget.dart';
-import '../../widgets/animated_counter.dart';
-import '../../data/demo_data.dart';
+import '../../providers/auth_provider.dart';
+import '../../services/api_service.dart';
+import '../../services/profile_service.dart';
 
-class OverviewPage extends StatelessWidget {
+class OverviewPage extends StatefulWidget {
   const OverviewPage({super.key});
+
+  @override
+  State<OverviewPage> createState() => _OverviewPageState();
+}
+
+class _OverviewPageState extends State<OverviewPage> {
+  bool _isLoading = true;
+  String? _error;
+  Map<String, dynamic> _stats = {};
+  List<dynamic> _posts = [];
+  bool _isLoadingPosts = false;
+  String? _postsError;
+  String? _username;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final instituteData = authProvider.instituteData;
+    final accessToken = instituteData['accessToken'];
+    final refreshToken = instituteData['refreshToken'];
+
+    if (accessToken == null) {
+      setState(() {
+        _isLoading = false;
+        _error = 'Not authenticated';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      // Fetch verification status
+      if (instituteData['email'] != null && instituteData['userType'] == 'institution') {
+        try {
+          final verificationStatus = await ApiService.checkVerificationStatus(
+            instituteData['email'],
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            onTokenRefreshed: (tokens) {
+              authProvider.onTokenRefreshed(tokens);
+            },
+            onSessionExpired: () {
+              authProvider.onSessionExpired();
+            },
+          );
+          if (verificationStatus['is_verified'] != instituteData['isVerified']) {
+            authProvider.updateInstituteData({
+              'isVerified': verificationStatus['is_verified'] ?? false,
+            });
+          }
+        } catch (e) {
+          // Verification check failed, continue
+        }
+      }
+
+      // Fetch dashboard stats
+      final stats = await ApiService.getDashboardStats(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        onTokenRefreshed: (tokens) {
+          authProvider.onTokenRefreshed(tokens);
+        },
+        onSessionExpired: () {
+          authProvider.onSessionExpired();
+        },
+      );
+
+      // Fetch institution profile to get username
+      try {
+        final profileData = await ApiService.getInstitutionProfile(
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          onTokenRefreshed: (tokens) {
+            authProvider.onTokenRefreshed(tokens);
+          },
+          onSessionExpired: () {
+            authProvider.onSessionExpired();
+          },
+        );
+        if (profileData['success'] == true && profileData['data']?['username'] != null) {
+          setState(() {
+            _username = profileData['data']['username'];
+          });
+        } else if (profileData['username'] != null) {
+          setState(() {
+            _username = profileData['username'];
+          });
+        }
+      } catch (e) {
+        // Profile fetch failed, use existing username
+      }
+
+      // Fetch posts if verified
+      if (authProvider.instituteData['isVerified'] == true) {
+        _loadPosts();
+      }
+
+      setState(() {
+        _stats = stats;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadPosts() async {
+    final usernameToUse = _username ?? Provider.of<AuthProvider>(context, listen: false).instituteData['username'];
+    if (usernameToUse == null) return;
+
+    setState(() {
+      _isLoadingPosts = true;
+      _postsError = null;
+    });
+
+    try {
+      final posts = await ProfileService.getInstitutionPosts(usernameToUse);
+      setState(() {
+        if (posts['results'] != null) {
+          final results = posts['results'];
+          if (results is List) {
+            _posts = List<dynamic>.from(results);
+          } else {
+            _posts = [];
+          }
+        } else {
+          _posts = [];
+        }
+        _isLoadingPosts = false;
+      });
+    } catch (e) {
+      setState(() {
+        _postsError = e.toString();
+        _isLoadingPosts = false;
+        _posts = [];
+      });
+    }
+  }
+
+  String _getImageUrl(String? imagePath) {
+    if (imagePath == null || imagePath.isEmpty) return '';
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    const baseUrl = 'http://192.168.0.249:8000';
+    String cleanPath = imagePath.startsWith('/') ? imagePath : '/$imagePath';
+    cleanPath = cleanPath.replaceAll(RegExp(r'/media/media+'), '/media/');
+    if (cleanPath.startsWith('/media/media/')) {
+      cleanPath = cleanPath.replaceFirst('/media/media/', '/media/');
+    }
+    return '$baseUrl$cleanPath';
+  }
+
+  String _formatDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return '${date.month}/${date.day}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return dateString;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final activeTeachers = DemoData.teachers.where((t) => t.status == 'Active').length;
+    final authProvider = Provider.of<AuthProvider>(context);
+    final instituteData = authProvider.instituteData;
+    final displayName = _username ?? 
+        instituteData['username'] ?? 
+        instituteData['firstName'] ?? 
+        instituteData['name'] ?? 
+        'there';
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
           Text(
             'Overview',
-            style: theme.textTheme.displaySmall,
+            style: theme.textTheme.displaySmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
-            'Welcome to your dashboard',
-            style: theme.textTheme.bodyMedium,
+            'Welcome back, $displayName',
+            style: theme.textTheme.bodyLarge,
           ),
-          const SizedBox(height: 24),
-
-          // Stats Grid
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth > 600;
-              return GridView.count(
-                crossAxisCount: isWide ? 4 : 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: isWide ? 1.5 : 1.8,
-                children: [
-                  _StatCard(
-                    title: 'Total Students',
-                    value: DemoData.students.length,
-                    icon: Icons.people,
-                    color: AppTheme.primary600,
-                  ),
-                  _StatCard(
-                    title: 'Active Teachers',
-                    value: activeTeachers,
-                    icon: Icons.person,
-                    color: AppTheme.teal600,
-                  ),
-                  _StatCard(
-                    title: 'Total Employees',
-                    value: DemoData.employees.length,
-                    icon: Icons.business_center,
-                    color: Colors.purple.shade600,
-                  ),
-                  _StatCard(
-                    title: 'Monthly Revenue',
-                    value: 38000,
-                    icon: Icons.attach_money,
-                    color: AppTheme.gold600,
-                    prefix: 'IQD ',
-                  ),
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 24),
-
-          // Charts
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth > 800;
-              if (isWide) {
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: _ActivityChart(isDark: isDark, theme: theme)),
-                    const SizedBox(width: 16),
-                    Expanded(child: _RevenueChart(isDark: isDark, theme: theme)),
-                  ],
-                );
-              }
-              return Column(
-                children: [
-                  _ActivityChart(isDark: isDark, theme: theme),
-                  const SizedBox(height: 16),
-                  _RevenueChart(isDark: isDark, theme: theme),
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 24),
-
-          // Recent Activity
-          CardWidget(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Recent Activity',
-                  style: theme.textTheme.headlineMedium,
+          if (instituteData['email'] != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '@${instituteData['email']}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.grey.shade600,
                 ),
-                const SizedBox(height: 16),
-                ...[
-                  {'action': 'New student enrolled', 'name': 'Yasmin Ali', 'time': '2 hours ago', 'color': AppTheme.primary600},
-                  {'action': 'Teacher updated profile', 'name': 'Dr. Sarah Khan', 'time': '4 hours ago', 'color': AppTheme.teal600},
-                  {'action': 'Payment received', 'name': 'Ahmed Hassan', 'time': '6 hours ago', 'color': AppTheme.gold600},
-                  {'action': 'Schedule updated', 'name': 'Grade 10-A', 'time': '8 hours ago', 'color': Colors.purple.shade600},
-                ].map((activity) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+              ),
+          ),
+          const SizedBox(height: 24),
+
+          // Loading/Error States
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (_error != null)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red.shade600),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(_error!, style: TextStyle(color: Colors.red.shade700))),
+                ],
+                  ),
+            )
+          else ...[
+            // Stats Grid
+            _buildStatsGrid(theme, isDark),
+          const SizedBox(height: 24),
+
+            // Verification Message or Posts
+            if (instituteData['isVerified'] != true)
+              _buildVerificationCard(theme, isDark)
+            else
+              _buildPostsSection(theme, isDark),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsGrid(ThemeData theme, bool isDark) {
+    final safeNumber = (dynamic value, int fallback) {
+      if (value is num && value.isFinite) {
+        return value.toInt();
+      }
+      return fallback;
+    };
+
+    final statCards = [
+      {
+        'title': 'Total Students',
+        'value': safeNumber(_stats['totalStudents']?['total_students'], 0),
+        'icon': Icons.people,
+        'color': Colors.blue,
+      },
+      {
+        'title': 'Active Students',
+        'value': safeNumber(_stats['activeStudents']?['active_students'], 0),
+        'icon': Icons.people_outline,
+        'color': Colors.indigo,
+      },
+      {
+        'title': 'Total Lecturers',
+        'value': safeNumber(_stats['totalLecturers']?['total_lecturers'], 0),
+        'icon': Icons.school,
+        'color': Colors.teal,
+      },
+      {
+        'title': 'Active Lecturers',
+        'value': safeNumber(_stats['activeLecturers']?['active_lecturers'], 0),
+        'icon': Icons.school_outlined,
+        'color': Colors.green,
+      },
+      {
+        'title': 'Total Staff',
+        'value': safeNumber(_stats['totalStaff']?['total_staff'], 0),
+        'icon': Icons.business_center,
+        'color': Colors.purple,
+      },
+      {
+        'title': 'Active Staff',
+        'value': safeNumber(_stats['activeStaff']?['active_staff'], 0),
+        'icon': Icons.business_center_outlined,
+        'color': Colors.pink,
+      },
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final crossAxisCount = constraints.maxWidth > 1024
+            ? 3
+            : constraints.maxWidth > 768
+                ? 2
+                : 1;
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: 2.5,
+          ),
+          itemCount: statCards.length,
+          itemBuilder: (context, index) {
+            final stat = statCards[index];
+            return _buildStatCard(stat, theme, isDark);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildStatCard(Map<String, dynamic> stat, ThemeData theme, bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.navy800 : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
                     child: Container(
-                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: isDark
-                            ? AppTheme.navy900.withOpacity(0.5)
-                            : Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: activity['color'] as Color,
-                              shape: BoxShape.circle,
+          borderRadius: BorderRadius.circular(16),
+          border: Border(
+            left: BorderSide(
+              color: stat['color'] as Color,
+              width: 4,
                             ),
                           ),
-                          const SizedBox(width: 12),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  activity['action'] as String,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
+                    stat['title'] as String,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey.shade600,
                                   ),
                                 ),
+                  const SizedBox(height: 8),
                                 Text(
-                                  activity['name'] as String,
-                                  style: theme.textTheme.bodySmall,
+                    '${stat['value']}',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                                 ),
                               ],
                             ),
                           ),
-                          Text(
-                            activity['time'] as String,
-                            style: theme.textTheme.bodySmall,
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: (stat['color'] as Color).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                stat['icon'] as IconData,
+                color: stat['color'] as Color,
+                size: 32,
+              ),
                           ),
                         ],
                       ),
                     ),
                   );
-                }),
+  }
+
+  Widget _buildVerificationCard(ThemeData theme, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.amber.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.amber.shade600, size: 32),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Verification Required',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.amber.shade900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Please verify your institution account to access all features and view your posts.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.amber.shade800,
+                  ),
+                ),
               ],
             ),
           ),
@@ -171,329 +435,132 @@ class OverviewPage extends StatelessWidget {
       ),
     );
   }
-}
 
-class _StatCard extends StatelessWidget {
-  final String title;
-  final int value;
-  final IconData icon;
-  final Color color;
-  final String? prefix;
-
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-    this.prefix,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return CardWidget(
-      child: ClipRect(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            title,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 8),
-                    ClipRect(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (prefix != null)
-                              Text(
-                                prefix!,
-                                style: theme.textTheme.displaySmall?.copyWith(
-                                  color: color,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 24,
-                                ),
-                              ),
-                            AnimatedCounter(
-                              value: value,
-                              textStyle: theme.textTheme.displaySmall?.copyWith(
-                                color: color,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 24,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.all(10),
+  Widget _buildPostsSection(ThemeData theme, bool isDark) {
+    return Container(
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(icon, color: color, size: 22),
-                    ),
-                  ],
+        color: isDark ? AppTheme.navy800 : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.article, color: Colors.blue.shade600),
+              const SizedBox(width: 8),
+          Text(
+                'Institution Posts',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
-              ],
-            );
-          },
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_isLoadingPosts)
+            const Center(child: CircularProgressIndicator())
+          else if (_postsError != null)
+            Center(
+                            child: Text(
+                _postsError!,
+                style: TextStyle(color: Colors.red.shade600),
+                    ),
+            )
+          else if (_posts.isEmpty)
+            Center(
+              child: Column(
+                children: [
+                  Icon(Icons.article_outlined, size: 64, color: Colors.grey.shade400),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No posts yet',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ..._posts.map((post) => _buildPostCard(post, theme, isDark)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostCard(Map<String, dynamic> post, ThemeData theme, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.navy700 : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? AppTheme.navy600 : Colors.grey.shade200,
         ),
       ),
-    );
-  }
-}
-
-class _ActivityChart extends StatelessWidget {
-  final bool isDark;
-  final ThemeData theme;
-
-  const _ActivityChart({required this.isDark, required this.theme});
-
-  @override
-  Widget build(BuildContext context) {
-    return CardWidget(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Weekly Activity',
-            style: theme.textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 250,
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: 50,
-                  getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: isDark ? AppTheme.navy700 : Colors.grey.shade200,
-                      strokeWidth: 1,
-                    );
-                  },
-                ),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 40,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          value.toInt().toString(),
-                          style: theme.textTheme.bodySmall,
-                        );
-                      },
-                    ),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-                        if (value.toInt() >= 0 && value.toInt() < days.length) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              days[value.toInt()],
-                              style: theme.textTheme.bodySmall,
-                            ),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
-                    ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  post['title'] ?? 'Untitled Post',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                borderData: FlBorderData(show: false),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: [
-                      const FlSpot(0, 185),
-                      const FlSpot(1, 192),
-                      const FlSpot(2, 188),
-                      const FlSpot(3, 195),
-                      const FlSpot(4, 198),
-                    ],
-                    isCurved: true,
-                    color: AppTheme.primary500,
-                    barWidth: 3,
-                    dotData: const FlDotData(show: true),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: AppTheme.primary500.withOpacity(0.1),
-                    ),
+              ),
+              if (post['created_at'] != null)
+                Text(
+                  _formatDate(post['created_at']),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.grey.shade600,
                   ),
-                  LineChartBarData(
-                    spots: [
-                      const FlSpot(0, 42),
-                      const FlSpot(1, 45),
-                      const FlSpot(2, 43),
-                      const FlSpot(3, 46),
-                      const FlSpot(4, 47),
-                    ],
-                    isCurved: true,
-                    color: AppTheme.teal500,
-                    barWidth: 3,
-                    dotData: const FlDotData(show: true),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: AppTheme.teal500.withOpacity(0.1),
-                    ),
+                ),
+            ],
+                ),
+          if (post['description'] != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              post['description'],
+              style: theme.textTheme.bodyMedium,
+            ),
+          ],
+          if (post['images'] != null && (post['images'] as List).isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: (post['images'] as List).take(3).map((img) {
+                final imageUrl = _getImageUrl(img['image'] ?? img);
+                if (imageUrl.isEmpty) return const SizedBox.shrink();
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    imageUrl,
+                    width: 100,
+                    height: 100,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                  ),
+                );
+              }).toList(),
                   ),
                 ],
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 }
-
-class _RevenueChart extends StatelessWidget {
-  final bool isDark;
-  final ThemeData theme;
-
-  const _RevenueChart({required this.isDark, required this.theme});
-
-  @override
-  Widget build(BuildContext context) {
-    return CardWidget(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Revenue vs Expenses',
-            style: theme.textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 250,
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: 10000,
-                  getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: isDark ? AppTheme.navy700 : Colors.grey.shade200,
-                      strokeWidth: 1,
-                    );
-                  },
-                ),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 50,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          'IQD ${(value / 1000).toInt()}K',
-                          style: theme.textTheme.bodySmall,
-                        );
-                      },
-                    ),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-                        if (value.toInt() >= 0 && value.toInt() < months.length) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              months[value.toInt()],
-                              style: theme.textTheme.bodySmall,
-                            ),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
-                    ),
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: [
-                      const FlSpot(0, 24000),
-                      const FlSpot(1, 28000),
-                      const FlSpot(2, 32000),
-                      const FlSpot(3, 29000),
-                      const FlSpot(4, 35000),
-                      const FlSpot(5, 38000),
-                    ],
-                    isCurved: true,
-                    color: AppTheme.gold500,
-                    barWidth: 3,
-                    dotData: const FlDotData(show: true),
-                  ),
-                  LineChartBarData(
-                    spots: [
-                      const FlSpot(0, 18000),
-                      const FlSpot(1, 19000),
-                      const FlSpot(2, 20000),
-                      const FlSpot(3, 21000),
-                      const FlSpot(4, 22000),
-                      const FlSpot(5, 23000),
-                    ],
-                    isCurved: true,
-                    color: Colors.red,
-                    barWidth: 3,
-                    dotData: const FlDotData(show: true),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
