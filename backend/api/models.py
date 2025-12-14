@@ -94,7 +94,7 @@ class Institution(models.Model):
     title = models.CharField(max_length=255)
     location = models.CharField(max_length=255)
     marked_lecturers = models.ManyToManyField("Lecturer", related_name="marked_by_institutions", blank=True)
-
+    stripe_account_id = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
         return self.title
@@ -252,3 +252,30 @@ class Grade(models.Model):
 
     class Meta:
         unique_together = ("exam", "student")
+
+# --- STRIPE MODELS ---
+class InstitutionSubscription(models.Model):
+    institution = models.OneToOneField(Institution, on_delete=models.CASCADE)
+    stripe_customer_id = models.CharField(max_length=255, blank=True, null=True)
+    stripe_subscription_id = models.CharField(max_length=255, blank=True, null=True)
+    stripe_price_id = models.CharField(max_length=255, blank=True, null=True)
+
+    status = models.CharField(max_length=50, default="inactive")  # active, canceled
+    current_period_end = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.institution.title} Subscription"
+
+class CoursePayment(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+
+    stripe_payment_intent = models.CharField(max_length=255)
+    amount = models.IntegerField()  # cents
+    paid = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.student.user.username} → {self.course.title}"
+
+

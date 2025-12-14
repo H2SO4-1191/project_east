@@ -7,7 +7,7 @@ urlpatterns = [
     path('ai/doc/', DocumentCheckView.as_view()),
     path("notifications/", NotificationsView.as_view()),
     path("course/<int:course_id>/progress/", CourseProgressView.as_view()),
-    path("explore/", ExploreSearchView.as_view(), name="explore_search"),
+    path("explore/", ExploreSearchView.as_view()),
     path("course/<int:course_id>/", CourseDetailView.as_view()),
     path("course/<int:course_id>/students/<int:lecture_number>/", ExpectedStudentsView.as_view()),
 
@@ -52,6 +52,8 @@ urlpatterns = [
     path("institution/marked-lecturers/", InstitutionMarkedLecturersView.as_view()),
     path("institution/is-marked/<int:lecturer_id>/", InstitutionIsMarkedView.as_view()),
     path("institution/remove-marked/<int:lecturer_id>/", InstitutionRemoveMarkerView.as_view()),
+    path("institution/add-payment-method/", InstitutionSetupPaymentsView.as_view()),
+    path("institution/subscribe/", CreateInstitutionSubscriptionCheckout.as_view()),
 
     path("lecturer/verify/", LecturerVerificationView.as_view()),
     path("lecturer/my-profile/", LecturerSelfProfileView.as_view()),
@@ -77,4 +79,5 @@ urlpatterns = [
     path("student/schedule/", StudentWeeklyScheduleView.as_view()),
     path("student/is-student-free/<int:course_id>/", StudentScheduleCheckView.as_view()),
     path("student/enroll/<int:course_id>/", StudentEnrollCourseView.as_view()),
+    path("student/add-payment-method/", StudentSetupPaymentMethodView.as_view()),
 ]

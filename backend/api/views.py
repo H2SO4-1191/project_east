@@ -14,6 +14,7 @@ from ai.predict_doc import classify_document
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 import datetime
+import stripe
 
 class FeedPagination(PageNumberPagination):
     page_size = 20
@@ -165,6 +166,7 @@ class HomeFeedView(APIView):
         return paginator.get_paginated_response(serializer.data)
 
 class SignupView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
         serializer = SignupSerializer(data=request.data)
         if serializer.is_valid():
@@ -452,7 +454,7 @@ class InstitutionWeeklyScheduleView(APIView):
         })
 
 class InstitutionVerificationView(APIView):
-    permission_classes = [IsInstitution]
+    permission_classes = [IsAuthenticated, IsInstitution]
 
     def put(self, request):
         user = request.user
@@ -498,7 +500,7 @@ class InstitutionEditProfileView(APIView):
                         status=status.HTTP_400_BAD_REQUEST)
 
 class InstitiutionCreatePostView(APIView):
-    permission_classes = [IsInstitution, IsVerified]
+    permission_classes = [IsInstitution, IsVerified, IsSubscribed]
 
     def post(self, request):
         serializer = PostCreateSerializer(data=request.data)
@@ -517,7 +519,7 @@ class InstitiutionCreatePostView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 class InstitutionCreateCourseView(APIView):
-    permission_classes = [IsInstitution, IsVerified]
+    permission_classes = [IsInstitution, IsVerified, CanReceive, IsSubscribed]
 
     def post(self, request):
         serializer = CourseSerializer(data=request.data, context={"request": request})
@@ -630,7 +632,7 @@ class InstitutionViewLecturerProfile(APIView):
         return Response({"success": True, "data": serializer.data})
 
 class InstitutionAddMarkerView(APIView):
-    permission_classes = [IsInstitution, IsVerified]
+    permission_classes = [IsInstitution, IsVerified, IsSubscribed]
 
     def post(self, request):
         institution = request.user.institution
@@ -744,7 +746,7 @@ class CourseDetailView(APIView):
         return Response({"success": True, "data": serializer.data})
 
 class InstitutionCreateJobView(APIView):
-    permission_classes = [IsInstitution, IsVerified]
+    permission_classes = [IsInstitution, IsVerified, IsSubscribed]
 
     def post(self, request):
         serializer = JobPostSerializer(data=request.data, context={"request": request})
@@ -856,7 +858,7 @@ class InstitutionCourseAttendanceSummaryView(APIView):
         })
 
 class StaffCreateView(APIView):
-    permission_classes = [IsInstitution]
+    permission_classes = [IsInstitution, IsVerified, IsSubscribed]
 
     def post(self, request):
         serializer = StaffCreateSerializer(
@@ -1327,29 +1329,76 @@ class StudentEditProfileView(APIView):
         }, status=400)
 
 class StudentEnrollCourseView(APIView):
-    permission_classes = [IsStudent, IsVerified]
+    permission_classes = [IsAuthenticated, IsStudent, IsVerified, CanPay]
 
     def post(self, request, course_id):
         user = request.user
-
-        if user.user_type != "student":
-            return Response({"success": False, "message": "Only students can enroll."}, status=403)
-
         student = user.student
 
+        # 1) Fetch course
         try:
-            course = Course.objects.get(id=course_id)
+            course = Course.objects.select_related("institution").get(id=course_id)
         except Course.DoesNotExist:
             return Response({"success": False, "message": "Course not found."}, status=404)
 
-        if course.students.count() >= course.capacity:
+        # 2) Capacity check
+        if course.capacity > 0 and course.students.count() >= course.capacity:
             return Response({"success": False, "message": "Course capacity is full."}, status=400)
-        
-        student.courses.add(course)
-        student.institutions.add(course.institution)
 
-        return Response({"success": True, "message": "Enrolled successfully."})
+        # 3) Institution must have a connected account
+        institution = course.institution
+        if not institution.stripe_account_id:
+            return Response({
+                "success": False,
+                "message": "Institution cannot receive payments yet."
+            }, status=400)
 
+        # 4) Convert price → cents
+        amount_cents = int(course.price * 100)
+
+        # 5) Create Stripe Checkout Session (money to institution)
+        try:
+            session = stripe.checkout.Session.create(
+                mode="payment",
+                customer_email=user.email,
+                line_items=[
+                    {
+                        "price_data": {
+                            "currency": "usd",
+                            "unit_amount": amount_cents,
+                            "product_data": {
+                                "name": course.title,
+                            },
+                        },
+                        "quantity": 1,
+                    }
+                ],
+                payment_intent_data={
+                    "transfer_data": {
+                        "destination": institution.stripe_account_id,
+                    },
+                },
+                success_url=f"{settings.FRONTEND_DOMAIN}/payment/course-success?session_id={{CHECKOUT_SESSION_ID}}",
+                cancel_url=f"{settings.FRONTEND_DOMAIN}/payment/course-cancel",
+            )
+
+        except Exception as e:
+            return Response({"success": False, "message": str(e)}, status=400)
+
+        # 6) Save payment record
+        CoursePayment.objects.create(
+            student=student,
+            course=course,
+            stripe_payment_intent=session.payment_intent,
+            amount=amount_cents,
+            paid=False,
+        )
+
+        # 7) Return checkout URL
+        return Response({
+            "success": True,
+            "checkout_url": session.url
+        })
 class StudentViewAttendanceView(APIView):
     permission_classes = [IsStudent, IsVerified]
 
@@ -1441,7 +1490,7 @@ class StudentWeeklyScheduleView(APIView):
         })
 
 class CourseProgressView(APIView):
-    permission_classes = []  # anyone can access
+    permission_classes = [AllowAny]  # anyone can access
 
     def get(self, request, course_id):
         try:
@@ -1576,7 +1625,7 @@ class NotificationsView(APIView):
         })
 
 class ExploreSearchView(APIView):
-    permission_classes = []  # public search
+    permission_classes = [AllowAny]  # public search
 
     def get(self, request):
         q = request.query_params.get("q", "").strip().lower()
@@ -1814,7 +1863,7 @@ class LecturerScheduleCheckView(APIView):
         return Response({"success": True, "contradiction": None})
 
 class ExpectedStudentsView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsLecturer | IsInstitution]
 
     def get(self, request, course_id, lecture_number):
         user = request.user
@@ -1862,9 +1911,105 @@ class ExpectedStudentsView(APIView):
             "students": students_list,
         })
 
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
+class CreateInstitutionSubscriptionCheckout(APIView):
+    permission_classes = [IsAuthenticated, IsInstitution, IsVerified]
 
+    def post(self, request):
+        user = request.user
 
+        plan = request.data.get("plan")  # "3m", "6m", "12m"
 
+        price_map = {
+            "3m": settings.STRIPE_PRICE_3_MONTHS,
+            "6m": settings.STRIPE_PRICE_6_MONTHS,
+            "12m": settings.STRIPE_PRICE_12_MONTHS,
+        }
+
+        print(price_map)
+
+        price_id = price_map.get(plan)
+        if not price_id:
+            return Response({"success": False, "message": "Invalid plan."}, status=400)
+
+        success_url = f"{settings.FRONTEND_DOMAIN}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
+        cancel_url = f"{settings.FRONTEND_DOMAIN}/payment/cancel"
+
+        try:
+            checkout_session = stripe.checkout.Session.create(
+                mode="subscription",
+                customer_email=user.email,
+                line_items=[{"price": price_id, "quantity": 1}],
+                success_url=success_url,
+                cancel_url=cancel_url,
+            )
+
+            return Response({
+                "success": True,
+                "checkout_url": checkout_session.url
+            })
+        
+        except Exception as e:
+            import traceback
+            error_text = traceback.format_exc()
+
+            return Response({
+                "success": False,
+                "error": error_text
+            }, status=400)
+
+class InstitutionSetupPaymentsView(APIView):
+    permission_classes = [IsAuthenticated, IsInstitution]
+
+    def post(self, request):
+        user = request.user
+        institution = user.institution
+
+        # Create account if missing
+        if not institution.stripe_account_id:
+            acct = stripe.Account.create(type="standard")
+            institution.stripe_account_id = acct.id
+            institution.save()
+
+        onboarding_link = stripe.AccountLink.create(
+            account=institution.stripe_account_id,
+            refresh_url=f"{settings.FRONTEND_DOMAIN}/payments/refresh",
+            return_url=f"{settings.FRONTEND_DOMAIN}/payments/complete",
+            type="account_onboarding",
+        )
+
+        return Response({
+            "success": True,
+            "onboarding_url": onboarding_link.url
+        })
+
+class StudentSetupPaymentMethodView(APIView):
+    permission_classes = [IsAuthenticated, IsStudent]
+
+    def post(self, request):
+        user = request.user
+
+        if user.user_type != "student":
+            return Response({"success": False, "message": "Only students."}, status=403)
+
+        student = user.student
+
+        # Create customer if needed
+        if not student.stripe_customer_id:
+            customer = stripe.Customer.create(email=user.email, name=user.username)
+            student.stripe_customer_id = customer.id
+            student.save()
+
+        # Billing Portal → manage/add cards
+        session = stripe.billing_portal.Session.create(
+            customer=student.stripe_customer_id,
+            return_url=f"{settings.FRONTEND_DOMAIN}/payments/complete"
+        )
+
+        return Response({
+            "success": True,
+            "portal_url": session.url
+        })
 
 
