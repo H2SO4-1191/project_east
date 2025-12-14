@@ -209,3 +209,4 @@ __marimo__/
 # Other
 media/
 static/
+ai_util/document_classifier_v3.pt

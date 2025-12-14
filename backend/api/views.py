@@ -10,7 +10,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.generics import ListAPIView
-from ai.predict_doc import classify_document
+from ai_util.predict_doc import classify_document
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 import datetime
