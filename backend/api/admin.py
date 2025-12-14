@@ -14,6 +14,8 @@ admin.site.register([
         JobApplication, 
         Attendance,
         Exam,
-        Grade
+        Grade,
+        InstitutionSubscription,
+        CoursePayment,
     ]
 )
