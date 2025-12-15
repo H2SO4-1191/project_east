@@ -40,12 +40,7 @@ FRONTEND_DOMAIN = config("FRONTEND_DOMAIN", default="http://localhost:3000")
 DEBUG = config('DEBUG', cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
-
-CSRF_TRUSTED_ORIGINS = ["https://projecteastapi.ddns.net"]
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
-USE_X_FORWARDED_HOST = True
+CSRF_TRUSTED_ORIGINS = config('ALLOWED_HOSTS', cast=Csv())
 
 # Application definition
 
