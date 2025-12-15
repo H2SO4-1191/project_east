@@ -43,9 +43,8 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
 
 # settings.py
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://projecteastapi.ddns.net",
-]
+CSRF_TRUSTED_ORIGINS = ["https://projecteastapi.ddns.net"]
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition
