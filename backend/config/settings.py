@@ -179,28 +179,35 @@ else:
 
 # Admins and logging errors
 if DEBUG:
-     ADMINS = [
+    ADMINS = [
         ('H2SO4-1191', config("H2SO4_1191")),
         ('FUDEN', config("FUDEN")),
-    ] 
+    ]
 else:
-     ADMINS = []
+    ADMINS = []
 
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+
     'formatters': {
         'structured': {
             'format': 'URL: %(request_path)s\nTime: %(asctime)s\nError Details: %(message)s\n==============================',
             'datefmt': '%Y-%m-%d %H:%M:%S',
         },
     },
+
     'filters': {
         'add_request_path': {
             '()': 'django.utils.log.CallbackFilter',
-            'callback': lambda record: setattr(record, 'request_path', getattr(record, 'request_path', getattr(record, 'pathname', '/unknown'))) or True,
+            'callback': lambda record: setattr(
+                record, 
+                'request_path', 
+                getattr(record, 'request_path', getattr(record, 'pathname', '/unknown'))
+            ) or True,
         },
     },
+
     'handlers': {
         'file': {
             'level': 'ERROR',
@@ -212,22 +219,24 @@ LOGGING = {
         'mail_admins': {
             'level': 'ERROR',
             'class': 'django.utils.log.AdminEmailHandler',
-            'include_html': True,  # optional: sends HTML email with traceback
+            'include_html': True,
         },
     },
+
     'loggers': {
         'django.request': {
-            'handlers': ['file', 'mail_admins'],  # logs to file AND email
+            'handlers': ['file'] + (['mail_admins'] if DEBUG else []),
             'level': 'ERROR',
-            'propagate': False,
+            'propagate': True,  # critical: keeps server running and shows logs in console
         },
         'api': {
-            'handlers': ['file', 'mail_admins'],
+            'handlers': ['file'] + (['mail_admins'] if DEBUG else []),
             'level': 'ERROR',
-            'propagate': False,
+            'propagate': True,
         },
     },
 }
+
 
 
 
