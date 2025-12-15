@@ -385,7 +385,7 @@ const Overview = () => {
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-amber-900 dark:text-amber-200 mb-2">
                 {t('dashboard.overviewPage.verificationRequired')}
-              </h3>
+          </h3>
               <p className="text-amber-800 dark:text-amber-300">
                 {t('dashboard.overviewPage.verificationMessage')}
               </p>
@@ -398,8 +398,8 @@ const Overview = () => {
             <h3 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
               <FaNewspaper className="text-blue-600 dark:text-blue-400" />
               {t('dashboard.overviewPage.institutionPosts')}
-            </h3>
-          </div>
+          </h3>
+      </div>
 
           {isLoadingPosts ? (
             <div className="flex items-center justify-center py-12">
@@ -419,15 +419,15 @@ const Overview = () => {
               <p className="text-gray-600 dark:text-gray-400">{t('dashboard.overviewPage.noPosts')}</p>
             </div>
           ) : (
-            <div className="space-y-4">
+        <div className="space-y-4">
               {posts.map((post, index) => (
-                <motion.div
+            <motion.div
                   key={post.id || index}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                   className="p-6 bg-gray-50 dark:bg-navy-900 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-800 transition-colors border border-gray-200 dark:border-navy-700"
-                >
+            >
                   <div className="flex items-start justify-between gap-4 mb-3">
                     <h4 className="text-lg font-semibold text-gray-800 dark:text-white flex-1">
                       {post.title}
@@ -435,7 +435,7 @@ const Overview = () => {
                     <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
                       {formatDate(post.created_at)}
                     </span>
-                  </div>
+                </div>
                   
                   {post.description && (
                     <p className="text-gray-600 dark:text-gray-300 mb-4">
@@ -463,13 +463,13 @@ const Overview = () => {
                           />
                         );
                       })}
-                    </div>
+              </div>
                   )}
-                </motion.div>
-              ))}
-            </div>
+            </motion.div>
+          ))}
+        </div>
           )}
-        </Card>
+      </Card>
       )}
     </div>
   );

@@ -65,13 +65,6 @@ class AppTheme {
       onSurface: Color(0xFF111827),
       onError: Colors.white,
     ),
-    cardTheme: CardThemeData(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      color: Colors.white,
-    ),
     appBarTheme: const AppBarTheme(
       elevation: 0,
       backgroundColor: Colors.white,
@@ -136,13 +129,6 @@ class AppTheme {
       onSecondary: Colors.white,
       onSurface: Colors.white,
       onError: Colors.white,
-    ),
-    cardTheme: CardThemeData(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      color: navy800,
     ),
     appBarTheme: const AppBarTheme(
       elevation: 0,

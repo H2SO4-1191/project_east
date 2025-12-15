@@ -9,6 +9,14 @@ import 'students_page.dart';
 import 'lecturers_page.dart';
 import 'schedule_page.dart';
 import 'staff_page.dart';
+import 'settings_page.dart';
+import 'create_course_page.dart';
+import 'edit_courses_page.dart';
+import 'create_post_page.dart';
+import 'create_job_post_page.dart';
+import 'applications_page.dart';
+import '../feed_screen.dart';
+import '../../widgets/floating_action_menu.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -23,6 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   final List<Map<String, dynamic>> _sections = [
     {'id': 'overview', 'name': 'Overview', 'icon': Icons.dashboard},
+    {'id': 'feed', 'name': 'Feed', 'icon': Icons.article},
     {'id': 'students', 'name': 'Students', 'icon': Icons.people},
     {'id': 'lecturers', 'name': 'Lecturers', 'icon': Icons.school},
     {'id': 'staff', 'name': 'Staff', 'icon': Icons.business_center},
@@ -34,6 +43,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     authProvider.logout();
     Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+  }
+
+  void _handleFloatingMenuAction(String action) {
+    switch (action) {
+      case 'create_course':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CreateCoursePage()),
+        );
+        break;
+      case 'edit_courses':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const EditCoursesPage()),
+        );
+        break;
+      case 'create_post':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CreatePostPage()),
+        );
+        break;
+      case 'job_post':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CreateJobPostPage()),
+        );
+        break;
+      case 'applications':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ApplicationsPage()),
+        );
+        break;
+    }
   }
 
   void _showAnimatedDrawer() {
@@ -156,6 +200,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     switch (_activeSection) {
       case 'overview':
         return const OverviewPage();
+      case 'feed':
+        return const FeedScreen();
       case 'students':
         return const StudentsPage();
       case 'lecturers':
@@ -165,7 +211,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 'schedule':
         return const SchedulePage();
       case 'settings':
-        return const Center(child: Text('Settings Page - Coming Soon'));
+        return const SettingsPage();
       default:
         return const OverviewPage();
     }
@@ -174,10 +220,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final authProvider = Provider.of<AuthProvider>(context);
-    final instituteData = authProvider.instituteData;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 1024;
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
@@ -190,26 +232,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
         foregroundColor: isDark ? Colors.white : Colors.black,
       ),
-      body: _buildCurrentPage(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAnimatedDrawer,
-        backgroundColor: AppTheme.primary600,
-        child: Container(
-          width: 56,
-          height: 56,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      gradient: const LinearGradient(
-                        colors: [AppTheme.primary600, AppTheme.teal500],
-                      ),
-                    ),
-          child: const Icon(
-            Icons.menu,
-                          color: Colors.white,
-            size: 28,
-                        ),
-                      ),
-                    ),
+      body: Stack(
+        children: [
+          _buildCurrentPage(),
+          // Floating Action Menu - positioned in bottom right
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: FloatingActionMenu(
+              onActionSelected: _handleFloatingMenuAction,
+              onDrawerButtonPressed: _showAnimatedDrawer,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -793,26 +793,28 @@ class _StaffPageState extends State<StaffPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Staff',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.grey.shade800,
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Staff',
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.grey.shade800,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Manage your institution staff',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                          const SizedBox(height: 8),
+                          Text(
+                            'Manage your institution staff',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     ElevatedButton.icon(
                       onPressed: () {
@@ -1153,7 +1155,7 @@ class _StaffPageState extends State<StaffPage> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 700, maxHeight: 700),
+        constraints: const BoxConstraints(maxWidth: 900, maxHeight: 800),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1170,12 +1172,15 @@ class _StaffPageState extends State<StaffPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Add Staff Member',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  Flexible(
+                    child: Text(
+                      'Add Staff Member',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(
@@ -1197,17 +1202,24 @@ class _StaffPageState extends State<StaffPage> {
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Form(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Required fields grid
-                      GridView.count(
-                        crossAxisCount: 2,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 2.5,
+                  child: Builder(
+                    builder: (context) {
+                      final screenWidth = MediaQuery.of(context).size.width;
+                      final isSmallScreen = screenWidth < 600;
+                      final crossAxisCount = isSmallScreen ? 1 : 2;
+                      final aspectRatio = isSmallScreen ? 2.5 : 1.3;
+                      
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Required fields grid
+                          GridView.count(
+                            crossAxisCount: crossAxisCount,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: aspectRatio,
                         children: [
                           _buildTextField('First Name', _createFormControllers['first_name']!, isDark, required: true),
                           _buildTextField('Last Name', _createFormControllers['last_name']!, isDark, required: true),
@@ -1229,12 +1241,12 @@ class _StaffPageState extends State<StaffPage> {
                       const SizedBox(height: 16),
                       // Optional documents grid
                       GridView.count(
-                        crossAxisCount: 2,
+                        crossAxisCount: crossAxisCount,
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 12,
-                        childAspectRatio: 1.8,
+                        childAspectRatio: isSmallScreen ? 2.0 : 1.2,
                         children: [
                           _buildFilePicker('ID Card Front', _createIdcardFront, 'idcard_front', isDark, isCreate: true),
                           _buildFilePicker('ID Card Back', _createIdcardBack, 'idcard_back', isDark, isCreate: true),
@@ -1279,7 +1291,9 @@ class _StaffPageState extends State<StaffPage> {
                           ),
                         ],
                       ),
-                    ],
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
@@ -1293,15 +1307,19 @@ class _StaffPageState extends State<StaffPage> {
   Widget _buildTextField(String label, TextEditingController controller, bool isDark, {bool required = false, TextInputType? keyboardType}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Row(
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isDark ? Colors.white : Colors.black,
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white : Colors.black,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             if (required)
@@ -1315,12 +1333,15 @@ class _StaffPageState extends State<StaffPage> {
         TextField(
           controller: controller,
           keyboardType: keyboardType,
+          style: const TextStyle(fontSize: 16),
           decoration: InputDecoration(
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
             ),
             filled: true,
             fillColor: isDark ? AppTheme.navy700 : Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            isDense: false,
           ),
         ),
       ],
@@ -1335,15 +1356,19 @@ class _StaffPageState extends State<StaffPage> {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Row(
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isDark ? Colors.white : Colors.black,
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white : Colors.black,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             if (required)
@@ -1352,11 +1377,14 @@ class _StaffPageState extends State<StaffPage> {
                 style: TextStyle(color: Colors.red),
               ),
             if (!required)
-              Text(
-                ' (Optional)',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              Flexible(
+                child: Text(
+                  ' (Optional)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
           ],
@@ -1429,7 +1457,7 @@ class _StaffPageState extends State<StaffPage> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 700, maxHeight: 600),
+        constraints: const BoxConstraints(maxWidth: 1600, maxHeight: 800),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1698,7 +1726,7 @@ class _StaffPageState extends State<StaffPage> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 700, maxHeight: 700),
+        constraints: const BoxConstraints(maxWidth: 900, maxHeight: 800),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1715,12 +1743,15 @@ class _StaffPageState extends State<StaffPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Edit Staff Member',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  Flexible(
+                    child: Text(
+                      'Edit Staff Member',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(
@@ -1742,17 +1773,24 @@ class _StaffPageState extends State<StaffPage> {
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Form(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Fields grid
-                      GridView.count(
-                        crossAxisCount: 2,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 2.5,
+                  child: Builder(
+                    builder: (context) {
+                      final screenWidth = MediaQuery.of(context).size.width;
+                      final isSmallScreen = screenWidth < 600;
+                      final crossAxisCount = isSmallScreen ? 1 : 2;
+                      final aspectRatio = isSmallScreen ? 2.5 : 1.3;
+                      
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Fields grid
+                          GridView.count(
+                            crossAxisCount: crossAxisCount,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: aspectRatio,
                         children: [
                           _buildTextField('First Name', _editFormControllers['first_name']!, isDark),
                           _buildTextField('Last Name', _editFormControllers['last_name']!, isDark),
@@ -1773,12 +1811,12 @@ class _StaffPageState extends State<StaffPage> {
                       const SizedBox(height: 16),
                       // Optional documents grid
                       GridView.count(
-                        crossAxisCount: 2,
+                        crossAxisCount: crossAxisCount,
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 12,
-                        childAspectRatio: 1.8,
+                        childAspectRatio: isSmallScreen ? 2.0 : 1.2,
                         children: [
                           _buildFilePicker('ID Card Front', _editIdcardFront, 'idcard_front', isDark, isCreate: false),
                           _buildFilePicker('ID Card Back', _editIdcardBack, 'idcard_back', isDark, isCreate: false),
@@ -1823,7 +1861,9 @@ class _StaffPageState extends State<StaffPage> {
                           ),
                         ],
                       ),
-                    ],
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),

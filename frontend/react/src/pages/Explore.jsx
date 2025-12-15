@@ -813,7 +813,23 @@ const Explore = () => {
         }
       );
 
-      if (enrollResponse?.success) {
+      // Handle checkout URL for payment
+      if (enrollResponse?.success && enrollResponse?.checkout_url) {
+        toast.success(t('feed.redirectingToCheckout') || 'Redirecting to checkout...');
+        const checkoutWindow = window.open(enrollResponse.checkout_url, '_blank', 'width=800,height=600');
+        
+        if (!checkoutWindow) {
+          toast.error(t('feed.popupBlocked') || 'Popup blocked. Please allow popups and try again.');
+        } else {
+          // Listen for window close
+          const checkClosed = setInterval(() => {
+            if (checkoutWindow.closed) {
+              clearInterval(checkClosed);
+              toast.info(t('feed.completePayment') || 'Please complete the payment in the checkout window.');
+            }
+          }, 1000);
+        }
+      } else if (enrollResponse?.success) {
         toast.success(enrollResponse.message || t('feed.enrollmentSuccess') || 'Enrolled successfully!');
         // Close course modal if open
         if (selectedCourse?.id === course.id) {

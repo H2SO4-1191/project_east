@@ -18,6 +18,7 @@ import StudentSchedule from './pages/student/StudentSchedule';
 import StudentCourses from './pages/student/StudentCourses';
 import LecturerSchedule from './pages/lecturer/LecturerSchedule';
 import LecturerCourses from './pages/lecturer/LecturerCourses';
+import InstitutionProfile from './pages/InstitutionProfile';
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -35,6 +36,7 @@ function AnimatedRoutes() {
         <Route path="/verify-otp" element={<OTPVerification />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/explore" element={<Explore />} />
+        <Route path="/institution/profile/:username" element={<InstitutionProfile />} />
         <Route 
           path="/dashboard/*" 
           element={

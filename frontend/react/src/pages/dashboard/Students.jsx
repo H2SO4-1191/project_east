@@ -159,11 +159,11 @@ const Students = () => {
 
   const filteredStudents = useMemo(() => {
     return students.filter((student) => {
-      const matchesSearch =
+    const matchesSearch = 
         `${student.firstName || ''} ${student.lastName || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (student.id || '').toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
         (student.email || '').toLowerCase().includes(searchTerm.toLowerCase());
-
+    
       const matchesStatus =
         filterStatus === 'all' ||
         (filterStatus === 'Active' && student.active) ||
@@ -294,7 +294,7 @@ const Students = () => {
           <div className="mt-3 flex items-center gap-2 text-sm text-amber-500 dark:text-amber-300">
             <FaExclamationTriangle />
             <span>{error}</span>
-          </div>
+        </div>
         )}
       </Card>
 
@@ -339,9 +339,9 @@ const Students = () => {
                               className="w-10 h-10 rounded-full object-cover border border-primary-200 dark:border-teal-400/40"
                             />
                           ) : (
-                            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-teal-500 rounded-full flex items-center justify-center">
-                              <FaUserGraduate className="text-white" />
-                            </div>
+                          <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-teal-500 rounded-full flex items-center justify-center">
+                            <FaUserGraduate className="text-white" />
+                          </div>
                           )}
                           <div>
                             <p className="text-sm font-medium text-gray-900 dark:text-white">

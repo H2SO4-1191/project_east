@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'https://projecteastapi.ddns.net';
 
 const defaultHeaders = {
   'Content-Type': 'application/json',
@@ -2513,7 +2513,7 @@ export const authService = {
     return data;
   },
 
-  // Enroll student in a course
+  // Enroll student in a course (now returns checkout URL for payment)
   async enrollInCourse(accessToken, courseId, options = {}) {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
 
@@ -2554,6 +2554,7 @@ export const authService = {
       throw buildError(response.status, data);
     }
 
+    // Response may contain checkout_url for payment
     return data;
   },
 
@@ -2706,6 +2707,158 @@ export const authService = {
     const response = await fetch(`${BASE_URL}/course/${courseId}/students/${lectureNumber}/`, {
       headers: defaultHeaders,
     });
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Get job details by job ID (public endpoint)
+  async getJobDetails(jobId) {
+    const response = await fetch(`${BASE_URL}/institution/job/${jobId}/`, {
+      headers: defaultHeaders,
+    });
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Institution: Add payment method (Stripe Connect Onboarding)
+  async addInstitutionPaymentMethod(accessToken, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/institution/add-payment-method/`, {
+        method: 'POST',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Institution: Subscribe to a plan
+  async subscribeInstitution(accessToken, plan, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    if (!['3m', '6m', '12m'].includes(plan)) {
+      throw buildError(400, { message: 'Invalid plan. Must be 3m, 6m, or 12m.' });
+    }
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/institution/subscribe/`, {
+        method: 'POST',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ plan }),
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
+  // Student: Add payment method (Stripe Customer Attach)
+  async addStudentPaymentMethod(accessToken, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/student/add-payment-method/`, {
+        method: 'POST',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    // Handle token refresh if needed
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        if (refreshError?.status && refreshError?.message) {
+          throw refreshError;
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
 
     const data = await parseResponse(response);
 

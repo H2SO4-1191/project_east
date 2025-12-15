@@ -1553,7 +1553,7 @@ const EnhancedDashboard = () => {
                 >
                   <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-teal-500 rounded-lg flex items-center justify-center shadow-lg">
                     <span className="text-white text-lg font-bold">PE</span>
-                  </div>
+                </div>
                 </motion.div>
               </div>
 
@@ -1566,7 +1566,7 @@ const EnhancedDashboard = () => {
                     <p className="text-xs text-gray-500 dark:text-gray-500">{instituteData.email}</p>
                   )}
                   <div className="flex items-center gap-2 justify-end mt-1" style={{ direction: 'ltr' }}>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-500">
                       {subscriptionLabel}
                     </p>
                     {instituteData.isVerified !== undefined && (
@@ -1580,7 +1580,7 @@ const EnhancedDashboard = () => {
                         {instituteData.isVerified ? t('dashboard.verified') : t('dashboard.unverified')}
                       </span>
                     )}
-                  </div>
+                </div>
                 </div>
 
                 <motion.button
@@ -1601,9 +1601,9 @@ const EnhancedDashboard = () => {
                       }}
                     />
                   ) : (
-                    <span className="text-white font-bold text-lg">
+                  <span className="text-white font-bold text-lg">
                       {avatarLetter}
-                    </span>
+                  </span>
                   )}
                 </motion.button>
               </div>
@@ -1826,7 +1826,7 @@ const EnhancedDashboard = () => {
                 <FaBars className="w-7 h-7" />
               </motion.button>
             </motion.div>
-          </div>
+      </div>
         </div>
       </div>
 
