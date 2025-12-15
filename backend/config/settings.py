@@ -46,7 +46,6 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
 CSRF_TRUSTED_ORIGINS = ["https://projecteastapi.ddns.net"]
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-
 # Application definition
 
 INSTALLED_APPS = [
