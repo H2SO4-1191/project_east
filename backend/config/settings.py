@@ -178,10 +178,13 @@ else:
      CORS_ALLOW_ALL_ORIGINS = True
 
 # Admins and logging errors
-ADMINS = [
-    ('H2SO4-1191', config("H2SO4_1191")),
-    ('FUDEN', config("FUDEN")),
-]
+if DEBUG:
+     ADMINS = [
+        ('H2SO4-1191', config("H2SO4_1191")),
+        ('FUDEN', config("FUDEN")),
+    ] 
+else:
+     ADMINS = []
 
 LOGGING = {
     'version': 1,
