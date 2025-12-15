@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from decouple import config, Csv
-import stripe
+import stripe, os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -177,20 +177,25 @@ if not DEBUG:
 else:
      CORS_ALLOW_ALL_ORIGINS = True
 
-     
+# Admins and logging errors
+ADMINS = [
+    ('H2SO4-1191', config("H2SO4_1191")),
+    ('FUDEN', config("FUDEN")),
+]
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'structured': {
-            'format': 'ERROR: %(request_path)s | %(asctime)s | %(message)s\n==========================================================',
-            'datefmt': '%H:%M',
+            'format': 'URL: %(request_path)s\nTime: %(asctime)s\nError Details: %(message)s\n==============================',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
         },
     },
     'filters': {
         'add_request_path': {
             '()': 'django.utils.log.CallbackFilter',
-            'callback': lambda record: setattr(record, 'request_path', getattr(record, 'request_path', '/unknown')) or True,
+            'callback': lambda record: setattr(record, 'request_path', getattr(record, 'request_path', getattr(record, 'pathname', '/unknown'))) or True,
         },
     },
     'handlers': {
@@ -201,18 +206,25 @@ LOGGING = {
             'formatter': 'structured',
             'filters': ['add_request_path'],
         },
+        'mail_admins': {
+            'level': 'ERROR',
+            'class': 'django.utils.log.AdminEmailHandler',
+            'include_html': True,  # optional: sends HTML email with traceback
+        },
     },
     'loggers': {
-        'django': {
-            'handlers': ['file'],
+        'django.request': {
+            'handlers': ['file', 'mail_admins'],  # logs to file AND email
             'level': 'ERROR',
-            'propagate': True,
+            'propagate': False,
         },
-        'api': {  # your app logger
-            'handlers': ['file'],
+        'api': {
+            'handlers': ['file', 'mail_admins'],
             'level': 'ERROR',
             'propagate': False,
         },
     },
 }
+
+
 
