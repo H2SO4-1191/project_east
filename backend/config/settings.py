@@ -40,7 +40,7 @@ FRONTEND_DOMAIN = config("FRONTEND_DOMAIN", default="http://localhost:3000")
 DEBUG = config('DEBUG', cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
-CSRF_TRUSTED_ORIGINS = config('ALLOWED_HOSTS', cast=Csv())
+CSRF_TRUSTED_ORIGINS = ["https://projecteastapi.ddns.net"]
 
 # Application definition
 
