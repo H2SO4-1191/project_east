@@ -178,5 +178,41 @@ else:
      CORS_ALLOW_ALL_ORIGINS = True
 
      
-
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'structured': {
+            'format': 'ERROR: %(request_path)s | %(asctime)s | %(message)s\n==========================================================',
+            'datefmt': '%H:%M',
+        },
+    },
+    'filters': {
+        'add_request_path': {
+            '()': 'django.utils.log.CallbackFilter',
+            'callback': lambda record: setattr(record, 'request_path', getattr(record, 'request_path', '/unknown')) or True,
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'error.log'),
+            'formatter': 'structured',
+            'filters': ['add_request_path'],
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+        'api': {  # your app logger
+            'handlers': ['file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}
 
