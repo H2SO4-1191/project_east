@@ -177,65 +177,6 @@ if not DEBUG:
 else:
      CORS_ALLOW_ALL_ORIGINS = True
 
-# Admins and logging errors
-if DEBUG:
-    ADMINS = [
-        ('H2SO4-1191', config("H2SO4_1191")),
-        ('FUDEN', config("FUDEN")),
-    ]
-else:
-    ADMINS = []
-
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-
-    'formatters': {
-        'structured': {
-            'format': 'URL: %(request_path)s\nTime: %(asctime)s\nError Details: %(message)s\n==============================',
-            'datefmt': '%Y-%m-%d %H:%M:%S',
-        },
-    },
-
-    'filters': {
-        'add_request_path': {
-            '()': 'django.utils.log.CallbackFilter',
-            'callback': lambda record: setattr(
-                record, 
-                'request_path', 
-                getattr(record, 'request_path', getattr(record, 'pathname', '/unknown'))
-            ) or True,
-        },
-    },
-
-    'handlers': {
-        'file': {
-            'level': 'ERROR',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'error.log'),
-            'formatter': 'structured',
-            'filters': ['add_request_path'],
-        },
-        'mail_admins': {
-            'level': 'ERROR',
-            'class': 'django.utils.log.AdminEmailHandler',
-            'include_html': True,
-        },
-    },
-
-    'loggers': {
-        'django.request': {
-            'handlers': ['file'] + (['mail_admins'] if DEBUG else []),
-            'level': 'ERROR',
-            'propagate': True,  # critical: keeps server running and shows logs in console
-        },
-        'api': {
-            'handlers': ['file'] + (['mail_admins'] if DEBUG else []),
-            'level': 'ERROR',
-            'propagate': True,
-        },
-    },
-}
 
 
 
