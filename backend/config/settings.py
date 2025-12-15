@@ -41,6 +41,13 @@ DEBUG = config('DEBUG', cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
 
+# settings.py
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://projecteastapi.ddns.net",
+]
+
+
 # Application definition
 
 INSTALLED_APPS = [
