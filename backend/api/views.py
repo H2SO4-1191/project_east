@@ -804,6 +804,7 @@ class InstitutionJobApplicationsView(APIView):
             data.append({
                 "application_id": app.id,
                 "lecturer_id": app.lecturer.id,
+                "username": lec.username,
                 "first_name": lec.first_name,
                 "last_name": lec.last_name,
                 "email": lec.email,

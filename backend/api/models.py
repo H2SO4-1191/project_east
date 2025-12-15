@@ -95,6 +95,17 @@ class Institution(models.Model):
     location = models.CharField(max_length=255)
     marked_lecturers = models.ManyToManyField("Lecturer", related_name="marked_by_institutions", blank=True)
     stripe_account_id = models.CharField(max_length=255, blank=True, null=True)
+    up_time = models.CharField(max_length=20, blank=True, null=True, validators=[timerange_validator])
+    DAYS = [
+        ('monday', 'Monday'),
+        ('tuesday', 'Tuesday'),
+        ('wednesday', 'Wednesday'),
+        ('thursday', 'Thursday'),
+        ('friday', 'Friday'),
+        ('saturday', 'Saturday'),
+        ('sunday', 'Sunday'),
+    ]
+    up_days = ArrayField(models.CharField(max_length=10, choices=DAYS), default=list)
 
     def __str__(self):
         return self.title
