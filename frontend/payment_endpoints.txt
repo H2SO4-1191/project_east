@@ -1,0 +1,69 @@
+Payment Endpoints Documentation
+===============================
+
+1. Institution Add Payment Method (Stripe Connect Onboarding) (it will be a a button in the setting in the institution dashboard)
+-------------------------------------------------------------
+Method: POST
+URL: /institution/add-payment-method/
+Permissions: IsAuthenticated, IsInstitution, IsVerified
+Success Response:
+{
+  "success": true,
+  "url": "stripe_onboarding_url"
+}
+Failure Response:
+{
+  "success": false,
+  "message": "reason_here"
+}
+
+2. Institution Subscription Checkout (the institution must chioce thier plan in the settings )
+------------------------------------
+Method: POST
+URL: /institution/subscribe/
+Body: { "plan": "3m" | "6m" | "12m" }
+Permissions: IsAuthenticated, IsInstitution, IsVerified
+Success Response:
+{
+  "success": true,
+  "checkout_url": "stripe_checkout_link"
+}
+Failure Response:
+{
+  "success": false,
+  "message": "Invalid plan."
+}
+
+3. Student Add Payment Method (Stripe Customer Attach) (student must add a payment method, add this choice in the slide bar in the feed)
+-------------------------------------------------------
+Method: POST
+URL: /student/add-payment-method/
+Permissions: IsAuthenticated, IsStudent, IsVerified
+Success Response:
+{
+  "success": true,
+  "client_secret": "secret_for_frontend"
+}
+Failure Response:
+{
+  "success": false,
+  "message": "reason_here"
+}
+
+4. Student Enroll (Payment + Enrollment) (the enroll endpoint body requirment has been changed , now it require a payment )
+----------------------------------------
+Method: POST
+URL: /student/enroll/<int:course_id>/
+Permissions: IsAuthenticated, IsStudent, IsVerified, CanPay
+Success Response:
+{
+  "success": true,
+  "checkout_url": "stripe_checkout_url"
+}
+Failure Response:
+{
+  "success": false,
+  "message": "reason_here"
+}
+
+

@@ -23,7 +23,10 @@ import {
   FaBell,
   FaBriefcase,
   FaTrophy,
-  FaTimes
+  FaTimes,
+  FaCalendarAlt,
+  FaCreditCard,
+  FaSpinner
 } from 'react-icons/fa';
 import { useInstitute } from '../context/InstituteContext';
 import { useTheme } from '../context/ThemeContext';
@@ -66,6 +69,11 @@ const Feed = () => {
   const [showApplyJobModal, setShowApplyJobModal] = useState(false);
   const [applyJobMessage, setApplyJobMessage] = useState('');
   const [isApplying, setIsApplying] = useState(false);
+  const [hoveredInstitution, setHoveredInstitution] = useState(null);
+  const [hoverInstitutionData, setHoverInstitutionData] = useState(null);
+  const [isLoadingHoverInstitution, setIsLoadingHoverInstitution] = useState(false);
+  const hoverTimeoutRef = useRef(null);
+  const [isAddingPaymentMethod, setIsAddingPaymentMethod] = useState(false);
   
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -699,27 +707,67 @@ const Feed = () => {
     setProfileType(null);
   };
 
-  const handleInstitutionProfileClick = async (username) => {
+  const handleInstitutionProfileClick = (username) => {
+    if (!username) return;
+    // Navigate to institution profile page
+    navigate(`/institution/profile/${username}`);
+  };
+
+  // Handle course click - navigate to institution profile with courses tab active
+  const handleCourseClick = (course) => {
+    const username = course.publisher_username || course.institution_username;
+    if (!username) return;
+    // Navigate to institution profile page with courses tab active
+    navigate(`/institution/profile/${username}?tab=courses`);
+  };
+
+  // Handle job click - navigate to institution profile with jobs tab active
+  const handleJobClick = (job) => {
+    const username = job.publisher_username || job.institution_username;
+    if (!username) return;
+    // Navigate to institution profile page with jobs tab active
+    navigate(`/institution/profile/${username}?tab=jobs`);
+  };
+
+  const handleInstitutionProfileHover = async (username, event) => {
     if (!username) return;
     
-    setIsLoadingInstitutionProfile(true);
-    setShowInstitutionProfile(true);
-    
-    try {
-      const profileData = await authService.getInstitutionPublicProfile(username);
-      if (profileData?.success && profileData?.data) {
-        setSelectedInstitution({
-          ...profileData.data,
-          profile_image: profileData.data.profile_image ? getImageUrl(profileData.data.profile_image) : null,
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching institution profile:', error);
-      toast.error(t('feed.failedToLoadProfile') || 'Failed to load institution profile');
-      setShowInstitutionProfile(false);
-    } finally {
-      setIsLoadingInstitutionProfile(false);
+    // Clear any existing timeout
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
     }
+    
+    // Set hovered institution
+    setHoveredInstitution(username);
+    
+    // Small delay before fetching to avoid unnecessary API calls
+    hoverTimeoutRef.current = setTimeout(async () => {
+      setIsLoadingHoverInstitution(true);
+      try {
+        const profileData = await authService.getInstitutionPublicProfile(username);
+        if (profileData?.success && profileData?.data) {
+          setHoverInstitutionData({
+            ...profileData.data,
+            profile_image: profileData.data.profile_image ? getImageUrl(profileData.data.profile_image) : null,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching institution profile for hover:', error);
+        // Don't show error toast for hover, just fail silently
+      } finally {
+        setIsLoadingHoverInstitution(false);
+      }
+    }, 300); // 300ms delay
+  };
+
+  const handleInstitutionProfileHoverLeave = () => {
+    // Clear timeout if still pending
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    setHoveredInstitution(null);
+    setHoverInstitutionData(null);
+    setIsLoadingHoverInstitution(false);
   };
 
   const handleCloseInstitutionProfile = () => {
@@ -751,7 +799,7 @@ const Feed = () => {
     }
     try {
       setEnrollingCourseId(courseId);
-      await authService.enrollInCourse(instituteData.accessToken, courseId, {
+      const enrollResponse = await authService.enrollInCourse(instituteData.accessToken, courseId, {
         refreshToken: instituteData.refreshToken,
         onTokenRefreshed: (tokens) => {
           updateInstituteData({
@@ -763,15 +811,36 @@ const Feed = () => {
           toast.error(t('common.sessionExpired') || 'Session expired');
         },
       });
-      toast.success(t('feed.enrolledSuccess') || 'Enrolled successfully');
-      // Mark course as enrolled in local state if present
-      setFeedItems((prev) =>
-        prev.map((item) =>
-          (item.id === courseId || item.course_id === courseId)
-            ? { ...item, is_enrolled: true }
-            : item
-        )
-      );
+
+      // Handle checkout URL for payment
+      if (enrollResponse?.success && enrollResponse?.checkout_url) {
+        toast.success(t('feed.redirectingToCheckout') || 'Redirecting to checkout...');
+        const checkoutWindow = window.open(enrollResponse.checkout_url, '_blank', 'width=800,height=600');
+        
+        if (!checkoutWindow) {
+          toast.error(t('feed.popupBlocked') || 'Popup blocked. Please allow popups and try again.');
+        } else {
+          // Listen for window close
+          const checkClosed = setInterval(() => {
+            if (checkoutWindow.closed) {
+              clearInterval(checkClosed);
+              toast.info(t('feed.completePayment') || 'Please complete the payment in the checkout window.');
+            }
+          }, 1000);
+        }
+      } else if (enrollResponse?.success) {
+        toast.success(t('feed.enrolledSuccess') || 'Enrolled successfully');
+        // Mark course as enrolled in local state if present
+        setFeedItems((prev) =>
+          prev.map((item) =>
+            (item.id === courseId || item.course_id === courseId)
+              ? { ...item, is_enrolled: true }
+              : item
+          )
+        );
+      } else {
+        toast.error(enrollResponse?.message || t('feed.enrollmentFailed') || 'Failed to enroll');
+      }
     } catch (error) {
       console.error('Enroll failed:', error);
       toast.error(error?.message || t('feed.enrollFailed') || 'Failed to enroll');
@@ -915,6 +984,55 @@ const Feed = () => {
                 <FaUser className="w-5 h-5 flex-shrink-0" />
                 {isSidebarExpanded && <span className="font-medium">{t('nav.profile') || 'Profile'}</span>}
             </button>
+            
+            {/* Add Payment Method - Student Only */}
+            {instituteData.userType === 'student' && instituteData.isVerified && (
+              <button
+                onClick={async () => {
+                  setIsAddingPaymentMethod(true);
+                  try {
+                    const result = await authService.addStudentPaymentMethod(
+                      instituteData.accessToken,
+                      {
+                        refreshToken: instituteData.refreshToken,
+                        onTokenRefreshed: (tokens) => {
+                          updateInstituteData({
+                            accessToken: tokens.access,
+                            refreshToken: tokens.refresh || instituteData.refreshToken,
+                          });
+                        },
+                        onSessionExpired: () => {
+                          toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+                        },
+                      }
+                    );
+
+                    if (result?.success && result?.client_secret) {
+                      // For Stripe Customer Attach, we might need to handle it differently
+                      // For now, show a message that payment method setup is in progress
+                      toast.success(t('feed.paymentMethodSetup') || 'Payment method setup initiated. Please check your email for further instructions.');
+                    } else {
+                      throw new Error(result?.message || 'Failed to setup payment method');
+                    }
+                  } catch (error) {
+                    console.error('Payment method error:', error);
+                    toast.error(error?.message || t('feed.failedToAddPaymentMethod') || 'Failed to add payment method');
+                  } finally {
+                    setIsAddingPaymentMethod(false);
+                  }
+                }}
+                disabled={isAddingPaymentMethod}
+                className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 ${isAddingPaymentMethod ? 'opacity-60 cursor-not-allowed' : ''}`}
+                title={t('feed.addPaymentMethod') || 'Add Payment Method'}
+              >
+                {isAddingPaymentMethod ? (
+                  <FaSpinner className="w-5 h-5 flex-shrink-0 animate-spin" />
+                ) : (
+                  <FaCreditCard className="w-5 h-5 flex-shrink-0" />
+                )}
+                {isSidebarExpanded && <span className="font-medium">{t('feed.addPaymentMethod') || 'Add Payment Method'}</span>}
+              </button>
+            )}
           </div>
           )}
 
@@ -1666,12 +1784,14 @@ const Feed = () => {
               {(item.type === 'post' || item.title || item.description) && (
                 <>
                   {/* Post Header - Publisher/Institution Profile */}
-                  <div className="p-4 flex items-center gap-3">
+                  <div className="p-4 flex items-center gap-3 relative">
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => handleInstitutionProfileClick(item.publisher_username || item.institution_username)}
-                      className="flex-shrink-0 cursor-pointer"
+                      onMouseEnter={(e) => handleInstitutionProfileHover(item.publisher_username || item.institution_username, e)}
+                      onMouseLeave={handleInstitutionProfileHoverLeave}
+                      className="flex-shrink-0 cursor-pointer relative"
                     >
                       <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-200 dark:border-navy-700 bg-gray-100 dark:bg-navy-700 flex items-center justify-center relative">
                         {(item.publisher_profile_image || item.institution_profile_image) ? (
@@ -1703,11 +1823,13 @@ const Feed = () => {
                         )}
                       </div>
                     </motion.button>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 relative">
                       <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => handleInstitutionProfileClick(item.publisher_username || item.institution_username)}
+                        onMouseEnter={(e) => handleInstitutionProfileHover(item.publisher_username || item.institution_username, e)}
+                        onMouseLeave={handleInstitutionProfileHoverLeave}
                         className="text-left w-full"
                       >
                         <h3 className="font-bold text-gray-800 dark:text-white hover:underline">
@@ -1720,6 +1842,73 @@ const Feed = () => {
                         )}
                       </motion.button>
                     </div>
+                    
+                    {/* Hover Popup */}
+                    {hoveredInstitution === (item.publisher_username || item.institution_username) && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className={`absolute ${isRTL ? 'left-0' : 'right-0'} top-full mt-2 w-64 bg-white dark:bg-navy-800 rounded-lg shadow-2xl border border-gray-200 dark:border-navy-700 z-50 p-4`}
+                        onMouseEnter={() => setHoveredInstitution(item.publisher_username || item.institution_username)}
+                        onMouseLeave={handleInstitutionProfileHoverLeave}
+                      >
+                        {isLoadingHoverInstitution ? (
+                          <div className="flex items-center justify-center py-4">
+                            <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 dark:border-teal-400"></div>
+                          </div>
+                        ) : hoverInstitutionData ? (
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary-200 dark:border-primary-800 bg-gray-100 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
+                                {hoverInstitutionData.profile_image ? (
+                                  <img
+                                    src={hoverInstitutionData.profile_image}
+                                    alt={hoverInstitutionData.title || hoverInstitutionData.username}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      e.target.nextSibling.style.display = 'flex';
+                                    }}
+                                  />
+                                ) : null}
+                                <div className="w-full h-full flex items-center justify-center text-primary-600 dark:text-teal-400 font-bold text-lg" style={{ display: hoverInstitutionData.profile_image ? 'none' : 'flex' }}>
+                                  {(hoverInstitutionData.title || hoverInstitutionData.username || 'I')?.[0]?.toUpperCase()}
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-bold text-gray-800 dark:text-white text-sm truncate">
+                                  {hoverInstitutionData.title || `${hoverInstitutionData.first_name || ''} ${hoverInstitutionData.last_name || ''}`.trim() || hoverInstitutionData.username}
+                                </h4>
+                                {hoverInstitutionData.location && (
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 truncate">
+                                    <FaMapMarkerAlt className="text-xs flex-shrink-0" />
+                                    {hoverInstitutionData.location}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            {hoverInstitutionData.about && (
+                              <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                                {hoverInstitutionData.about}
+                              </p>
+                            )}
+                            <motion.button
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => handleInstitutionProfileClick(item.publisher_username || item.institution_username)}
+                              className="w-full px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                            >
+                              {t('feed.viewProfile') || 'View Profile'}
+                            </motion.button>
+                          </div>
+                        ) : (
+                          <div className="text-center py-4">
+                            <p className="text-xs text-gray-500 dark:text-gray-500">{t('common.loading')}</p>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
                   </div>
 
                   {/* Post Content */}
@@ -1826,30 +2015,59 @@ const Feed = () => {
 
               {/* Job Card (public jobs) */}
               {item.type === 'job' && (
-                <div className="p-4 sm:p-6">
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-purple-200 dark:border-purple-800 bg-gray-100 dark:bg-navy-700 flex-shrink-0 flex items-center justify-center">
-                      {item.publisher_profile_image ? (
-                        <img
-                          src={getImageUrl(item.publisher_profile_image)}
-                          alt={item.publisher_username || 'publisher'}
-                          className="w-full h-full object-cover"
-                          onError={(e) => { e.target.style.display = 'none'; }}
-                        />
-                      ) : (
-                        <span className="text-purple-600 dark:text-purple-300 font-bold">
-                          {(item.publisher_username || 'J')[0].toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-1">
+                <motion.div 
+                  className="p-4 sm:p-6 cursor-pointer"
+                  onClick={() => handleJobClick(item)}
+                  whileHover={{ scale: 1.01 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="flex items-start gap-4 mb-4 relative">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleInstitutionProfileClick(item.publisher_username);
+                      }}
+                      onMouseEnter={(e) => handleInstitutionProfileHover(item.publisher_username, e)}
+                      onMouseLeave={handleInstitutionProfileHoverLeave}
+                      className="flex-shrink-0 cursor-pointer relative"
+                    >
+                      <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-purple-200 dark:border-purple-800 bg-gray-100 dark:bg-navy-700 flex items-center justify-center">
+                        {item.publisher_profile_image ? (
+                          <img
+                            src={getImageUrl(item.publisher_profile_image)}
+                            alt={item.publisher_username || 'publisher'}
+                            className="w-full h-full object-cover"
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <span className="text-purple-600 dark:text-purple-300 font-bold">
+                            {(item.publisher_username || 'J')[0].toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                    </motion.button>
+                    <div className="flex-1 relative">
                       <div className="flex items-center justify-between gap-3">
-                        <div>
+                        <div className="flex-1">
                           <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-1">
                             {item.title || t('feed.job') || 'Job'}
                           </h3>
                           {item.publisher_username && (
-                            <p className="text-sm text-gray-600 dark:text-gray-400">@{item.publisher_username}</p>
+                            <motion.button
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleInstitutionProfileClick(item.publisher_username);
+                              }}
+                              onMouseEnter={(e) => handleInstitutionProfileHover(item.publisher_username, e)}
+                              onMouseLeave={handleInstitutionProfileHoverLeave}
+                              className="text-sm text-gray-600 dark:text-gray-400 hover:underline"
+                            >
+                              @{item.publisher_username}
+                            </motion.button>
                           )}
                           {item.created_at && (
                             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 flex items-center gap-1">
@@ -1904,14 +2122,200 @@ const Feed = () => {
                           </motion.button>
                         </div>
                       )}
+                      
+                      {/* Hover Popup for Job Card */}
+                      {hoveredInstitution === item.publisher_username && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          className={`absolute ${isRTL ? 'left-0' : 'right-0'} top-full mt-2 w-64 bg-white dark:bg-navy-800 rounded-lg shadow-2xl border border-gray-200 dark:border-navy-700 z-50 p-4`}
+                          onMouseEnter={() => setHoveredInstitution(item.publisher_username)}
+                          onMouseLeave={handleInstitutionProfileHoverLeave}
+                        >
+                          {isLoadingHoverInstitution ? (
+                            <div className="flex items-center justify-center py-4">
+                              <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 dark:border-teal-400"></div>
+                            </div>
+                          ) : hoverInstitutionData ? (
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary-200 dark:border-primary-800 bg-gray-100 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
+                                  {hoverInstitutionData.profile_image ? (
+                                    <img
+                                      src={hoverInstitutionData.profile_image}
+                                      alt={hoverInstitutionData.title || hoverInstitutionData.username}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'flex';
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div className="w-full h-full flex items-center justify-center text-primary-600 dark:text-teal-400 font-bold text-lg" style={{ display: hoverInstitutionData.profile_image ? 'none' : 'flex' }}>
+                                    {(hoverInstitutionData.title || hoverInstitutionData.username || 'I')?.[0]?.toUpperCase()}
+                                  </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-bold text-gray-800 dark:text-white text-sm truncate">
+                                    {hoverInstitutionData.title || `${hoverInstitutionData.first_name || ''} ${hoverInstitutionData.last_name || ''}`.trim() || hoverInstitutionData.username}
+                                  </h4>
+                                  {hoverInstitutionData.location && (
+                                    <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 truncate">
+                                      <FaMapMarkerAlt className="text-xs flex-shrink-0" />
+                                      {hoverInstitutionData.location}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              {hoverInstitutionData.about && (
+                                <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                                  {hoverInstitutionData.about}
+                                </p>
+                              )}
+                              <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleInstitutionProfileClick(item.publisher_username);
+                                }}
+                                className="w-full px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                              >
+                                {t('feed.viewProfile') || 'View Profile'}
+                              </motion.button>
+                            </div>
+                          ) : (
+                            <div className="text-center py-4">
+                              <p className="text-xs text-gray-500 dark:text-gray-500">{t('common.loading')}</p>
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
                     </div>
                   </div>
-                </div>
+                </motion.div>
               )}
 
               {/* Course Card */}
               {item.type === 'course' && (
-                <div className="p-4 sm:p-6">
+                <motion.div 
+                  className="p-4 sm:p-6 cursor-pointer"
+                  onClick={() => handleCourseClick(item)}
+                  whileHover={{ scale: 1.01 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {/* Course Header with Institution Info */}
+                  {item.publisher_username && (
+                    <div className="mb-4 flex items-center gap-3 relative">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleInstitutionProfileClick(item.publisher_username);
+                        }}
+                        onMouseEnter={(e) => handleInstitutionProfileHover(item.publisher_username, e)}
+                        onMouseLeave={handleInstitutionProfileHoverLeave}
+                        className="flex-shrink-0 cursor-pointer relative"
+                      >
+                        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200 dark:border-navy-700 bg-gray-100 dark:bg-navy-700 flex items-center justify-center">
+                          {item.publisher_profile_image ? (
+                            <img
+                              src={getImageUrl(item.publisher_profile_image)}
+                              alt={item.publisher_username}
+                              className="w-full h-full object-cover"
+                              onError={(e) => { e.target.style.display = 'none'; }}
+                            />
+                          ) : (
+                            <span className="text-primary-600 dark:text-teal-400 font-bold text-sm">
+                              {(item.publisher_username || 'I')[0].toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleInstitutionProfileClick(item.publisher_username);
+                        }}
+                        onMouseEnter={(e) => handleInstitutionProfileHover(item.publisher_username, e)}
+                        onMouseLeave={handleInstitutionProfileHoverLeave}
+                        className="text-sm font-semibold text-gray-700 dark:text-gray-300 hover:underline"
+                      >
+                        {item.publisher_username || item.institution_name}
+                      </motion.button>
+                      
+                      {/* Hover Popup for Course Card */}
+                      {hoveredInstitution === item.publisher_username && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          className={`absolute ${isRTL ? 'left-0' : 'right-0'} top-full mt-2 w-64 bg-white dark:bg-navy-800 rounded-lg shadow-2xl border border-gray-200 dark:border-navy-700 z-50 p-4`}
+                          onMouseEnter={() => setHoveredInstitution(item.publisher_username)}
+                          onMouseLeave={handleInstitutionProfileHoverLeave}
+                        >
+                          {isLoadingHoverInstitution ? (
+                            <div className="flex items-center justify-center py-4">
+                              <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 dark:border-teal-400"></div>
+                            </div>
+                          ) : hoverInstitutionData ? (
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary-200 dark:border-primary-800 bg-gray-100 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
+                                  {hoverInstitutionData.profile_image ? (
+                                    <img
+                                      src={hoverInstitutionData.profile_image}
+                                      alt={hoverInstitutionData.title || hoverInstitutionData.username}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'flex';
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div className="w-full h-full flex items-center justify-center text-primary-600 dark:text-teal-400 font-bold text-lg" style={{ display: hoverInstitutionData.profile_image ? 'none' : 'flex' }}>
+                                    {(hoverInstitutionData.title || hoverInstitutionData.username || 'I')?.[0]?.toUpperCase()}
+                                  </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-bold text-gray-800 dark:text-white text-sm truncate">
+                                    {hoverInstitutionData.title || `${hoverInstitutionData.first_name || ''} ${hoverInstitutionData.last_name || ''}`.trim() || hoverInstitutionData.username}
+                                  </h4>
+                                  {hoverInstitutionData.location && (
+                                    <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 truncate">
+                                      <FaMapMarkerAlt className="text-xs flex-shrink-0" />
+                                      {hoverInstitutionData.location}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              {hoverInstitutionData.about && (
+                                <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                                  {hoverInstitutionData.about}
+                                </p>
+                              )}
+                              <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => handleInstitutionProfileClick(item.publisher_username)}
+                                className="w-full px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                              >
+                                {t('feed.viewProfile') || 'View Profile'}
+                              </motion.button>
+                            </div>
+                          ) : (
+                            <div className="text-center py-4">
+                              <p className="text-xs text-gray-500 dark:text-gray-500">{t('common.loading')}</p>
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </div>
+                  )}
                   <div className="flex flex-col sm:flex-row gap-4">
                     <div className="w-full sm:w-32 h-32 rounded-xl overflow-hidden bg-gray-100 dark:bg-navy-700 flex-shrink-0">
                       {item.course_image ? (
@@ -1986,7 +2390,10 @@ const Feed = () => {
                             <motion.button
                               whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.98 }}
-                              onClick={() => handleEnrollCourse(item)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEnrollCourse(item);
+                              }}
                               disabled={enrollingCourseId === (item.id || item.course_id)}
                               className={`w-full sm:w-auto px-4 py-2 rounded-lg font-semibold transition-colors ${
                                 enrollingCourseId === (item.id || item.course_id)
@@ -2003,7 +2410,7 @@ const Feed = () => {
                       )}
                     </div>
                   </div>
-                </div>
+                </motion.div>
               )}
 
               {/* Institution Achievement */}

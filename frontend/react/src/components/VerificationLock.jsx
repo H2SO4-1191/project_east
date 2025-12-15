@@ -84,3 +84,4 @@ const VerificationLock = ({ title, description }) => {
 
 export default VerificationLock;
 
+

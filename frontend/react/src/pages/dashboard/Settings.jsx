@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FaUniversity, FaCheckCircle, FaExclamationTriangle, FaUpload, FaSpinner } from 'react-icons/fa';
+import { FaUniversity, FaCheckCircle, FaExclamationTriangle, FaUpload, FaSpinner, FaCreditCard, FaCrown } from 'react-icons/fa';
 import { useTranslation } from 'react-i18next';
 import Card from '../../components/Card';
 import AnimatedButton from '../../components/AnimatedButton';
@@ -66,6 +66,9 @@ const Settings = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verificationErrors, setVerificationErrors] = useState({});
   const [editErrors, setEditErrors] = useState({});
+  const [isAddingPaymentMethod, setIsAddingPaymentMethod] = useState(false);
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState('3m');
 
 
   const handleFileChange = async (fieldName, file) => {
@@ -389,6 +392,118 @@ const Settings = () => {
     }
   };
 
+  // Handle adding payment method
+  const handleAddPaymentMethod = async () => {
+    if (!instituteData.isVerified) {
+      toast.error(t('dashboard.settingsPage.verifyFirst') || 'Please verify your account first');
+      return;
+    }
+
+    setIsAddingPaymentMethod(true);
+
+    try {
+      const result = await authService.addInstitutionPaymentMethod(
+        instituteData.accessToken,
+        {
+          refreshToken: instituteData.refreshToken,
+          onTokenRefreshed: (tokens) =>
+            updateInstituteData({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh || instituteData.refreshToken,
+            }),
+          onSessionExpired: () => {
+            toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+          },
+        }
+      );
+
+      if (result?.success && result?.url) {
+        // Open Stripe onboarding URL in new window
+        const stripeWindow = window.open(result.url, '_blank', 'width=800,height=600');
+        
+        if (stripeWindow) {
+          toast.success(t('dashboard.settingsPage.paymentMethodRedirect') || 'Redirecting to Stripe...');
+          
+          // Listen for window close (basic check)
+          const checkClosed = setInterval(() => {
+            if (stripeWindow.closed) {
+              clearInterval(checkClosed);
+              toast.info(t('dashboard.settingsPage.completePaymentSetup') || 'Please complete the payment setup in the Stripe window.');
+            }
+          }, 1000);
+        } else {
+          toast.error(t('dashboard.settingsPage.popupBlocked') || 'Popup blocked. Please allow popups and try again.');
+        }
+      } else {
+        throw new Error(result?.message || 'Failed to get payment setup URL');
+      }
+    } catch (err) {
+      console.error('Payment method error:', err);
+      toast.error(err?.message || t('dashboard.settingsPage.failedToAddPaymentMethod') || 'Failed to add payment method');
+    } finally {
+      setIsAddingPaymentMethod(false);
+    }
+  };
+
+  // Handle subscription
+  const handleSubscribe = async () => {
+    if (!instituteData.isVerified) {
+      toast.error(t('dashboard.settingsPage.verifyFirst') || 'Please verify your account first');
+      return;
+    }
+
+    if (!selectedPlan) {
+      toast.error(t('dashboard.settingsPage.selectPlan') || 'Please select a subscription plan');
+      return;
+    }
+
+    setIsSubscribing(true);
+
+    try {
+      const result = await authService.subscribeInstitution(
+        instituteData.accessToken,
+        selectedPlan,
+        {
+          refreshToken: instituteData.refreshToken,
+          onTokenRefreshed: (tokens) =>
+            updateInstituteData({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh || instituteData.refreshToken,
+            }),
+          onSessionExpired: () => {
+            toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+          },
+        }
+      );
+
+      if (result?.success && result?.checkout_url) {
+        // Open Stripe checkout URL in new window
+        const stripeWindow = window.open(result.checkout_url, '_blank', 'width=800,height=600');
+        
+        if (stripeWindow) {
+          toast.success(t('dashboard.settingsPage.subscriptionRedirect') || 'Redirecting to checkout...');
+          
+          // Listen for window close (basic check)
+          const checkClosed = setInterval(() => {
+            if (stripeWindow.closed) {
+              clearInterval(checkClosed);
+              toast.info(t('dashboard.settingsPage.completeSubscription') || 'Please complete the subscription in the checkout window.');
+            }
+          }, 1000);
+        } else {
+          toast.error(t('dashboard.settingsPage.popupBlocked') || 'Popup blocked. Please allow popups and try again.');
+        }
+      } else {
+        throw new Error(result?.message || 'Failed to get checkout URL');
+      }
+    } catch (err) {
+      console.error('Subscription error:', err);
+      toast.error(err?.message || t('dashboard.settingsPage.failedToSubscribe') || 'Failed to subscribe');
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <motion.div
@@ -499,6 +614,96 @@ const Settings = () => {
           </div>
         </div>
       </Card>
+
+      {/* Payment Method Section */}
+      {instituteData.isVerified && (
+        <Card delay={0.15}>
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-xl flex items-center justify-center">
+              <FaCreditCard className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+                {t('dashboard.settingsPage.paymentMethod') || 'Payment Method'}
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {t('dashboard.settingsPage.paymentMethodDescription') || 'Add a payment method to receive payments'}
+              </p>
+            </div>
+          </div>
+          <AnimatedButton
+            onClick={handleAddPaymentMethod}
+            disabled={isAddingPaymentMethod}
+            variant="teal"
+            className="w-full"
+          >
+            {isAddingPaymentMethod ? (
+              <>
+                <FaSpinner className="animate-spin mr-2" />
+                {t('dashboard.settingsPage.addingPaymentMethod') || 'Setting up...'}
+              </>
+            ) : (
+              <>
+                <FaCreditCard className="mr-2" />
+                {t('dashboard.settingsPage.addPaymentMethod') || 'Add Payment Method'}
+              </>
+            )}
+          </AnimatedButton>
+        </Card>
+      )}
+
+      {/* Subscription Section */}
+      {instituteData.isVerified && (
+        <Card delay={0.2}>
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-xl flex items-center justify-center">
+              <FaCrown className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+                {t('dashboard.settingsPage.subscription') || 'Subscription'}
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {t('dashboard.settingsPage.subscriptionDescription') || 'Choose your subscription plan'}
+              </p>
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                {t('dashboard.settingsPage.selectPlan') || 'Select Plan'}
+              </label>
+              <select
+                value={selectedPlan}
+                onChange={(e) => setSelectedPlan(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+              >
+                <option value="3m">{t('dashboard.settingsPage.plan3m') || '3 Months'}</option>
+                <option value="6m">{t('dashboard.settingsPage.plan6m') || '6 Months'}</option>
+                <option value="12m">{t('dashboard.settingsPage.plan12m') || '12 Months'}</option>
+              </select>
+            </div>
+            <AnimatedButton
+              onClick={handleSubscribe}
+              disabled={isSubscribing}
+              variant="purple"
+              className="w-full"
+            >
+              {isSubscribing ? (
+                <>
+                  <FaSpinner className="animate-spin mr-2" />
+                  {t('dashboard.settingsPage.processing') || 'Processing...'}
+                </>
+              ) : (
+                <>
+                  <FaCrown className="mr-2" />
+                  {t('dashboard.settingsPage.subscribe') || 'Subscribe'}
+                </>
+              )}
+            </AnimatedButton>
+          </div>
+        </Card>
+      )}
 
       {/* Verification Modal */}
       <Modal

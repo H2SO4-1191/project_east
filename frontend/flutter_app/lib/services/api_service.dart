@@ -306,23 +306,38 @@ class ApiService {
     String? refreshToken,
     required Map<String, dynamic> payload,
     Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
   }) async {
     try {
       final request = http.MultipartRequest(
         'PUT',
-        Uri.parse('$baseUrl/institution/institution-verify/'),
+        Uri.parse('$baseUrl/institution/verify/'),
       );
 
       request.headers['Authorization'] = 'Bearer $accessToken';
 
       // Add text fields
-      if (payload['title'] != null) request.fields['title'] = payload['title'];
-      if (payload['location'] != null) request.fields['location'] = payload['location'];
-      if (payload['phone_number'] != null) request.fields['phone_number'] = payload['phone_number'];
-      if (payload['about'] != null) request.fields['about'] = payload['about'];
+      if (payload['title'] != null) request.fields['title'] = payload['title'].toString();
+      if (payload['location'] != null) request.fields['location'] = payload['location'].toString();
+      if (payload['phone_number'] != null) request.fields['phone_number'] = payload['phone_number'].toString();
+      if (payload['about'] != null) request.fields['about'] = payload['about'].toString();
 
-      // Add file fields (if needed in future)
-      // Example: request.files.add(await http.MultipartFile.fromPath('profile_image', filePath));
+      // Add file fields
+      if (payload['profile_image'] != null && payload['profile_image'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('profile_image', (payload['profile_image'] as File).path));
+      }
+      if (payload['idcard_front'] != null && payload['idcard_front'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('idcard_front', (payload['idcard_front'] as File).path));
+      }
+      if (payload['idcard_back'] != null && payload['idcard_back'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('idcard_back', (payload['idcard_back'] as File).path));
+      }
+      if (payload['residence_front'] != null && payload['residence_front'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('residence_front', (payload['residence_front'] as File).path));
+      }
+      if (payload['residence_back'] != null && payload['residence_back'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('residence_back', (payload['residence_back'] as File).path));
+      }
 
       var response = await request.send();
       final responseBody = await response.stream.bytesToString();
@@ -337,10 +352,11 @@ class ApiService {
           // Retry request with new token
           final retryRequest = http.MultipartRequest(
             'PUT',
-            Uri.parse('$baseUrl/institution/institution-verify/'),
+            Uri.parse('$baseUrl/institution/verify/'),
           );
           retryRequest.headers['Authorization'] = 'Bearer ${refreshed['access']}';
           retryRequest.fields.addAll(request.fields);
+          retryRequest.files.addAll(request.files);
 
           response = await retryRequest.send();
           final retryBody = await response.stream.bytesToString();
@@ -352,6 +368,9 @@ class ApiService {
 
           return retryData;
         } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
           throw ApiException(
             status: 401,
             message: 'Session expired. Please log in again.',
@@ -378,6 +397,7 @@ class ApiService {
     String? refreshToken,
     required Map<String, dynamic> payload,
     Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
   }) async {
     try {
       final request = http.MultipartRequest(
@@ -388,11 +408,30 @@ class ApiService {
       request.headers['Authorization'] = 'Bearer $accessToken';
 
       // Add text fields
-      if (payload['username'] != null) request.fields['username'] = payload['username'];
-      if (payload['title'] != null) request.fields['title'] = payload['title'];
-      if (payload['location'] != null) request.fields['location'] = payload['location'];
-      if (payload['phone_number'] != null) request.fields['phone_number'] = payload['phone_number'];
-      if (payload['about'] != null) request.fields['about'] = payload['about'];
+      if (payload['username'] != null) request.fields['username'] = payload['username'].toString();
+      if (payload['first_name'] != null) request.fields['first_name'] = payload['first_name'].toString();
+      if (payload['last_name'] != null) request.fields['last_name'] = payload['last_name'].toString();
+      if (payload['title'] != null) request.fields['title'] = payload['title'].toString();
+      if (payload['location'] != null) request.fields['location'] = payload['location'].toString();
+      if (payload['phone_number'] != null) request.fields['phone_number'] = payload['phone_number'].toString();
+      if (payload['about'] != null) request.fields['about'] = payload['about'].toString();
+
+      // Add file fields (only if provided)
+      if (payload['profile_image'] != null && payload['profile_image'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('profile_image', (payload['profile_image'] as File).path));
+      }
+      if (payload['idcard_front'] != null && payload['idcard_front'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('idcard_front', (payload['idcard_front'] as File).path));
+      }
+      if (payload['idcard_back'] != null && payload['idcard_back'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('idcard_back', (payload['idcard_back'] as File).path));
+      }
+      if (payload['residence_front'] != null && payload['residence_front'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('residence_front', (payload['residence_front'] as File).path));
+      }
+      if (payload['residence_back'] != null && payload['residence_back'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('residence_back', (payload['residence_back'] as File).path));
+      }
 
       var response = await request.send();
       final responseBody = await response.stream.bytesToString();
@@ -411,6 +450,7 @@ class ApiService {
           );
           retryRequest.headers['Authorization'] = 'Bearer ${refreshed['access']}';
           retryRequest.fields.addAll(request.fields);
+          retryRequest.files.addAll(request.files);
 
           response = await retryRequest.send();
           final retryBody = await response.stream.bytesToString();
@@ -422,6 +462,9 @@ class ApiService {
 
           return retryData;
         } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
           throw ApiException(
             status: 401,
             message: 'Session expired. Please log in again.',
@@ -994,6 +1037,526 @@ class ApiService {
         message: 'Network error. Please check your connection and try again.',
       );
     }
+  }
+
+  /// Add institution payment method (Stripe Connect Onboarding)
+  static Future<Map<String, dynamic>> addInstitutionPaymentMethod({
+    required String accessToken,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      var response = await http.post(
+        Uri.parse('$baseUrl/institution/add-payment-method/'),
+        headers: {
+          ..._defaultHeaders,
+          'Authorization': 'Bearer $accessToken',
+        },
+      );
+
+      // Handle token refresh on 401
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+          
+          // Retry request with new token
+          response = await http.post(
+            Uri.parse('$baseUrl/institution/add-payment-method/'),
+            headers: {
+              ..._defaultHeaders,
+              'Authorization': 'Bearer ${refreshed['access']}',
+            },
+          );
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      final data = _parseResponse(response.body);
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  /// Subscribe institution to a plan
+  static Future<Map<String, dynamic>> subscribeInstitution({
+    required String accessToken,
+    required String plan,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      var response = await http.post(
+        Uri.parse('$baseUrl/institution/subscribe/'),
+        headers: {
+          ..._defaultHeaders,
+          'Authorization': 'Bearer $accessToken',
+        },
+        body: json.encode({'plan': plan}),
+      );
+
+      // Handle token refresh on 401
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+          
+          // Retry request with new token
+          response = await http.post(
+            Uri.parse('$baseUrl/institution/subscribe/'),
+            headers: {
+              ..._defaultHeaders,
+              'Authorization': 'Bearer ${refreshed['access']}',
+            },
+            body: json.encode({'plan': plan}),
+          );
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      final data = _parseResponse(response.body);
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  /// Create institution course
+  static Future<Map<String, dynamic>> createInstitutionCourse({
+    required String accessToken,
+    required Map<String, dynamic> payload,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/institution/create-course/'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $accessToken';
+
+      // Required fields
+      if (payload['title'] != null) request.fields['title'] = payload['title'].toString();
+      if (payload['about'] != null) request.fields['about'] = payload['about'].toString();
+      if (payload['starting_date'] != null) request.fields['starting_date'] = payload['starting_date'].toString();
+      if (payload['ending_date'] != null) request.fields['ending_date'] = payload['ending_date'].toString();
+      if (payload['level'] != null) request.fields['level'] = payload['level'].toString();
+      if (payload['price'] != null) request.fields['price'] = payload['price'].toString();
+      if (payload['start_time'] != null) request.fields['start_time'] = payload['start_time'].toString();
+      if (payload['end_time'] != null) request.fields['end_time'] = payload['end_time'].toString();
+      if (payload['lecturer'] != null) request.fields['lecturer'] = payload['lecturer'].toString();
+
+      // Days array - send as indexed keys
+      if (payload['days'] != null && payload['days'] is List) {
+        int index = 0;
+        for (final day in payload['days'] as List) {
+          request.fields['days[$index]'] = day.toString();
+          index++;
+        }
+      }
+
+      // Optional fields
+      if (payload['capacity'] != null) request.fields['capacity'] = payload['capacity'].toString();
+      if (payload['course_image'] != null && payload['course_image'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('course_image', (payload['course_image'] as File).path));
+      }
+
+      var response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      final data = _parseResponse(responseBody);
+
+      // Handle token refresh on 401
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+
+          // Retry request with new token
+          final retryRequest = http.MultipartRequest(
+            'POST',
+            Uri.parse('$baseUrl/institution/create-course/'),
+          );
+          retryRequest.headers['Authorization'] = 'Bearer ${refreshed['access']}';
+          retryRequest.fields.addAll(request.fields);
+          retryRequest.files.addAll(request.files);
+
+          response = await retryRequest.send();
+          final retryBody = await response.stream.bytesToString();
+          final retryData = _parseResponse(retryBody);
+
+          if (response.statusCode != 200 && response.statusCode != 201) {
+            throw _buildError(response.statusCode, retryData);
+          }
+
+          return retryData;
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  /// Edit institution course
+  static Future<Map<String, dynamic>> editInstitutionCourse({
+    required String accessToken,
+    required int courseId,
+    required Map<String, dynamic> payload,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'PUT',
+        Uri.parse('$baseUrl/institution/edit-course/$courseId/'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $accessToken';
+
+      // Add text fields (only if provided)
+      if (payload['title'] != null) request.fields['title'] = payload['title'].toString();
+      if (payload['about'] != null) request.fields['about'] = payload['about'].toString();
+      if (payload['starting_date'] != null) request.fields['starting_date'] = payload['starting_date'].toString();
+      if (payload['ending_date'] != null) request.fields['ending_date'] = payload['ending_date'].toString();
+      if (payload['level'] != null) request.fields['level'] = payload['level'].toString();
+      if (payload['price'] != null) request.fields['price'] = payload['price'].toString();
+      if (payload['start_time'] != null) request.fields['start_time'] = payload['start_time'].toString();
+      if (payload['end_time'] != null) request.fields['end_time'] = payload['end_time'].toString();
+      if (payload['lecturer'] != null) request.fields['lecturer'] = payload['lecturer'].toString();
+
+      // Days array (only if provided) - send as indexed keys
+      if (payload['days'] != null && payload['days'] is List) {
+        int index = 0;
+        for (final day in payload['days'] as List) {
+          request.fields['days[$index]'] = day.toString();
+          index++;
+        }
+      }
+
+      // Optional file
+      if (payload['course_image'] != null && payload['course_image'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('course_image', (payload['course_image'] as File).path));
+      }
+
+      var response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      final data = _parseResponse(responseBody);
+
+      // Handle token refresh on 401
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+
+          // Retry request with new token
+          final retryRequest = http.MultipartRequest(
+            'PUT',
+            Uri.parse('$baseUrl/institution/edit-course/$courseId/'),
+          );
+          retryRequest.headers['Authorization'] = 'Bearer ${refreshed['access']}';
+          retryRequest.fields.addAll(request.fields);
+          retryRequest.files.addAll(request.files);
+
+          response = await retryRequest.send();
+          final retryBody = await response.stream.bytesToString();
+          final retryData = _parseResponse(retryBody);
+
+          if (response.statusCode != 200) {
+            throw _buildError(response.statusCode, retryData);
+          }
+
+          return retryData;
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      if (response.statusCode != 200) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  /// Get institution courses (public endpoint by username)
+  static Future<Map<String, dynamic>> getInstitutionCourses(String username) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/institution/$username/courses/'),
+        headers: _defaultHeaders,
+      );
+
+      final data = _parseResponse(response.body);
+
+      if (response.statusCode != 200) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  /// Create institution post
+  static Future<Map<String, dynamic>> createInstitutionPost({
+    required String accessToken,
+    required Map<String, dynamic> payload,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/institution/create-post/'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $accessToken';
+
+      // Required field
+      if (payload['title'] != null) request.fields['title'] = payload['title'].toString();
+      
+      // Optional field
+      if (payload['description'] != null) {
+        request.fields['description'] = payload['description'].toString();
+      } else {
+        request.fields['description'] = '';
+      }
+
+      // Optional images array
+      if (payload['images'] != null && payload['images'] is List) {
+        for (final image in payload['images'] as List) {
+          if (image is File) {
+            request.files.add(await http.MultipartFile.fromPath('images', image.path));
+          }
+        }
+      }
+
+      var response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      final data = _parseResponse(responseBody);
+
+      // Handle token refresh on 401
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+
+          // Retry request with new token
+          final retryRequest = http.MultipartRequest(
+            'POST',
+            Uri.parse('$baseUrl/institution/create-post/'),
+          );
+          retryRequest.headers['Authorization'] = 'Bearer ${refreshed['access']}';
+          retryRequest.fields.addAll(request.fields);
+          retryRequest.files.addAll(request.files);
+
+          response = await retryRequest.send();
+          final retryBody = await response.stream.bytesToString();
+          final retryData = _parseResponse(retryBody);
+
+          if (response.statusCode != 200 && response.statusCode != 201) {
+            throw _buildError(response.statusCode, retryData);
+          }
+
+          return retryData;
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  /// Get institution jobs (public endpoint by username)
+  static Future<Map<String, dynamic>> getInstitutionJobs(String username) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/institution/$username/jobs/'),
+        headers: _defaultHeaders,
+      );
+
+      final data = _parseResponse(response.body);
+
+      if (response.statusCode != 200) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  /// Create job post
+  static Future<Map<String, dynamic>> createJobPost({
+    required String accessToken,
+    required Map<String, dynamic> payload,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      var response = await http.post(
+        Uri.parse('$baseUrl/institution/job/create/'),
+        headers: {
+          ..._defaultHeaders,
+          'Authorization': 'Bearer $accessToken',
+        },
+        body: json.encode(payload),
+      );
+
+      final data = _parseResponse(response.body);
+
+      // Handle token refresh on 401
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+
+          // Retry request with new token
+          response = await http.post(
+            Uri.parse('$baseUrl/institution/job/create/'),
+            headers: {
+              ..._defaultHeaders,
+              'Authorization': 'Bearer ${refreshed['access']}',
+            },
+            body: json.encode(payload),
+          );
+
+          final retryData = _parseResponse(response.body);
+
+          if (response.statusCode != 200 && response.statusCode != 201) {
+            throw _buildError(response.statusCode, retryData);
+          }
+
+          return retryData;
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  /// Get job applications
+  static Future<Map<String, dynamic>> getJobApplications({
+    required String accessToken,
+    required int jobId,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    return getProtected(
+      endpoint: '/institution/job/$jobId/applications/',
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      onTokenRefreshed: onTokenRefreshed,
+      onSessionExpired: onSessionExpired,
+    );
   }
 }
 

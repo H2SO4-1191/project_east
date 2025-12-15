@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { 
   FaBook, 
@@ -10,158 +10,27 @@ import {
   FaSun, 
   FaTimes 
 } from 'react-icons/fa';
-import { useTheme } from './ThemeContext';
-import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useInstitute } from '../context/InstituteContext';
+import { useTheme } from '../context/ThemeContext';
+import LanguageSwitcher from './LanguageSwitcher';
 
-const InstituteContext = createContext();
-
-export const useInstitute = () => {
-  const context = useContext(InstituteContext);
-  if (!context) {
-    throw new Error('useInstitute must be used within InstituteProvider');
-  }
-  return context;
-};
-
-const createDefaultInstituteData = () => ({
-  name: '',
-  email: '',
-  username: '',
-  firstName: '',
-  lastName: '',
-  userId: null,
-  userType: '',
-  institution: '', // For lecturers - the institution they work with
-  accessToken: '',
-  refreshToken: '',
-  subscription: '',
-  subscriptionLabel: '',
-  paymentMethod: '',
-  paymentMethodLabel: '',
-  registrationDate: '',
-  isAuthenticated: false,
-  isVerified: false,
-});
-
-export const InstituteProvider = ({ children }) => {
-  const [instituteData, setInstituteData] = useState(() => {
-    const saved = localStorage.getItem('instituteData');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return { ...createDefaultInstituteData(), ...parsed };
-      } catch (error) {
-        console.error('Failed to parse stored institute data:', error);
-      }
-    }
-    return createDefaultInstituteData();
-  });
-
-  // Sidebar state management
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem('instituteData', JSON.stringify(instituteData));
-  }, [instituteData]);
-
-  const updateInstituteData = (newData) => {
-    setInstituteData(prev => ({ ...prev, ...newData }));
-  };
-
-  const clearInstituteData = () => {
-    setInstituteData(createDefaultInstituteData());
-    localStorage.removeItem('instituteData');
-  };
-
-  // Sidebar control functions
-  const toggleSidebar = () => {
-    setIsSidebarOpen(prev => !prev);
-  };
-
-  const closeSidebar = () => {
-    setIsSidebarOpen(false);
-  };
-
-  const openSidebar = () => {
-    setIsSidebarOpen(true);
-  };
-
-  const toggleSidebarExpanded = () => {
-    setIsSidebarExpanded(prev => !prev);
-  };
-
-  const setSidebarExpanded = (expanded) => {
-    setIsSidebarExpanded(expanded);
-  };
-
-  const toggleMobileSidebar = () => {
-    setIsMobileSidebarOpen(prev => !prev);
-  };
-
-  const closeMobileSidebar = () => {
-    setIsMobileSidebarOpen(false);
-  };
-
-  const openMobileSidebar = () => {
-    setIsMobileSidebarOpen(true);
-  };
-
-  return (
-    <InstituteContext.Provider value={{ 
-      instituteData, 
-      setInstituteData, 
-      updateInstituteData, 
-      clearInstituteData,
-      // Sidebar state
-      isSidebarOpen,
-      setIsSidebarOpen,
-      isSidebarExpanded,
-      setIsSidebarExpanded,
-      isMobileSidebarOpen,
-      setIsMobileSidebarOpen,
-      // Sidebar control functions
-      toggleSidebar,
-      closeSidebar,
-      openSidebar,
-      toggleSidebarExpanded,
-      setSidebarExpanded,
-      toggleMobileSidebar,
-      closeMobileSidebar,
-      openMobileSidebar,
-    }}>
-      <SidebarComponent 
-        instituteData={instituteData}
-        isSidebarExpanded={isSidebarExpanded}
-        setIsSidebarExpanded={setIsSidebarExpanded}
-        isMobileSidebarOpen={isMobileSidebarOpen}
-        closeMobileSidebar={closeMobileSidebar}
-      />
-      {children}
-    </InstituteContext.Provider>
-  );
-};
-
-// Sidebar Component
-const SidebarComponent = ({ 
-  instituteData,
-  isSidebarExpanded,
-  setIsSidebarExpanded,
-  isMobileSidebarOpen,
-  closeMobileSidebar
+const Sidebar = ({ 
+  onShowProfileModal, 
+  onShowVerificationPopup,
+  showBackButton = false,
+  onBackClick 
 }) => {
+  const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
+  const { 
+    instituteData, 
+    isSidebarExpanded, 
+    setIsSidebarExpanded,
+    isMobileSidebarOpen,
+    closeMobileSidebar 
+  } = useInstitute();
   const { isDark, toggleTheme } = useTheme();
-
-  // Use window.location for navigation since we're outside Router context
-  const navigate = (path) => {
-    // Remove # if present
-    const cleanPath = path.startsWith('#') ? path.substring(1) : path;
-    // Use window.location for navigation
-    window.location.href = cleanPath;
-  };
 
   const isInstitution = instituteData.userType === 'institution';
   const isLecturer = instituteData.userType === 'lecturer';
@@ -169,7 +38,9 @@ const SidebarComponent = ({
 
   const handleCoursesClick = () => {
     if (isStudent && !instituteData.isVerified) {
-      // Verification popup should be handled by parent component
+      if (onShowVerificationPopup) {
+        onShowVerificationPopup();
+      }
       closeMobileSidebar();
       return;
     }
@@ -183,7 +54,9 @@ const SidebarComponent = ({
 
   const handleScheduleClick = () => {
     if (isStudent && !instituteData.isVerified) {
-      // Verification popup should be handled by parent component
+      if (onShowVerificationPopup) {
+        onShowVerificationPopup();
+      }
       closeMobileSidebar();
       return;
     }
@@ -191,6 +64,13 @@ const SidebarComponent = ({
       navigate('/student/schedule');
     } else if (isLecturer) {
       navigate('/lecturer/schedule');
+    }
+    closeMobileSidebar();
+  };
+
+  const handleProfileClick = () => {
+    if (onShowProfileModal) {
+      onShowProfileModal();
     }
     closeMobileSidebar();
   };
@@ -216,6 +96,19 @@ const SidebarComponent = ({
             }`}>
               {instituteData.isAuthenticated ? t('feed.explore') : t('feed.welcome')}
             </h2>
+            
+            {/* Back Button */}
+            {showBackButton && onBackClick && isSidebarExpanded && (
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={onBackClick}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 mb-6 cursor-pointer"
+              >
+                <FaTimes className="w-5 h-5 flex-shrink-0" />
+                <span className="font-medium">{t('common.back')}</span>
+              </motion.button>
+            )}
             
             {/* Guest Message */}
             {!instituteData.isAuthenticated && isSidebarExpanded && (
@@ -301,10 +194,7 @@ const SidebarComponent = ({
                 
                 {/* Profile - All Authenticated Users */}
                 <button
-                  onClick={() => {
-                    // Profile modal should be handled by parent component
-                    closeMobileSidebar();
-                  }}
+                  onClick={handleProfileClick}
                   className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
                   title={t('nav.profile') || 'Profile'}
                 >
@@ -394,6 +284,22 @@ const SidebarComponent = ({
                     <FaTimes className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                   </motion.button>
                 </div>
+                
+                {/* Back Button */}
+                {showBackButton && onBackClick && (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      onBackClick();
+                      closeMobileSidebar();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 mb-6 cursor-pointer"
+                  >
+                    <FaTimes className="w-5 h-5 flex-shrink-0" />
+                    <span className="font-medium">{t('common.back')}</span>
+                  </motion.button>
+                )}
                 
                 {/* Guest Message */}
                 {!instituteData.isAuthenticated && (
@@ -487,10 +393,7 @@ const SidebarComponent = ({
 
                     {/* Profile */}
                     <button
-                      onClick={() => {
-                        // Profile modal should be handled by parent component
-                        closeMobileSidebar();
-                      }}
+                      onClick={handleProfileClick}
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
                     >
                       <FaUser className="w-5 h-5 flex-shrink-0" />
@@ -543,4 +446,6 @@ const SidebarComponent = ({
     </>
   );
 };
+
+export default Sidebar;
 

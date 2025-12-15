@@ -149,62 +149,62 @@ const Schedule = () => {
       {isLoading ? (
         <ScheduleSkeleton />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          <AnimatePresence mode="wait">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <AnimatePresence mode="wait">
             {days.slice(0, 5).map((day, index) => {
               const entries = getScheduleByDay(day.key);
               return (
-                <motion.div
+            <motion.div
                   key={`${day.key}-${currentWeek}`}
-                  initial={{ opacity: 0, x: 50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -50 }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <Card delay={0} className="h-full">
-                    <div className="flex items-center gap-2 mb-4">
-                      <FaCalendarAlt className="text-primary-600 dark:text-teal-400" />
-                      <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <Card delay={0} className="h-full">
+                <div className="flex items-center gap-2 mb-4">
+                  <FaCalendarAlt className="text-primary-600 dark:text-teal-400" />
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
                         {day.label}
-                      </h3>
-                    </div>
-
-                    <div className="space-y-3">
+                  </h3>
+                </div>
+                
+                <div className="space-y-3">
                       {entries.map((item) => (
-                        <motion.div
+                    <motion.div
                           key={`${item.course_id}-${item.start_time}`}
-                          whileHover={{ scale: 1.02, y: -2 }}
+                      whileHover={{ scale: 1.02, y: -2 }}
                           className="p-3 bg-gradient-to-r from-primary-50 to-teal-50 dark:from-primary-900/20 dark:to-teal-900/20 rounded-lg border-l-4 border-primary-500 dark:border-teal-400"
-                        >
-                          <p className="text-xs font-semibold text-primary-600 dark:text-teal-400 mb-1">
+                    >
+                      <p className="text-xs font-semibold text-primary-600 dark:text-teal-400 mb-1">
                             {item.start_time} – {item.end_time}
-                          </p>
-                          <p className="text-sm font-bold text-gray-800 dark:text-white mb-1">
+                      </p>
+                      <p className="text-sm font-bold text-gray-800 dark:text-white mb-1">
                             {item.course_title}
-                          </p>
-                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
                             {item.lecturer}
-                          </p>
+                      </p>
                           {item.room && (
-                            <p className="text-xs text-gray-500 dark:text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-500">
                               {t('dashboard.schedulePage.room')} {item.room}
-                            </p>
+                      </p>
                           )}
-                        </motion.div>
-                      ))}
-
+                    </motion.div>
+                  ))}
+                  
                       {entries.length === 0 && (
-                        <div className="text-center py-8 text-gray-400 dark:text-gray-600">
+                    <div className="text-center py-8 text-gray-400 dark:text-gray-600">
                           <p className="text-sm">{t('dashboard.schedulePage.noClasses')}</p>
-                        </div>
-                      )}
                     </div>
-                  </Card>
-                </motion.div>
+                  )}
+                </div>
+              </Card>
+            </motion.div>
               );
             })}
-          </AnimatePresence>
-        </div>
+        </AnimatePresence>
+      </div>
       )}
 
       {!isLoading && days.slice(5).some(day => getScheduleByDay(day.key).length > 0) && (
