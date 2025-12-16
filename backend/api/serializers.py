@@ -28,9 +28,6 @@ class SignupSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
-
-
-
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     def validate_email(self, value):
@@ -396,7 +393,6 @@ class LecturerSimpleSerializer(serializers.ModelSerializer):
 
     def get_profile_image(self, obj):
         return obj.user.profile_image.url if obj.user.profile_image else None
-
 
 class InstitutionViewStudentSerializer(serializers.ModelSerializer):
     studying_level = serializers.CharField(source="student.studying_level")

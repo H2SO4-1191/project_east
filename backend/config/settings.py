@@ -179,10 +179,13 @@ else:
 
 
 # Error logging
-ADMINS = [
-    ('H2SO4-1191', config('H2SO4_1191')),
-    ('FUDNEN', config('FUDEN')),
-]
+if DEBUG:
+     ADMINS = [
+        ('H2SO4-1191', config('H2SO4_1191')),
+        ('FUDNEN', config('FUDEN')),
+    ]
+else:
+     ADMINS = []
 
 LOGGING = {
     'version': 1,

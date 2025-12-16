@@ -519,7 +519,7 @@ class InstitiutionCreatePostView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 class InstitutionCreateCourseView(APIView):
-    permission_classes = [IsInstitution, IsVerified, CanReceive, IsSubscribed]
+    permission_classes = [IsInstitution, IsVerified,]
 
     def post(self, request):
         serializer = CourseSerializer(data=request.data, context={"request": request})
@@ -1108,17 +1108,14 @@ class LecturerMarkAttendanceView(APIView):
         records = serializer.validated_data["records"]
 
         if lecture_number < 1 or lecture_number > course.total_lectures:
-            return Response({
-                "success": False,
-                "message": "Invalid lecture number."
-            }, status=400)
+            return Response({"success": False, "message": "Invalid lecture number."}, status=400)
 
         for rec in records:
-            student_id = rec["student_id"]
+            username = rec["username"]
             status_val = rec["status"]
 
             try:
-                student = Student.objects.get(id=student_id, courses=course)
+                student = Student.objects.get(user__username=username, courses=course)
             except Student.DoesNotExist:
                 continue
 
@@ -1149,8 +1146,7 @@ class LecturerViewLectureAttendanceView(APIView):
 
         data = [
             {
-                "student_id": att.student.id,
-                "name": f"{att.student.user.first_name} {att.student.user.last_name}",
+                "username": att.student.user.username,
                 "status": att.status
             }
             for att in attendances
@@ -1330,7 +1326,7 @@ class StudentEditProfileView(APIView):
         }, status=400)
 
 class StudentEnrollCourseView(APIView):
-    permission_classes = [IsAuthenticated, IsStudent, IsVerified, CanPay]
+    permission_classes = [IsAuthenticated, IsStudent, IsVerified, ]
 
     def post(self, request, course_id):
         user = request.user
@@ -1400,6 +1396,7 @@ class StudentEnrollCourseView(APIView):
             "success": True,
             "checkout_url": session.url
         })
+
 class StudentViewAttendanceView(APIView):
     permission_classes = [IsStudent, IsVerified]
 
