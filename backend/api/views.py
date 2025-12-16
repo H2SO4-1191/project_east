@@ -1871,7 +1871,7 @@ class LecturerScheduleCheckView(APIView):
 class ExpectedStudentsView(APIView):
     permission_classes = [IsAuthenticated, IsLecturer | IsInstitution]
 
-    def get(self, request, course_id, lecture_number):
+    def get(self, request, course_id):
         user = request.user
 
         # Fetch course safely
@@ -1889,12 +1889,6 @@ class ExpectedStudentsView(APIView):
             if course.institution != user.institution:
                 return Response({"success": False, "message": "Not allowed."}, status=403)
 
-        if user.user_type == "student":
-            return Response({"success": False, "message": "Students cannot access this."}, status=403)
-
-        # Validate lecture number
-        if lecture_number < 1 or lecture_number > course.total_lectures:
-            return Response({"success": False, "message": "Invalid lecture number."}, status=400)
 
         # Fetch enrolled students
         enrolled_students = course.students.select_related("user").all()
@@ -1913,7 +1907,6 @@ class ExpectedStudentsView(APIView):
         return Response({
             "success": True,
             "course": course.title,
-            "lecture_number": lecture_number,
             "students": students_list,
         })
 
