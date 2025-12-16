@@ -268,13 +268,21 @@ class InstitutionTotalLecturersView(APIView):
 
     def get(self, request):
         institution = Institution.objects.get(user=request.user)
-        total_lecturers = institution.lecturers.count()
+        today = timezone.now().date()
+
+        total_lecturers = Lecturer.objects.filter(
+            Q(courses__institution=institution,
+              courses__starting_date__lte=today,
+              courses__ending_date__gte=today)
+            |
+            Q(marked_by_institutions=institution)
+        ).distinct().count()
 
         return Response({
             "success": True,
             "total_lecturers": total_lecturers
         })
-    
+   
 class InstitutionTotalStaffView(APIView):
     permission_classes = [IsInstitution]
 
