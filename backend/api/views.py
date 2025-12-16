@@ -500,7 +500,7 @@ class InstitutionEditProfileView(APIView):
                         status=status.HTTP_400_BAD_REQUEST)
 
 class InstitiutionCreatePostView(APIView):
-    permission_classes = [IsInstitution, IsVerified, IsSubscribed]
+    permission_classes = [IsInstitution, IsVerified, ]
 
     def post(self, request):
         serializer = PostCreateSerializer(data=request.data)
@@ -632,7 +632,7 @@ class InstitutionViewLecturerProfile(APIView):
         return Response({"success": True, "data": serializer.data})
 
 class InstitutionAddMarkerView(APIView):
-    permission_classes = [IsInstitution, IsVerified, IsSubscribed]
+    permission_classes = [IsInstitution, IsVerified, ]
 
     def post(self, request):
         institution = request.user.institution
@@ -746,7 +746,7 @@ class CourseDetailView(APIView):
         return Response({"success": True, "data": serializer.data})
 
 class InstitutionCreateJobView(APIView):
-    permission_classes = [IsInstitution, IsVerified, IsSubscribed]
+    permission_classes = [IsInstitution, IsVerified, ]
 
     def post(self, request):
         serializer = JobPostSerializer(data=request.data, context={"request": request})
@@ -859,7 +859,7 @@ class InstitutionCourseAttendanceSummaryView(APIView):
         })
 
 class StaffCreateView(APIView):
-    permission_classes = [IsInstitution, IsVerified, IsSubscribed]
+    permission_classes = [IsInstitution, IsVerified, ]
 
     def post(self, request):
         serializer = StaffCreateSerializer(
