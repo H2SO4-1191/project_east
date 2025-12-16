@@ -1334,7 +1334,7 @@ class StudentEditProfileView(APIView):
         }, status=400)
 
 class StudentEnrollCourseView(APIView):
-    permission_classes = [IsAuthenticated, IsStudent, IsVerified, ]
+    permission_classes = [IsAuthenticated, IsStudent, IsVerified, CanPay]
 
     def post(self, request, course_id):
         user = request.user
@@ -1345,6 +1345,9 @@ class StudentEnrollCourseView(APIView):
             course = Course.objects.select_related("institution").get(id=course_id)
         except Course.DoesNotExist:
             return Response({"success": False, "message": "Course not found."}, status=404)
+        
+        if course.students.filter(id=student.id).exists():
+            return Response({"success": False, "message": "You are already enrolled."}, status=400)
 
         # 2) Capacity check
         if course.capacity > 0 and course.students.count() >= course.capacity:
@@ -1403,6 +1406,51 @@ class StudentEnrollCourseView(APIView):
         return Response({
             "success": True,
             "checkout_url": session.url
+        })
+
+class StudentEnrollCourseNoPaymentView(APIView):
+    permission_classes = [IsAuthenticated, IsStudent, IsVerified]
+
+    def post(self, request, course_id):
+        student = request.user.student
+
+        # 1) Fetch course
+        try:
+            course = Course.objects.select_related("institution").get(id=course_id)
+        except Course.DoesNotExist:
+            return Response({"success": False, "message": "Course not found."}, status=404)
+
+        # 2) Capacity check
+        if course.capacity > 0 and course.students.count() >= course.capacity:
+            return Response({"success": False, "message": "Course capacity is full."}, status=400)
+
+        # 3) Already enrolled check
+        if course.students.filter(id=student.id).exists():
+            return Response({"success": False, "message": "You are already enrolled."}, status=400)
+
+        # 4) Enroll
+        course.students.add(student)
+
+        return Response({
+            "success": True,
+            "message": f"You have been enrolled in '{course.title}'."
+        })
+
+class StudentIsEnrolledToCourseView(APIView):
+    permission_classes = [IsAuthenticated, IsStudent]
+    
+    def get(self, request, course_id):
+        student = request.user.student
+        try:
+            course = Course.objects.select_related("institution").get(id=course_id)
+        except Course.DoesNotExist:
+            return Response({"success": False, "message": "Course not found."}, status=404)
+        
+        is_enrolled = course.students.filter(id=student.id).exists()
+
+        return Response({
+            "success": True,
+            "is_enrolled": is_enrolled,
         })
 
 class StudentViewAttendanceView(APIView):
