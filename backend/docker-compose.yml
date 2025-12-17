@@ -9,7 +9,9 @@ services:
     env_file:
       - .env
     volumes:
+      - .:/app                          # 👈 project root (code + logs)
       - /home/h2so4/projects/project_east/backend/static/:/static
+      - /home/h2so4/projects/project_east/backend/media/:/app/media   # 👈 persistent media
     ports:
       - "8000:8000"
     depends_on:

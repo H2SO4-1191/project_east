@@ -40,7 +40,7 @@ FRONTEND_DOMAIN = config("FRONTEND_DOMAIN", default="http://localhost:3000")
 DEBUG = config('DEBUG', cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
-CSRF_TRUSTED_ORIGINS = ["https://projecteastapi.ddns.net"]
+CSRF_TRUSTED_ORIGINS = ["https://projecteastapi.ddns.net", "http://0.0.0.0:8000"]
 
 # Application definition
 
@@ -178,6 +178,58 @@ else:
      CORS_ALLOW_ALL_ORIGINS = True
 
 
+# Error logging
+if DEBUG:
+     ADMINS = [
+        ('H2SO4-1191', config('H2SO4_1191')),
+        ('FUDNEN', config('FUDEN')),
+    ]
+else:
+     ADMINS = []
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+
+    'formatters': {
+        'traceback_only': {
+            'format': (
+                '\n============================= NEW ERROR =============================\n'
+                '%(asctime)s | %(levelname)s\n'
+                '%(message)s\n'
+            ),
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+    },
+
+    'handlers': {
+        'file': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': '/app/error.log',
+            'formatter': 'traceback_only',
+        },
+
+        'email': {
+            'level': 'ERROR',
+            'class': 'logging.handlers.SMTPHandler',
+            'mailhost': ('smtp.gmail.com', 587),
+            'fromaddr': DEFAULT_FROM_EMAIL,
+            'toaddrs': [email for _, email in ADMINS],
+            'subject': '[Django ERROR]',
+            'credentials': (EMAIL_HOST_USER, EMAIL_HOST_PASSWORD),
+            'secure': (),
+            'formatter': 'traceback_only',
+        },
+    },
+
+    'loggers': {
+        'django.request': {
+            'handlers': ['file', 'email'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}
 
 

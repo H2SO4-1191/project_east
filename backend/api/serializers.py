@@ -28,9 +28,6 @@ class SignupSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
-
-
-
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     def validate_email(self, value):
@@ -106,6 +103,13 @@ class StaffListSerializer(serializers.ModelSerializer):
         ]
 
 class InstitutionVerificationSerializer(serializers.ModelSerializer):
+    title = serializers.CharField(required=True)
+    location = serializers.CharField(required=True)
+    up_time = serializers.CharField(required=True)
+    up_days = serializers.ListField(
+        child=serializers.CharField(), required=True
+    )
+
     class Meta:
         model = User
         fields = [
@@ -118,10 +122,9 @@ class InstitutionVerificationSerializer(serializers.ModelSerializer):
             'idcard_front',
             'residence_front',
             'residence_back',
+            'up_time',
+            'up_days',
         ]
-
-    title = serializers.CharField(required=True)
-    location = serializers.CharField(required=True)
 
     def validate(self, data):
         required = [
@@ -132,6 +135,8 @@ class InstitutionVerificationSerializer(serializers.ModelSerializer):
             'idcard_front',
             'residence_front',
             'residence_back',
+            'up_time',
+            'up_days',
         ]
 
         for field in required:
@@ -144,6 +149,8 @@ class InstitutionVerificationSerializer(serializers.ModelSerializer):
         institution = instance.institution
         institution.title = validated_data.pop('title')
         institution.location = validated_data.pop('location')
+        institution.up_time = validated_data.pop('up_time')
+        institution.up_days = validated_data.pop('up_days')
         institution.save()
 
         for key, value in validated_data.items():
@@ -157,12 +164,12 @@ class InstitutionVerificationSerializer(serializers.ModelSerializer):
 class InstitutionEditProfileSerializer(serializers.ModelSerializer):
     title = serializers.CharField(required=True)
     location = serializers.CharField(required=True)
-    username = serializers.CharField(required=False)
+    up_time = serializers.CharField(required=False)
+    up_days = serializers.ListField(child=serializers.CharField(), required=False)
 
     class Meta:
         model = User
         fields = [
-            'username',
             'first_name',
             'last_name',
             'phone_number',
@@ -174,18 +181,16 @@ class InstitutionEditProfileSerializer(serializers.ModelSerializer):
             'residence_back',
             'title',
             'location',
+            'up_time',
+            'up_days',
         ]
-
-    def validate_username(self, value):
-        user = self.instance
-        if value != user.username and User.objects.filter(username=value).exists():
-            raise serializers.ValidationError("This username is already taken.")
-        return value
 
     def update(self, instance, validated_data):
         inst = instance.institution
         inst.title = validated_data.pop('title', inst.title)
         inst.location = validated_data.pop('location', inst.location)
+        inst.up_time = validated_data.pop('up_time', inst.up_time)
+        inst.up_days = validated_data.pop('up_days', inst.up_days)
         inst.save()
 
         for key, val in validated_data.items():
@@ -314,6 +319,8 @@ class CourseSerializer(serializers.ModelSerializer):
 class InstitutionSelfProfileSerializer(serializers.ModelSerializer):
     title = serializers.CharField(source="institution.title")
     location = serializers.CharField(source="institution.location")
+    up_time = serializers.CharField(source="institution.up_time")
+    up_days = serializers.ListField(child=serializers.CharField(), source="institution.up_days")
 
     class Meta:
         model = User
@@ -335,11 +342,15 @@ class InstitutionSelfProfileSerializer(serializers.ModelSerializer):
 
             "title",
             "location",
+            "up_time",
+            "up_days",
         ]
 
 class InstitutionPublicProfileSerializer(serializers.ModelSerializer):
     title = serializers.CharField(source="institution.title")
     location = serializers.CharField(source="institution.location")
+    up_time = serializers.CharField(source="institution.up_time")
+    up_days = serializers.ListField(child=serializers.CharField(), source="institution.up_days")
 
     class Meta:
         model = User
@@ -353,6 +364,8 @@ class InstitutionPublicProfileSerializer(serializers.ModelSerializer):
             "title",
             "location",
             "is_verified",
+            "up_time",
+            "up_days",
         ]
 
 class InstitutionCourseListSerializer(serializers.ModelSerializer):
@@ -396,7 +409,6 @@ class LecturerSimpleSerializer(serializers.ModelSerializer):
 
     def get_profile_image(self, obj):
         return obj.user.profile_image.url if obj.user.profile_image else None
-
 
 class InstitutionViewStudentSerializer(serializers.ModelSerializer):
     studying_level = serializers.CharField(source="student.studying_level")
@@ -663,7 +675,6 @@ class LecturerEditProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "username",
             "first_name",
             "last_name",
             "city",
@@ -775,7 +786,6 @@ class StudentEditProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "username",
             "first_name",
             "last_name",
             "city",

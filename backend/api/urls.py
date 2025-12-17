@@ -9,7 +9,7 @@ urlpatterns = [
     path("course/<int:course_id>/progress/", CourseProgressView.as_view()),
     path("explore/", ExploreSearchView.as_view()),
     path("course/<int:course_id>/", CourseDetailView.as_view()),
-    path("course/<int:course_id>/students/<int:lecture_number>/", ExpectedStudentsView.as_view()),
+    path("course/<int:course_id>/students/", ExpectedStudentsView.as_view()),
 
     path('registration/signup/', SignupView.as_view()),
     path('registration/login/', LoginView.as_view()),
@@ -78,6 +78,7 @@ urlpatterns = [
     path("student/course/<int:course_id>/grades/", StudentViewGradesView.as_view()),
     path("student/schedule/", StudentWeeklyScheduleView.as_view()),
     path("student/is-student-free/<int:course_id>/", StudentScheduleCheckView.as_view()),
-    path("student/enroll/<int:course_id>/", StudentEnrollCourseView.as_view()),
+    path("student/enroll/<int:course_id>/", StudentEnrollCourseNoPaymentView.as_view()), # Payment or No Payment
+    path("student/is-enrolled/<int:course_id>/", StudentIsEnrolledToCourseView.as_view()),
     path("student/add-payment-method/", StudentSetupPaymentMethodView.as_view()),
 ]

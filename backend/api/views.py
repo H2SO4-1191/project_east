@@ -268,13 +268,21 @@ class InstitutionTotalLecturersView(APIView):
 
     def get(self, request):
         institution = Institution.objects.get(user=request.user)
-        total_lecturers = institution.lecturers.count()
+        today = timezone.now().date()
+
+        total_lecturers = Lecturer.objects.filter(
+            Q(courses__institution=institution,
+              courses__starting_date__lte=today,
+              courses__ending_date__gte=today)
+            |
+            Q(marked_by_institutions=institution)
+        ).distinct().count()
 
         return Response({
             "success": True,
             "total_lecturers": total_lecturers
         })
-    
+   
 class InstitutionTotalStaffView(APIView):
     permission_classes = [IsInstitution]
 
@@ -500,7 +508,7 @@ class InstitutionEditProfileView(APIView):
                         status=status.HTTP_400_BAD_REQUEST)
 
 class InstitiutionCreatePostView(APIView):
-    permission_classes = [IsInstitution, IsVerified, IsSubscribed]
+    permission_classes = [IsInstitution, IsVerified, ]
 
     def post(self, request):
         serializer = PostCreateSerializer(data=request.data)
@@ -519,7 +527,7 @@ class InstitiutionCreatePostView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 class InstitutionCreateCourseView(APIView):
-    permission_classes = [IsInstitution, IsVerified, CanReceive, IsSubscribed]
+    permission_classes = [IsInstitution, IsVerified,]
 
     def post(self, request):
         serializer = CourseSerializer(data=request.data, context={"request": request})
@@ -632,7 +640,7 @@ class InstitutionViewLecturerProfile(APIView):
         return Response({"success": True, "data": serializer.data})
 
 class InstitutionAddMarkerView(APIView):
-    permission_classes = [IsInstitution, IsVerified, IsSubscribed]
+    permission_classes = [IsInstitution, IsVerified, ]
 
     def post(self, request):
         institution = request.user.institution
@@ -746,7 +754,7 @@ class CourseDetailView(APIView):
         return Response({"success": True, "data": serializer.data})
 
 class InstitutionCreateJobView(APIView):
-    permission_classes = [IsInstitution, IsVerified, IsSubscribed]
+    permission_classes = [IsInstitution, IsVerified, ]
 
     def post(self, request):
         serializer = JobPostSerializer(data=request.data, context={"request": request})
@@ -859,7 +867,7 @@ class InstitutionCourseAttendanceSummaryView(APIView):
         })
 
 class StaffCreateView(APIView):
-    permission_classes = [IsInstitution, IsVerified, IsSubscribed]
+    permission_classes = [IsInstitution, IsVerified, ]
 
     def post(self, request):
         serializer = StaffCreateSerializer(
@@ -1108,17 +1116,14 @@ class LecturerMarkAttendanceView(APIView):
         records = serializer.validated_data["records"]
 
         if lecture_number < 1 or lecture_number > course.total_lectures:
-            return Response({
-                "success": False,
-                "message": "Invalid lecture number."
-            }, status=400)
+            return Response({"success": False, "message": "Invalid lecture number."}, status=400)
 
         for rec in records:
-            student_id = rec["student_id"]
+            username = rec["username"]
             status_val = rec["status"]
 
             try:
-                student = Student.objects.get(id=student_id, courses=course)
+                student = Student.objects.get(user__username=username, courses=course)
             except Student.DoesNotExist:
                 continue
 
@@ -1149,8 +1154,7 @@ class LecturerViewLectureAttendanceView(APIView):
 
         data = [
             {
-                "student_id": att.student.id,
-                "name": f"{att.student.user.first_name} {att.student.user.last_name}",
+                "username": att.student.user.username,
                 "status": att.status
             }
             for att in attendances
@@ -1341,6 +1345,9 @@ class StudentEnrollCourseView(APIView):
             course = Course.objects.select_related("institution").get(id=course_id)
         except Course.DoesNotExist:
             return Response({"success": False, "message": "Course not found."}, status=404)
+        
+        if course.students.filter(id=student.id).exists():
+            return Response({"success": False, "message": "You are already enrolled."}, status=400)
 
         # 2) Capacity check
         if course.capacity > 0 and course.students.count() >= course.capacity:
@@ -1400,6 +1407,52 @@ class StudentEnrollCourseView(APIView):
             "success": True,
             "checkout_url": session.url
         })
+
+class StudentEnrollCourseNoPaymentView(APIView):
+    permission_classes = [IsAuthenticated, IsStudent, IsVerified]
+
+    def post(self, request, course_id):
+        student = request.user.student
+
+        # 1) Fetch course
+        try:
+            course = Course.objects.select_related("institution").get(id=course_id)
+        except Course.DoesNotExist:
+            return Response({"success": False, "message": "Course not found."}, status=404)
+
+        # 2) Capacity check
+        if course.capacity > 0 and course.students.count() >= course.capacity:
+            return Response({"success": False, "message": "Course capacity is full."}, status=400)
+
+        # 3) Already enrolled check
+        if course.students.filter(id=student.id).exists():
+            return Response({"success": False, "message": "You are already enrolled."}, status=400)
+
+        # 4) Enroll
+        course.students.add(student)
+
+        return Response({
+            "success": True,
+            "message": f"You have been enrolled in '{course.title}'."
+        })
+
+class StudentIsEnrolledToCourseView(APIView):
+    permission_classes = [IsAuthenticated, IsStudent]
+    
+    def get(self, request, course_id):
+        student = request.user.student
+        try:
+            course = Course.objects.select_related("institution").get(id=course_id)
+        except Course.DoesNotExist:
+            return Response({"success": False, "message": "Course not found."}, status=404)
+        
+        is_enrolled = course.students.filter(id=student.id).exists()
+
+        return Response({
+            "success": True,
+            "is_enrolled": is_enrolled,
+        })
+
 class StudentViewAttendanceView(APIView):
     permission_classes = [IsStudent, IsVerified]
 
@@ -1866,7 +1919,7 @@ class LecturerScheduleCheckView(APIView):
 class ExpectedStudentsView(APIView):
     permission_classes = [IsAuthenticated, IsLecturer | IsInstitution]
 
-    def get(self, request, course_id, lecture_number):
+    def get(self, request, course_id):
         user = request.user
 
         # Fetch course safely
@@ -1884,12 +1937,6 @@ class ExpectedStudentsView(APIView):
             if course.institution != user.institution:
                 return Response({"success": False, "message": "Not allowed."}, status=403)
 
-        if user.user_type == "student":
-            return Response({"success": False, "message": "Students cannot access this."}, status=403)
-
-        # Validate lecture number
-        if lecture_number < 1 or lecture_number > course.total_lectures:
-            return Response({"success": False, "message": "Invalid lecture number."}, status=400)
 
         # Fetch enrolled students
         enrolled_students = course.students.select_related("user").all()
@@ -1908,7 +1955,6 @@ class ExpectedStudentsView(APIView):
         return Response({
             "success": True,
             "course": course.title,
-            "lecture_number": lecture_number,
             "students": students_list,
         })
 
