@@ -2,21 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/theme_provider.dart';
-import '../../widgets/language_switcher.dart';
-import 'overview_page.dart';
+import '../../widgets/profile_button.dart';
+import '../../widgets/dashboard_stat_card.dart';
+import '../../widgets/dashboard_page_card.dart';
+import '../../services/api_service.dart';
+import '../../utils/page_animations.dart';
+import 'package:animations/animations.dart';
 import 'students_page.dart';
 import 'lecturers_page.dart';
-import 'schedule_page.dart';
 import 'staff_page.dart';
+import 'schedule_page.dart';
 import 'settings_page.dart';
-import 'create_course_page.dart';
-import 'edit_courses_page.dart';
-import 'create_post_page.dart';
-import 'create_job_post_page.dart';
-import 'applications_page.dart';
-import '../feed_screen.dart';
-import '../../widgets/floating_action_menu.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -25,302 +21,298 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
-  String _activeSection = 'overview';
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAliveClientMixin {
+  bool _isLoading = true;
+  String? _error;
+  Map<String, dynamic> _stats = {};
 
-  final List<Map<String, dynamic>> _sections = [
-    {'id': 'overview', 'name': 'Overview', 'icon': Icons.dashboard},
-    {'id': 'feed', 'name': 'Feed', 'icon': Icons.article},
-    {'id': 'students', 'name': 'Students', 'icon': Icons.people},
-    {'id': 'lecturers', 'name': 'Lecturers', 'icon': Icons.school},
-    {'id': 'staff', 'name': 'Staff', 'icon': Icons.business_center},
-    {'id': 'schedule', 'name': 'Schedule', 'icon': Icons.calendar_today},
-    {'id': 'settings', 'name': 'Settings', 'icon': Icons.settings},
-  ];
+  @override
+  bool get wantKeepAlive => true;
 
-  void _handleLogout() {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    authProvider.logout();
-    Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
   }
 
-  void _handleFloatingMenuAction(String action) {
-    switch (action) {
-      case 'create_course':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const CreateCoursePage()),
-        );
-        break;
-      case 'edit_courses':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const EditCoursesPage()),
-        );
-        break;
-      case 'create_post':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const CreatePostPage()),
-        );
-        break;
-      case 'job_post':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const CreateJobPostPage()),
-        );
-        break;
-      case 'applications':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const ApplicationsPage()),
-        );
-        break;
-    }
-  }
-
-  void _showAnimatedDrawer() {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+  Future<void> _loadStats() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final instituteData = authProvider.instituteData;
-    final isAuthenticated = instituteData['isAuthenticated'] == true;
+    final accessToken = instituteData['accessToken'];
+    final refreshToken = instituteData['refreshToken'];
 
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-      barrierColor: Colors.black.withOpacity(0.5),
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return _AnimatedDrawerContent(
-          animation: animation,
-          isDark: isDark,
-          isAuthenticated: isAuthenticated,
-          instituteData: instituteData,
-          drawerContent: _buildDrawerContent(isDark, isAuthenticated, instituteData),
-        );
-      },
-    );
-  }
+    if (accessToken == null) {
+      setState(() {
+        _isLoading = false;
+        _error = 'Not authenticated';
+      });
+      return;
+    }
 
-  Widget _buildDrawerContent(bool isDark, bool isAuthenticated, Map<String, dynamic> instituteData) {
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        DrawerHeader(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppTheme.primary600, AppTheme.teal500],
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              const Text(
-                'Project East',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              if (isAuthenticated)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    instituteData['username'] ?? instituteData['name'] ?? 'User',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        // Navigation sections
-        ..._sections.map((section) {
-          final isSelected = _activeSection == section['id'];
-          return ListTile(
-            leading: Icon(
-              section['icon'] as IconData,
-              color: isSelected ? AppTheme.primary600 : null,
-          ),
-            title: Text(
-              section['name'] as String,
-              style: TextStyle(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? AppTheme.primary600 : null,
-              ),
-            ),
-            selected: isSelected,
-            onTap: () {
-              Navigator.pop(context);
-              setState(() {
-                _activeSection = section['id'] as String;
-              });
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      // Fetch verification status
+      if (instituteData['email'] != null && instituteData['userType'] == 'institution') {
+        try {
+          final verificationStatus = await ApiService.checkVerificationStatus(
+            instituteData['email'],
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            onTokenRefreshed: (tokens) {
+              authProvider.onTokenRefreshed(tokens);
+            },
+            onSessionExpired: () {
+              authProvider.onSessionExpired();
             },
           );
-        }),
-        const Divider(),
-        Consumer<ThemeProvider>(
-          builder: (context, themeProvider, child) {
-            return ListTile(
-              leading: Icon(themeProvider.isDark 
-                  ? Icons.wb_sunny 
-                  : Icons.nightlight_round),
-              title: Text(themeProvider.isDark 
-                  ? 'Light Mode' 
-                  : 'Dark Mode'),
-              onTap: () {
-                themeProvider.toggleTheme();
-            },
-            );
-          },
-        ),
-        const Divider(),
-        const LanguageSwitcher(isInDrawer: true),
-        const Divider(),
-        ListTile(
-          leading: const Icon(Icons.logout, color: Colors.red),
-          title: const Text('Logout', style: TextStyle(color: Colors.red)),
-          onTap: () {
-            Navigator.pop(context);
-            _handleLogout();
-          },
-          ),
-        ],
+          if (verificationStatus['is_verified'] != instituteData['isVerified']) {
+            authProvider.updateInstituteData({
+              'isVerified': verificationStatus['is_verified'] ?? false,
+            });
+          }
+        } catch (e) {
+          // Verification check failed, continue
+        }
+      }
+
+      // Fetch dashboard stats
+      final stats = await ApiService.getDashboardStats(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        onTokenRefreshed: (tokens) {
+          authProvider.onTokenRefreshed(tokens);
+        },
+        onSessionExpired: () {
+          authProvider.onSessionExpired();
+        },
+      );
+
+      setState(() {
+        _stats = stats;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _navigateToPage(DashboardPageType pageType) {
+    Widget page;
+    switch (pageType) {
+      case DashboardPageType.students:
+        page = const StudentsPage();
+        break;
+      case DashboardPageType.lecturers:
+        page = const LecturersPage();
+        break;
+      case DashboardPageType.staff:
+        page = const StaffPage();
+        break;
+      case DashboardPageType.schedule:
+        page = const SchedulePage();
+        break;
+      case DashboardPageType.settings:
+        page = const SettingsPage();
+        break;
+    }
+
+    Navigator.push(
+      context,
+      PageAnimations.sharedAxis(page, SharedAxisTransitionType.horizontal),
     );
   }
 
-  Widget _buildCurrentPage() {
-    switch (_activeSection) {
-      case 'overview':
-        return const OverviewPage();
-      case 'feed':
-        return const FeedScreen();
-      case 'students':
-        return const StudentsPage();
-      case 'lecturers':
-        return const LecturersPage();
-      case 'staff':
-        return const StaffPage();
-      case 'schedule':
-        return const SchedulePage();
-      case 'settings':
-        return const SettingsPage();
-      default:
-        return const OverviewPage();
+  int _safeNumber(dynamic value, int fallback) {
+    if (value is num && value.isFinite) {
+      return value.toInt();
     }
+    return fallback;
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final authProvider = Provider.of<AuthProvider>(context);
+    final instituteData = authProvider.instituteData;
+    final displayName = instituteData['title'] ?? 
+                       instituteData['name'] ?? 
+                       instituteData['username'] ?? 
+                       'Institution';
 
     return Scaffold(
-      key: _scaffoldKey,
+      backgroundColor: isDark ? AppTheme.navy900 : const Color(0xFFF9FAFB),
       appBar: AppBar(
-        title: Text(
-          _sections.firstWhere((s) => s['id'] == _activeSection)['name'] as String,
-                ),
+        leading: const Padding(
+          padding: EdgeInsets.only(left: 8.0),
+          child: ProfileButton(),
+        ),
+        title: const Text('Dashboard'),
         elevation: 0,
         backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
         foregroundColor: isDark ? Colors.white : Colors.black,
       ),
       body: Stack(
         children: [
-          _buildCurrentPage(),
-          // Floating Action Menu - positioned in bottom right
-          Positioned(
-            bottom: 16,
-            right: 16,
-            child: FloatingActionMenu(
-              onActionSelected: _handleFloatingMenuAction,
-              onDrawerButtonPressed: _showAnimatedDrawer,
-            ),
+          RefreshIndicator(
+            onRefresh: _loadStats,
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
+                            const SizedBox(height: 16),
+                            Text(_error!),
+                            const SizedBox(height: 24),
+                            ElevatedButton(
+                              onPressed: _loadStats,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Welcome Header
+                            Text(
+                              'Welcome back, $displayName',
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+
+                            // Statistics Section
+                            Text(
+                              'Statistics',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Statistics Cards Grid
+                            GridView.count(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 1.1,
+                              children: [
+                                DashboardStatCard(
+                                  title: 'Total Students',
+                                  value: _safeNumber(_stats['totalStudents']?['total_students'], 0),
+                                  icon: Icons.people,
+                                  color: Colors.blue,
+                                  index: 0,
+                                ),
+                                DashboardStatCard(
+                                  title: 'Active Students',
+                                  value: _safeNumber(_stats['activeStudents']?['active_students'], 0),
+                                  icon: Icons.people_outline,
+                                  color: Colors.indigo,
+                                  index: 1,
+                                ),
+                                DashboardStatCard(
+                                  title: 'Total Lecturers',
+                                  value: _safeNumber(_stats['totalLecturers']?['total_lecturers'], 0),
+                                  icon: Icons.school,
+                                  color: Colors.teal,
+                                  index: 2,
+                                ),
+                                DashboardStatCard(
+                                  title: 'Active Lecturers',
+                                  value: _safeNumber(_stats['activeLecturers']?['active_lecturers'], 0),
+                                  icon: Icons.school_outlined,
+                                  color: Colors.green,
+                                  index: 3,
+                                ),
+                                DashboardStatCard(
+                                  title: 'Total Staff',
+                                  value: _safeNumber(_stats['totalStaff']?['total_staff'], 0),
+                                  icon: Icons.business_center,
+                                  color: Colors.purple,
+                                  index: 4,
+                                ),
+                                DashboardStatCard(
+                                  title: 'Active Staff',
+                                  value: _safeNumber(_stats['activeStaff']?['active_staff'], 0),
+                                  icon: Icons.business_center_outlined,
+                                  color: Colors.pink,
+                                  index: 5,
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 32),
+
+                            // Page Navigation Section
+                            Text(
+                              'Pages',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Page Navigation Cards Grid
+                            GridView.count(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 1.3,
+                              children: [
+                                DashboardPageCard(
+                                  pageType: DashboardPageType.students,
+                                  index: 0,
+                                  onTap: () => _navigateToPage(DashboardPageType.students),
+                                ),
+                                DashboardPageCard(
+                                  pageType: DashboardPageType.lecturers,
+                                  index: 1,
+                                  onTap: () => _navigateToPage(DashboardPageType.lecturers),
+                                ),
+                                DashboardPageCard(
+                                  pageType: DashboardPageType.staff,
+                                  index: 2,
+                                  onTap: () => _navigateToPage(DashboardPageType.staff),
+                                ),
+                                DashboardPageCard(
+                                  pageType: DashboardPageType.schedule,
+                                  index: 3,
+                                  onTap: () => _navigateToPage(DashboardPageType.schedule),
+                                ),
+                                DashboardPageCard(
+                                  pageType: DashboardPageType.settings,
+                                  index: 4,
+                                  onTap: () => _navigateToPage(DashboardPageType.settings),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _AnimatedDrawerContent extends StatelessWidget {
-  final Animation<double> animation;
-  final bool isDark;
-  final bool isAuthenticated;
-  final Map<String, dynamic> instituteData;
-  final Widget drawerContent;
-
-  const _AnimatedDrawerContent({
-    required this.animation,
-    required this.isDark,
-    required this.isAuthenticated,
-    required this.instituteData,
-    required this.drawerContent,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: animation,
-        curve: Curves.easeInOut,
-      ),
-    );
-
-    final slideAnimation = Tween<Offset>(
-      begin: const Offset(-1.0, 0.0),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: animation,
-        curve: Curves.easeOutCubic,
-      ),
-    );
-
-    return GestureDetector(
-      onTap: () => Navigator.of(context).pop(),
-      child: Container(
-        color: Colors.transparent,
-        child: Stack(
-                    children: [
-            // Backdrop
-            FadeTransition(
-              opacity: fadeAnimation,
-              child: Container(
-                color: Colors.black.withOpacity(0.5),
-              ),
-            ),
-            // Drawer
-            SlideTransition(
-              position: slideAnimation,
-              child: FadeTransition(
-                opacity: fadeAnimation,
-                child: GestureDetector(
-                  onTap: () {}, // Prevent closing when tapping inside drawer
-                  child: Material(
-                    color: isDark ? AppTheme.navy800 : Colors.white,
-                    child: Container(
-                      width: MediaQuery.of(context).size.width * 0.75,
-                      child: SafeArea(
-                        child: drawerContent,
-                            ),
-                          ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
       ),
     );
   }

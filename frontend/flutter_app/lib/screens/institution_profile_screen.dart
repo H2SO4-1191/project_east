@@ -41,13 +41,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
   Map<int, bool> _expandedJobs = {};
   
   // Course modal state
-  Map<String, dynamic>? _selectedCourse;
-  Map<String, dynamic>? _courseProgress;
   bool _isLoadingCourseProgress = false;
-  
-  // Job modal state
-  Map<String, dynamic>? _selectedJob;
-  bool _isLoadingJobDetails = false;
 
   @override
   void initState() {
@@ -180,8 +174,42 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
       return path;
     }
     final baseUrl = ApiService.baseUrl;
-    final cleanPath = path.startsWith('/') ? path : '/$path';
+    String cleanPath = path.startsWith('/') ? path : '/$path';
+    // Fix double /media/media/ issue
+    cleanPath = cleanPath.replaceAll(RegExp(r'/media/media+'), '/media/');
+    if (cleanPath.startsWith('/media/media/')) {
+      cleanPath = cleanPath.replaceFirst('/media/media/', '/media/');
+    }
     return '$baseUrl$cleanPath';
+  }
+  
+  List<String> _getPostImages(dynamic post) {
+    final List<String> images = [];
+    
+    // Check for images array
+    if (post['images'] != null) {
+      if (post['images'] is List) {
+        for (var img in post['images']) {
+          if (img is Map && img['image'] != null) {
+            final url = _getImageUrl(img['image']);
+            if (url != null) images.add(url);
+          } else if (img is String) {
+            final url = _getImageUrl(img);
+            if (url != null) images.add(url);
+          }
+        }
+      }
+    }
+    
+    // Check for single image field
+    if (post['image'] != null) {
+      final url = _getImageUrl(post['image']);
+      if (url != null && !images.contains(url)) {
+        images.add(url);
+      }
+    }
+    
+    return images;
   }
 
   @override
@@ -241,8 +269,10 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
   Widget _buildProfileContent(BuildContext context, bool isDark) {
     final profileImageUrl = _getImageUrl(_profile!['profile_image']);
     final name = _profile!['title'] ?? _profile!['username'] ?? 'Institution';
-    final city = _profile!['city'] ?? '';
+    final city = _profile!['city'] ?? _profile!['location'] ?? '';
     final about = _profile!['about'] ?? '';
+    final upTime = _profile!['up_time'];
+    final upDays = _profile!['up_days'];
 
     return NestedScrollView(
       headerSliverBuilder: (context, innerBoxIsScrolled) {
@@ -354,6 +384,42 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                             style: const TextStyle(fontSize: 14),
                           ),
                         ],
+                        // Up Time and Up Days
+                        if (upTime != null || upDays != null) ...[
+                          const SizedBox(height: 12),
+                          if (upTime != null)
+                            Row(
+                              children: [
+                                Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Up Time: $upTime',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          if (upDays != null && upDays.toString().isNotEmpty) ...[
+                            if (upTime != null) const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    'Up Days: ${upDays.toString()}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
                       ],
                     ),
                   ),
@@ -452,18 +518,12 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
       itemCount: _posts.length,
       itemBuilder: (context, index) {
         final post = _posts[index];
-        dynamic imageData = post['image'] ?? post['images'];
-        String? imageUrl;
+        final postImages = _getPostImages(post);
+        final imageUrl = postImages.isNotEmpty ? postImages[0] : null;
         
-        if (imageData is List && imageData.isNotEmpty) {
-          imageUrl = _getImageUrl(imageData[0]);
-        } else if (imageData is String) {
-          imageUrl = _getImageUrl(imageData);
-        } else if (imageData is Map) {
-          imageUrl = _getImageUrl(imageData['image'] ?? imageData['url']);
-        }
-        
-        return Container(
+        return GestureDetector(
+          onTap: () => _showPostModal(post),
+          child: Container(
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
             color: isDark ? AppTheme.navy800 : Colors.white,
@@ -554,6 +614,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
               ),
             ],
           ),
+        ),
         );
       },
     );
@@ -812,9 +873,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
 
   Future<void> _showCourseModal(Map<String, dynamic> course) async {
     setState(() {
-      _selectedCourse = course;
       _isLoadingCourseProgress = true;
-      _courseProgress = null;
     });
 
     // Fetch course progress
@@ -847,8 +906,6 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
       builder: (context) => _buildCourseModal(context, course, progress),
     ).then((_) {
       setState(() {
-        _selectedCourse = null;
-        _courseProgress = null;
         _isLoadingCourseProgress = false;
       });
     });
@@ -1231,10 +1288,6 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
   }
 
   Future<void> _showJobModal(Map<String, dynamic> job) async {
-    setState(() {
-      _selectedJob = job;
-      _isLoadingJobDetails = true;
-    });
 
     // Fetch job details
     Map<String, dynamic>? jobDetails;
@@ -1254,12 +1307,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
       context: context,
       barrierDismissible: true,
       builder: (context) => _buildJobModal(context, jobDetails ?? job),
-    ).then((_) {
-      setState(() {
-        _selectedJob = null;
-        _isLoadingJobDetails = false;
-      });
-    });
+    );
   }
 
   Widget _buildJobModal(BuildContext context, Map<String, dynamic> job) {
@@ -1495,6 +1543,236 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showPostModal(Map<String, dynamic> post) async {
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => _buildPostModal(context, post),
+    );
+  }
+
+  Widget _buildPostModal(BuildContext context, Map<String, dynamic> post) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final postImages = _getPostImages(post);
+    final title = post['title'] ?? 'Post';
+    final description = post['description'] ?? '';
+    final createdAt = post['created_at'];
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(16),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.navy800 : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header with image(s)
+            Stack(
+              children: [
+                if (postImages.isNotEmpty)
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    child: Image.network(
+                      postImages[0],
+                      height: 300,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          height: 300,
+                          color: AppTheme.primary600,
+                          child: Center(
+                            child: Text(
+                              title[0].toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 64,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                else
+                  Container(
+                    height: 200,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary600,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    child: Center(
+                      child: Text(
+                        title[0].toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 64,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                // Image indicator if multiple images
+                if (postImages.length > 1)
+                  Positioned(
+                    bottom: 8,
+                    left: 0,
+                    right: 0,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        postImages.length,
+                        (index) => Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: index == 0
+                                ? Colors.white
+                                : Colors.white.withOpacity(0.5),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                // Close button
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, color: Colors.white, size: 20),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            // Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Description
+                    if (description.isNotEmpty) ...[
+                      const Text(
+                        'Description',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                    // Additional images if any
+                    if (postImages.length > 1) ...[
+                      const Divider(),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'More Images',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 100,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: postImages.length - 1,
+                          itemBuilder: (context, index) {
+                            final imgIndex = index + 1;
+                            return Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              width: 100,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  postImages[imgIndex],
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      color: Colors.grey.shade200,
+                                      child: const Icon(Icons.broken_image),
+                                    );
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                    // Posted Date
+                    if (createdAt != null) ...[
+                      const Divider(),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Posted: ${_formatPostDate(createdAt.toString())}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

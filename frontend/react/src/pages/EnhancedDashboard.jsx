@@ -44,6 +44,8 @@ const EnhancedDashboard = () => {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [showNewPostModal, setShowNewPostModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileModalUsername, setProfileModalUsername] = useState(null);
+  const [profileModalUserType, setProfileModalUserType] = useState(null);
   const [showJobPostModal, setShowJobPostModal] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
@@ -72,6 +74,8 @@ const EnhancedDashboard = () => {
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   const menuTimeoutRef = useRef(null);
+  const [markedLecturersSet, setMarkedLecturersSet] = useState(new Set());
+  const [markingApplicationLecturerId, setMarkingApplicationLecturerId] = useState(null);
   
   // Helper function to convert relative image URLs to full URLs
   const getImageUrl = (imagePath) => {
@@ -79,7 +83,7 @@ const EnhancedDashboard = () => {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'https://projecteastapi.ddns.net';
     // Ensure imagePath starts with / and doesn't have duplicate /media/
     let cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
     // Remove duplicate /media/ if present
@@ -151,8 +155,7 @@ const EnhancedDashboard = () => {
     days: [],
     start_time: '', // Will store 12-hour format for display
     end_time: '', // Will store 12-hour format for display
-    lecturers: [], // Array of lecturer objects: { id, username, full_name, available, checking, message }
-    lecturer_username: '', // Current input for searching lecturer by username
+    lecturers: [], // Array of lecturer objects: { id, username, full_name, available, checking, message, conflicts }
     capacity: '', // New field for course capacity
     course_image: null,
   });
@@ -160,10 +163,6 @@ const EnhancedDashboard = () => {
   // Course image preview states
   const [createCourseImagePreview, setCreateCourseImagePreview] = useState(null);
   const [editCourseImagePreview, setEditCourseImagePreview] = useState(null);
-  
-  // Lecturer search state
-  const [isSearchingLecturer, setIsSearchingLecturer] = useState(false);
-  const [searchTimeout, setSearchTimeout] = useState(null);
   
   // Lecturers list for dropdown
   const [lecturers, setLecturers] = useState([]);
@@ -385,12 +384,131 @@ const EnhancedDashboard = () => {
       } else {
         setApplications([]);
       }
+      // Refresh marked lecturers when fetching applications
+      await fetchMarkedLecturers();
     } catch (error) {
       console.error('Error fetching applications:', error);
       toast.error(error?.message || t('dashboard.failedToLoadApplications') || 'Failed to load applications');
       setApplications([]);
     } finally {
       setIsLoadingApplications(false);
+    }
+  };
+
+  // Fetch marked lecturers
+  const fetchMarkedLecturers = async () => {
+    if (!instituteData.isAuthenticated || !instituteData.accessToken) {
+      return;
+    }
+
+    try {
+      const options = {
+        refreshToken: instituteData.refreshToken,
+        onTokenRefreshed: (tokens) => {
+          updateInstituteData({
+            accessToken: tokens.access,
+            refreshToken: tokens.refresh || instituteData.refreshToken,
+          });
+        },
+        onSessionExpired: () => {
+          toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+        },
+      };
+
+      const response = await authService.getMarkedLecturers(instituteData.accessToken, options);
+      if (response?.success && Array.isArray(response.lecturers)) {
+        const lecturerIds = new Set(response.lecturers.map(l => l.id || l.lecturer_id));
+        setMarkedLecturersSet(lecturerIds);
+      } else if (Array.isArray(response)) {
+        const lecturerIds = new Set(response.map(l => l.id || l.lecturer_id));
+        setMarkedLecturersSet(lecturerIds);
+      }
+    } catch (error) {
+      console.error('Error fetching marked lecturers:', error);
+    }
+  };
+
+  // Handle marking/unmarking a lecturer from application
+  const handleMarkApplicationLecturer = async (application, e) => {
+    e.stopPropagation();
+    
+    if (!application.lecturer_id && !application.id) {
+      toast.error(t('dashboard.lecturerIdRequired') || 'Lecturer ID is required');
+      return;
+    }
+
+    const lecturerId = application.lecturer_id || application.id;
+    
+    if (!instituteData.accessToken) {
+      toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+      return;
+    }
+    
+    setMarkingApplicationLecturerId(lecturerId);
+    const isMarked = markedLecturersSet.has(lecturerId);
+    
+    try {
+      let response;
+      if (isMarked) {
+        // Unmark lecturer
+        response = await authService.removeMarkedLecturer(
+          instituteData.accessToken,
+          lecturerId,
+          {
+            refreshToken: instituteData.refreshToken,
+            onTokenRefreshed: (tokens) => {
+              updateInstituteData({
+                accessToken: tokens.access,
+                refreshToken: tokens.refresh || instituteData.refreshToken,
+              });
+            },
+            onSessionExpired: () => {
+              toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+            },
+          }
+        );
+        
+        if (response?.success) {
+          toast.success(response.message || t('dashboard.lecturerUnmarked') || 'Lecturer removed from marked list');
+          setMarkedLecturersSet(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(lecturerId);
+            return newSet;
+          });
+        } else {
+          toast.error(response?.message || t('dashboard.failedToUnmarkLecturer') || 'Failed to unmark lecturer');
+        }
+      } else {
+        // Mark lecturer
+        response = await authService.markLecturer(
+          instituteData.accessToken,
+          lecturerId,
+          {
+            refreshToken: instituteData.refreshToken,
+            onTokenRefreshed: (tokens) => {
+              updateInstituteData({
+                accessToken: tokens.access,
+                refreshToken: tokens.refresh || instituteData.refreshToken,
+              });
+            },
+            onSessionExpired: () => {
+              toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+            },
+          }
+        );
+        
+        if (response?.success) {
+          toast.success(response.message || t('dashboard.lecturerMarked') || 'Lecturer marked successfully!');
+          setMarkedLecturersSet(prev => new Set([...prev, lecturerId]));
+        } else {
+          toast.error(response?.message || t('dashboard.failedToMarkLecturer') || 'Failed to mark lecturer');
+        }
+      }
+    } catch (error) {
+      console.error('Error marking/unmarking lecturer:', error);
+      toast.error(error?.message || t('dashboard.failedToMarkLecturer') || 'Failed to mark lecturer');
+    } finally {
+      setMarkingLecturerId(null);
     }
   };
 
@@ -402,7 +520,21 @@ const EnhancedDashboard = () => {
     }
 
     await fetchJobPosts();
+    await fetchMarkedLecturers();
     setShowApplicationsModal(true);
+  };
+
+  // Handle viewing lecturer profile from application
+  const handleViewApplicationProfile = async (application) => {
+    if (!application.username) {
+      toast.error(t('dashboard.usernameNotAvailable') || 'Username not available for this application');
+      return;
+    }
+
+    // Set the username and user type for the profile modal
+    setProfileModalUsername(application.username);
+    setProfileModalUserType('lecturer'); // Applications are from lecturers
+    setShowProfileModal(true);
   };
 
   // Post form handlers
@@ -571,91 +703,9 @@ const EnhancedDashboard = () => {
       }
     } else {
       setCreateForm(prev => ({ ...prev, [name]: value }));
-      
-      // Auto-search lecturer when username changes (with debouncing)
-      if (name === 'lecturer_username') {
-        // Clear previous timeout
-        if (searchTimeout) {
-          clearTimeout(searchTimeout);
-        }
-        
-        // Set new timeout for auto-search
-        if (value && value.trim()) {
-          const timeout = setTimeout(() => {
-            handleAutoSearchLecturer(value.trim());
-          }, 800); // Wait 800ms after user stops typing
-          setSearchTimeout(timeout);
-        }
-      }
     }
   };
 
-  // Auto-search lecturer by username and check availability
-  const handleAutoSearchLecturer = async (username) => {
-    if (!username) return;
-
-    // Check if lecturer already added
-    const alreadyAdded = createForm.lecturers.find(l => l.username === username);
-    if (alreadyAdded) {
-      toast.info(t('dashboard.lecturerAlreadyAdded') || 'This lecturer is already added');
-      return;
-    }
-
-    setIsSearchingLecturer(true);
-
-    try {
-      // Step 1: Search for lecturer
-      const data = await authService.getLecturerPublicProfile(username);
-      
-      if (data?.success && data?.data) {
-        const lecturerData = data.data;
-        
-        // Add lecturer to the list with "checking" status
-        const newLecturer = {
-          id: lecturerData.id,
-          username: lecturerData.username,
-          full_name: `${lecturerData.first_name || ''} ${lecturerData.last_name || ''}`.trim(),
-          first_name: lecturerData.first_name,
-          last_name: lecturerData.last_name,
-          specialty: lecturerData.specialty,
-          profile_image: lecturerData.profile_image,
-          available: null,
-          checking: true,
-          message: t('dashboard.checkingAvailability') || 'Checking availability...',
-        };
-
-        setCreateForm(prev => ({
-          ...prev,
-          lecturers: [...prev.lecturers, newLecturer],
-          lecturer_username: '', // Clear input
-        }));
-
-        toast.success(t('dashboard.lecturerFound') || `Lecturer found: ${newLecturer.full_name}`);
-
-        // Step 2: Auto-check availability if days and times are set
-        if (createForm.days.length > 0 && createForm.start_time && createForm.end_time) {
-          await checkLecturerAvailability(lecturerData.id);
-        } else {
-          // Update lecturer status to indicate missing info
-          setCreateForm(prev => ({
-            ...prev,
-            lecturers: prev.lecturers.map(l => 
-              l.id === lecturerData.id 
-                ? { ...l, checking: false, available: null, message: t('dashboard.selectDaysAndTimes') || 'Select days and times to check availability' }
-                : l
-            )
-          }));
-        }
-      } else {
-        toast.error(t('dashboard.lecturerNotFound') || 'Lecturer not found');
-      }
-    } catch (error) {
-      console.error('Error searching lecturer:', error);
-      toast.error(error?.message || t('dashboard.lecturerSearchFailed') || 'Failed to search lecturer');
-    } finally {
-      setIsSearchingLecturer(false);
-    }
-  };
 
   // Check lecturer availability
   const checkLecturerAvailability = async (lecturerId) => {
@@ -712,31 +762,48 @@ const EnhancedDashboard = () => {
       // Debug logging to see the actual response
       console.log('Lecturer availability response:', data);
 
-      // Handle response - backend may return different structures
-      if (data && (data.success === true || data.is_free !== undefined)) {
-        const available = data.is_free;
-        const message = data.message || (available ? t('dashboard.lecturerAvailable') || 'Available!' : t('dashboard.lecturerNotAvailable') || 'Not available');
+      // Handle response according to new logic:
+      // - If response is null/undefined → lecturer is available
+      // - If response is a list/array → lecturer has conflicts (not available)
+      let available = true;
+      let message = t('dashboard.lecturerAvailable') || 'Available!';
+      let conflicts = null;
+
+      if (data === null || data === undefined) {
+        // Null means lecturer is available
+        available = true;
+        message = t('dashboard.lecturerAvailable') || 'Available!';
+      } else if (Array.isArray(data)) {
+        // Array means lecturer has conflicts
+        available = false;
+        conflicts = data;
+        const conflictCount = data.length;
+        message = t('dashboard.lecturerHasConflicts') || `Not available - ${conflictCount} conflict(s) found`;
+      } else if (data && typeof data === 'object') {
+        // Handle object response (backward compatibility)
+        if (data.conflicts && Array.isArray(data.conflicts)) {
+          available = false;
+          conflicts = data.conflicts;
+          const conflictCount = data.conflicts.length;
+          message = data.message || t('dashboard.lecturerHasConflicts') || `Not available - ${conflictCount} conflict(s) found`;
+        } else if (data.is_free !== undefined) {
+          available = data.is_free;
+          message = data.message || (available ? t('dashboard.lecturerAvailable') || 'Available!' : t('dashboard.lecturerNotAvailable') || 'Not available');
+        } else if (data.success === false) {
+          available = false;
+          message = data.message || t('dashboard.lecturerNotAvailable') || 'Not available';
+        }
+      }
         
         // Update lecturer in the list
         setCreateForm(prev => ({
           ...prev,
           lecturers: prev.lecturers.map(l => 
             l.id === lecturerId 
-              ? { ...l, checking: false, available, message }
+            ? { ...l, checking: false, available, message, conflicts }
               : l
           )
         }));
-      } else {
-        console.error('Unexpected response structure:', data);
-        setCreateForm(prev => ({
-          ...prev,
-          lecturers: prev.lecturers.map(l => 
-            l.id === lecturerId 
-              ? { ...l, checking: false, available: null, message: 'Failed to check' }
-              : l
-          )
-        }));
-      }
     } catch (error) {
       console.error('Error checking availability:', error);
       
@@ -788,9 +855,50 @@ const EnhancedDashboard = () => {
   // Handle marked lecturer selection
   const handleMarkedLecturerSelect = (lecturerId) => {
     const selected = markedLecturers.find(l => l.id === parseInt(lecturerId));
-    if (selected && selected.username) {
-      setCreateForm(prev => ({ ...prev, lecturer_username: selected.username }));
-      handleAutoSearchLecturer(selected.username);
+    if (selected) {
+      // Check if lecturer already added
+      const alreadyAdded = createForm.lecturers.find(l => l.id === selected.id);
+      if (alreadyAdded) {
+        toast.info(t('dashboard.lecturerAlreadyAdded') || 'This lecturer is already added');
+        return;
+      }
+
+      // Add lecturer directly from marked lecturers list
+      const newLecturer = {
+        id: selected.id,
+        username: selected.username,
+        full_name: selected.full_name || `${selected.first_name || ''} ${selected.last_name || ''}`.trim(),
+        first_name: selected.first_name,
+        last_name: selected.last_name,
+        specialty: selected.specialty,
+        profile_image: selected.profile_image,
+        available: null,
+        checking: true,
+        message: t('dashboard.checkingAvailability') || 'Checking availability...',
+        conflicts: null,
+      };
+
+      setCreateForm(prev => ({
+        ...prev,
+        lecturers: [...prev.lecturers, newLecturer],
+      }));
+
+      toast.success(t('dashboard.lecturerAdded') || `Lecturer added: ${newLecturer.full_name}`);
+
+      // Auto-check availability if days and times are set
+      if (createForm.days.length > 0 && createForm.start_time && createForm.end_time) {
+        checkLecturerAvailability(selected.id);
+      } else {
+        // Update lecturer status to indicate missing info
+        setCreateForm(prev => ({
+          ...prev,
+          lecturers: prev.lecturers.map(l => 
+            l.id === selected.id 
+              ? { ...l, checking: false, available: null, message: t('dashboard.selectDaysAndTimes') || 'Select days and times to check availability' }
+              : l
+          )
+        }));
+      }
     }
   };
 
@@ -1188,7 +1296,6 @@ const EnhancedDashboard = () => {
           start_time: '',
           end_time: '',
           lecturers: [],
-          lecturer_username: '',
           capacity: '',
           course_image: null,
         });
@@ -1310,7 +1417,7 @@ const EnhancedDashboard = () => {
   const displayName = username || instituteData.username || instituteData.name || institutionTitle || 'Institution';
   const displayUsername = username || instituteData.username || instituteData.name || 'User';
   const avatarLetter = displayName.charAt(0)?.toUpperCase() || 'I';
-  const greetingName = instituteData.firstName || username || instituteData.username || instituteData.name || 'there';
+  const greetingName = username || instituteData.username || instituteData.firstName || instituteData.name || 'there';
   const subscriptionLabel = instituteData.subscriptionLabel || instituteData.subscription || 'Active Plan';
 
   return (
@@ -1384,7 +1491,11 @@ const EnhancedDashboard = () => {
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => setShowProfileModal(true)}
+            onClick={() => {
+              setProfileModalUsername(null);
+              setProfileModalUserType(null);
+              setShowProfileModal(true);
+            }}
             className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 transition-all duration-300 ease-in-out`}
             title={t('profile.myProfile') || 'My Profile'}
           >
@@ -1553,7 +1664,7 @@ const EnhancedDashboard = () => {
                 >
                   <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-teal-500 rounded-lg flex items-center justify-center shadow-lg">
                     <span className="text-white text-lg font-bold">PE</span>
-                </div>
+                  </div>
                 </motion.div>
               </div>
 
@@ -1566,7 +1677,7 @@ const EnhancedDashboard = () => {
                     <p className="text-xs text-gray-500 dark:text-gray-500">{instituteData.email}</p>
                   )}
                   <div className="flex items-center gap-2 justify-end mt-1" style={{ direction: 'ltr' }}>
-                  <p className="text-xs text-gray-500 dark:text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-500">
                       {subscriptionLabel}
                     </p>
                     {instituteData.isVerified !== undefined && (
@@ -1580,13 +1691,17 @@ const EnhancedDashboard = () => {
                         {instituteData.isVerified ? t('dashboard.verified') : t('dashboard.unverified')}
                       </span>
                     )}
-                </div>
+                  </div>
                 </div>
 
                 <motion.button
                   whileHover={{ scale: 1.1, rotate: 5 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowProfileModal(true)}
+                  onClick={() => {
+              setProfileModalUsername(null);
+              setProfileModalUserType(null);
+              setShowProfileModal(true);
+            }}
                   className="w-12 h-12 bg-gradient-to-br from-primary-600 to-teal-500 rounded-full flex items-center justify-center shadow-lg cursor-pointer overflow-hidden"
                   title={t('profile.myProfile') || 'My Profile'}
                 >
@@ -1601,9 +1716,9 @@ const EnhancedDashboard = () => {
                       }}
                     />
                   ) : (
-                  <span className="text-white font-bold text-lg">
+                    <span className="text-white font-bold text-lg">
                       {avatarLetter}
-                  </span>
+                    </span>
                   )}
                 </motion.button>
               </div>
@@ -1826,7 +1941,7 @@ const EnhancedDashboard = () => {
                 <FaBars className="w-7 h-7" />
               </motion.button>
             </motion.div>
-      </div>
+          </div>
         </div>
       </div>
 
@@ -1973,25 +2088,11 @@ const EnhancedDashboard = () => {
               </select>
             </div>
 
-            {/* Lecturer Username Search - Required */}
+            {/* Lecturer Selection - Required (Only from Marked Lecturers) */}
             <div className="md:col-span-2">
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                {t('dashboard.lecturerUsername') || 'Lecturer Username'} *
+                {t('dashboard.selectLecturer') || 'Select Lecturer'} * ({t('dashboard.fromMarkedLecturers') || 'From Marked Lecturers'})
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  name="lecturer_username"
-                  value={createForm.lecturer_username}
-                  onChange={handleCreateChange}
-                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                  placeholder={t('dashboard.enterLecturerUsername') || 'Type username to search automatically...'}
-                />
-                {isSearchingLecturer && (
-                  <div className="px-4 py-3 flex items-center">
-                    <div className="w-5 h-5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                )}
                 <select
                   onChange={(e) => {
                     if (e.target.value) {
@@ -2001,16 +2102,20 @@ const EnhancedDashboard = () => {
                   }}
                   value=""
                   disabled={isLoadingMarkedLecturers}
-                  className="px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed min-w-[200px]"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <option value="">{isLoadingMarkedLecturers ? t('common.loading') : t('dashboard.markedLecturers') || 'Marked Lecturers'}</option>
+                <option value="">{isLoadingMarkedLecturers ? t('common.loading') : t('dashboard.selectFromMarkedLecturers') || 'Select from Marked Lecturers'}</option>
                   {markedLecturers.map((lecturer) => (
                     <option key={lecturer.id} value={lecturer.id}>
                       {lecturer.full_name || `${lecturer.first_name || ''} ${lecturer.last_name || ''}`.trim()}
                     </option>
                   ))}
                 </select>
-              </div>
+              {markedLecturers.length === 0 && !isLoadingMarkedLecturers && (
+                <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
+                  {t('dashboard.noMarkedLecturers') || 'No marked lecturers. Please mark lecturers first to add them to courses.'}
+                </p>
+              )}
               
               {/* Added Lecturers List */}
               {createForm.lecturers.length > 0 && (
@@ -2073,6 +2178,18 @@ const EnhancedDashboard = () => {
                                 <span className="text-sm font-medium text-red-700 dark:text-red-300">
                                   {lecturer.message}
                                 </span>
+                                {lecturer.conflicts && Array.isArray(lecturer.conflicts) && lecturer.conflicts.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setLecturerConflict({ ...lecturer, conflicts: lecturer.conflicts });
+                                      setShowLecturerConflictModal(true);
+                                    }}
+                                    className="ml-2 text-xs text-red-600 dark:text-red-400 hover:underline"
+                                  >
+                                    {t('dashboard.viewConflicts') || 'View Conflicts'}
+                                  </button>
+                                )}
                               </>
                             ) : (
                               <span className="text-sm text-gray-600 dark:text-gray-400">
@@ -2698,7 +2815,13 @@ const EnhancedDashboard = () => {
       {/* Profile Modal */}
       <ProfileModal 
         isOpen={showProfileModal} 
-        onClose={() => setShowProfileModal(false)} 
+        onClose={() => {
+          setShowProfileModal(false);
+          setProfileModalUsername(null);
+          setProfileModalUserType(null);
+        }}
+        username={profileModalUsername}
+        userType={profileModalUserType}
       />
 
       {/* Lecturer Conflict Modal */}
@@ -2869,7 +2992,8 @@ const EnhancedDashboard = () => {
                       key={application.application_id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="p-4 bg-gray-50 dark:bg-navy-700 rounded-lg border border-gray-200 dark:border-navy-600"
+                      className="p-4 bg-gray-50 dark:bg-navy-700 rounded-lg border border-gray-200 dark:border-navy-600 cursor-pointer hover:bg-gray-100 dark:hover:bg-navy-600 transition-colors"
+                      onClick={() => handleViewApplicationProfile(application)}
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div>
@@ -2905,7 +3029,8 @@ const EnhancedDashboard = () => {
                         </div>
                       )}
 
-                      <div className="flex items-center gap-4 pt-3 border-t border-gray-200 dark:border-navy-600">
+                      <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-navy-600" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-4">
                         {application.email && (
                           <a
                             href={`mailto:${application.email}`}
@@ -2921,6 +3046,27 @@ const EnhancedDashboard = () => {
                           >
                             {application.phone_number}
                           </a>
+                          )}
+                        </div>
+                        {(application.lecturer_id || application.id) && (
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={(e) => handleMarkApplicationLecturer(application, e)}
+                            disabled={markingApplicationLecturerId === (application.lecturer_id || application.id)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              markedLecturersSet.has(application.lecturer_id || application.id)
+                                ? 'bg-primary-600 dark:bg-teal-500 text-white'
+                                : 'bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-navy-600'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                            title={
+                              markedLecturersSet.has(application.lecturer_id || application.id)
+                                ? t('dashboard.unmarkLecturer') || 'Unmark Lecturer'
+                                : t('dashboard.markLecturer') || 'Mark Lecturer'
+                            }
+                          >
+                            <FaBookmark className="w-4 h-4" />
+                          </motion.button>
                         )}
                       </div>
                     </motion.div>

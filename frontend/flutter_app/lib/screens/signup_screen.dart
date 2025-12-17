@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../providers/theme_provider.dart';
-import '../widgets/animated_background.dart';
-import '../widgets/enhanced_button.dart';
-import '../widgets/glass_card.dart';
 import '../config/theme.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
@@ -27,6 +22,28 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _isLoading = false;
   String _formError = '';
   Map<String, String> _fieldErrors = {};
+  String? _selectedCity;
+
+  static const Map<String, String> _cities = {
+    'baghdad': 'Baghdad',
+    'basra': 'Basra',
+    'maysan': 'Maysan',
+    'dhi_qar': 'Dhi Qar',
+    'muthanna': 'Muthanna',
+    'qadisiyyah': 'Qadisiyyah',
+    'najaf': 'Najaf',
+    'karbala': 'Karbala',
+    'babel': 'Babel',
+    'wasit': 'Wasit',
+    'anbar': 'Anbar',
+    'salah_al_din': 'Salah Al-Din',
+    'kirkuk': 'Kirkuk',
+    'diyala': 'Diyala',
+    'mosul': 'Mosul',
+    'erbil': 'Erbil',
+    'duhok': 'Duhok',
+    'sulaymaniyah': 'Sulaymaniyah',
+  };
 
   @override
   void dispose() {
@@ -45,11 +62,25 @@ class _SignupScreenState extends State<SignupScreen> {
         _fieldErrors = {};
       });
 
+      if (_selectedCity == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a city'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
       final payload = {
         'username': _usernameController.text.trim(),
         'email': _emailController.text.trim(),
         'first_name': _firstNameController.text.trim(),
         'last_name': _lastNameController.text.trim(),
+        'city': _selectedCity!,
         'user_type': 'institution',
       };
 
@@ -93,6 +124,9 @@ class _SignupScreenState extends State<SignupScreen> {
           _emailController.clear();
           _firstNameController.clear();
           _lastNameController.clear();
+          setState(() {
+            _selectedCity = null;
+          });
 
           // Navigate to login after short delay
           await Future.delayed(const Duration(milliseconds: 800));
@@ -148,454 +182,240 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      body: AnimatedBackground(
-        child: SafeArea(
-          child: Stack(
-            children: [
-              // Theme Toggle Button
-              Positioned(
-                top: 24,
-                right: 24,
-                child: Material(
-                  color: isDark
-                      ? AppTheme.navy800.withOpacity(0.8)
-                      : Colors.white.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(50),
-                  elevation: 4,
-                  child: InkWell(
-                    onTap: () => themeProvider.toggleTheme(),
-                    borderRadius: BorderRadius.circular(50),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Icon(
-                        isDark ? Icons.wb_sunny : Icons.nightlight_round,
-                        color: isDark ? AppTheme.gold500 : AppTheme.navy700,
-                        size: 24,
+      backgroundColor: isDark ? AppTheme.navy900 : const Color(0xFFF9FAFB),
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text('Institution Sign Up'),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: const LinearGradient(
+                      colors: [AppTheme.gold500, AppTheme.primary600],
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.business,
+                    color: Colors.white,
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Create Institution Account',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Manage your educational institution',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey.shade600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                // First Name and Last Name
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _firstNameController,
+                        decoration: InputDecoration(
+                          labelText: 'First Name',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          errorText: _fieldErrors['first_name'],
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _fieldErrors.remove('first_name');
+                            _formError = '';
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Required';
+                          }
+                          return null;
+                        },
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _lastNameController,
+                        decoration: InputDecoration(
+                          labelText: 'Last Name',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          errorText: _fieldErrors['last_name'],
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _fieldErrors.remove('last_name');
+                            _formError = '';
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Required';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-
-              // Main Content
-              Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 640),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Back Button
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton.icon(
-                            onPressed: () => Navigator.pop(context),
-                            icon: const Icon(Icons.arrow_back),
-                            label: const Text('Back'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: isDark
-                                  ? AppTheme.teal400
-                                  : AppTheme.primary600,
-                            ),
-                          ),
-                        ),
-                        
-                        const SizedBox(height: 24),
-
-                        // Logo and Title
-                        TweenAnimationBuilder(
-                          tween: Tween<double>(begin: 0, end: 1),
-                          duration: const Duration(milliseconds: 600),
-                          builder: (context, value, child) {
-                            return Opacity(
-                              opacity: value,
-                              child: Transform.translate(
-                                offset: Offset(0, 20 * (1 - value)),
-                                child: child,
-                              ),
-                            );
-                          },
-                          child: Column(
-                            children: [
-                              Container(
-                                width: 96,
-                                height: 96,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(24),
-                                  gradient: const LinearGradient(
-                                    colors: [AppTheme.primary600, AppTheme.teal500],
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppTheme.primary500.withOpacity(0.3),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 10),
-                                    ),
-                                  ],
-                                ),
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.business,
-                                    color: Colors.white,
-                                    size: 48,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              Text(
-                                'Institution Sign Up',
-                                style: theme.textTheme.displaySmall,
-                              ),
-                              const SizedBox(height: 8),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                child: Text(
-                                  'Create your institution account to access the Project East dashboard and manage students, lecturers, and schedules in one place.',
-                                  style: theme.textTheme.bodyMedium,
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 40),
-
-                        // Signup Form Card
-                        TweenAnimationBuilder(
-                          tween: Tween<double>(begin: 0, end: 1),
-                          duration: const Duration(milliseconds: 800),
-                          builder: (context, value, child) {
-                            return Opacity(
-                              opacity: value,
-                              child: Transform.translate(
-                                offset: Offset(0, 30 * (1 - value)),
-                                child: Transform.scale(
-                                  scale: 0.9 + (0.1 * value),
-                                  child: child,
-                                ),
-                              ),
-                            );
-                          },
-                          child: GlassCard(
-                            borderRadius: 20,
-                            child: Form(
-                              key: _formKey,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // First Name and Last Name
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'First Name',
-                                              style: theme.textTheme.bodyMedium?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            TextFormField(
-                                              controller: _firstNameController,
-                                              decoration: const InputDecoration(
-                                                hintText: 'Contact first name',
-                                              ),
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  _fieldErrors.remove('first_name');
-                                                  _formError = '';
-                                                });
-                                              },
-                                              validator: (value) {
-                                                if (value == null || value.trim().isEmpty) {
-                                                  return 'First name is required';
-                                                }
-                                                return null;
-                                              },
-                                            ),
-                                            if (_fieldErrors.containsKey('first_name'))
-                                              Padding(
-                                                padding: const EdgeInsets.only(top: 4),
-                                                child: Text(
-                                                  _fieldErrors['first_name']!,
-                                                  style: TextStyle(
-                                                    color: Colors.red.shade700,
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Last Name',
-                                              style: theme.textTheme.bodyMedium?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            TextFormField(
-                                              controller: _lastNameController,
-                                              decoration: const InputDecoration(
-                                                hintText: 'Contact last name',
-                                              ),
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  _fieldErrors.remove('last_name');
-                                                  _formError = '';
-                                                });
-                                              },
-                                              validator: (value) {
-                                                if (value == null || value.trim().isEmpty) {
-                                                  return 'Last name is required';
-                                                }
-                                                return null;
-                                              },
-                                            ),
-                                            if (_fieldErrors.containsKey('last_name'))
-                                              Padding(
-                                                padding: const EdgeInsets.only(top: 4),
-                                                child: Text(
-                                                  _fieldErrors['last_name']!,
-                                                  style: TextStyle(
-                                                    color: Colors.red.shade700,
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  
-                                  const SizedBox(height: 20),
-
-                                  // Username and Email
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Institution Username',
-                                              style: theme.textTheme.bodyMedium?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            TextFormField(
-                                              controller: _usernameController,
-                                              decoration: const InputDecoration(
-                                                hintText: 'e.g. alnoor_institution',
-                                              ),
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  _fieldErrors.remove('username');
-                                                  _formError = '';
-                                                });
-                                              },
-                                              validator: (value) {
-                                                if (value == null || value.trim().isEmpty) {
-                                                  return 'Username is required';
-                                                }
-                                                return null;
-                                              },
-                                            ),
-                                            if (_fieldErrors.containsKey('username'))
-                                              Padding(
-                                                padding: const EdgeInsets.only(top: 4),
-                                                child: Text(
-                                                  _fieldErrors['username']!,
-                                                  style: TextStyle(
-                                                    color: Colors.red.shade700,
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Contact Email',
-                                              style: theme.textTheme.bodyMedium?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            TextFormField(
-                                              controller: _emailController,
-                                              decoration: const InputDecoration(
-                                                hintText: 'name@institution.edu',
-                                              ),
-                                              keyboardType: TextInputType.emailAddress,
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  _fieldErrors.remove('email');
-                                                  _formError = '';
-                                                });
-                                              },
-                                              validator: (value) {
-                                                if (value == null || value.trim().isEmpty) {
-                                                  return 'Email is required';
-                                                }
-                                                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                                                    .hasMatch(value)) {
-                                                  return 'Please enter a valid email';
-                                                }
-                                                return null;
-                                              },
-                                            ),
-                                            if (_fieldErrors.containsKey('email'))
-                                              Padding(
-                                                padding: const EdgeInsets.only(top: 4),
-                                                child: Text(
-                                                  _fieldErrors['email']!,
-                                                  style: TextStyle(
-                                                    color: Colors.red.shade700,
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-
-                                  const SizedBox(height: 20),
-
-                                  // Account Type Info
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: isDark
-                                          ? Colors.blue.withOpacity(0.1)
-                                          : Colors.blue.shade50,
-                                      border: Border.all(
-                                        color: isDark
-                                            ? Colors.blue.shade800
-                                            : Colors.blue.shade200,
-                                      ),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.info_outline,
-                                          color: isDark
-                                              ? Colors.blue.shade400
-                                              : Colors.blue.shade700,
-                                          size: 20,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Account type: Institution (auto-selected)',
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            color: isDark
-                                                ? Colors.blue.shade400
-                                                : Colors.blue.shade700,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-
-                                  if (_formError.isNotEmpty) ...[
-                                    const SizedBox(height: 16),
-                                    Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.red.withOpacity(0.1),
-                                        border: Border.all(color: Colors.red.shade300),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        _formError,
-                                        style: TextStyle(
-                                          color: Colors.red.shade700,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                  
-                                  const SizedBox(height: 24),
-                                  
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: EnhancedButton(
-                                      text: _isLoading ? 'Creating Account...' : 'Create Account',
-                                      icon: Icons.check_circle,
-                                      onPressed: _handleSubmit,
-                                      isLoading: _isLoading,
-                                    ),
-                                  ),
-
-                                  const SizedBox(height: 16),
-
-                                  // Login link
-                                  Center(
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          'Already have an account? ',
-                                          style: theme.textTheme.bodySmall,
-                                        ),
-                                        TextButton(
-                                          onPressed: () => Navigator.pushNamed(context, '/login'),
-                                          style: TextButton.styleFrom(
-                                            padding: EdgeInsets.zero,
-                                            minimumSize: Size.zero,
-                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                          ),
-                                          child: Text(
-                                            'Go to Login',
-                                            style: TextStyle(
-                                              color: isDark
-                                                  ? AppTheme.teal400
-                                                  : AppTheme.primary600,
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _usernameController,
+                  decoration: InputDecoration(
+                    labelText: 'Username',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    errorText: _fieldErrors['username'],
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _fieldErrors.remove('username');
+                      _formError = '';
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Required';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    errorText: _fieldErrors['email'],
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  onChanged: (value) {
+                    setState(() {
+                      _fieldErrors.remove('email');
+                      _formError = '';
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Required';
+                    }
+                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                      return 'Invalid email';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedCity,
+                  decoration: InputDecoration(
+                    labelText: 'City',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    errorText: _fieldErrors['city'],
+                  ),
+                  items: _cities.entries.map((entry) {
+                    return DropdownMenuItem<String>(
+                      value: entry.key,
+                      child: Text(entry.value),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedCity = value;
+                      _fieldErrors.remove('city');
+                      _formError = '';
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Required';
+                    }
+                    return null;
+                  },
+                ),
+                if (_formError.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      border: Border.all(color: Colors.red.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _formError,
+                      style: TextStyle(color: Colors.red.shade700, fontSize: 12),
                     ),
                   ),
+                ],
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _handleSubmit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.gold500,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text('Create Account'),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.pushNamed(context, '/login'),
+                    child: const Text('Already have an account? Login'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

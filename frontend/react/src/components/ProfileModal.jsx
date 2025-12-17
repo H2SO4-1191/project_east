@@ -19,7 +19,9 @@ import {
   FaSave,
   FaArrowLeft,
   FaUser,
-  FaSync
+  FaSync,
+  FaCalendarAlt,
+  FaBookmark
 } from 'react-icons/fa';
 import { authService } from '../services/authService';
 import { useInstitute } from '../context/InstituteContext';
@@ -32,18 +34,27 @@ const CITIES = [
   'maysan', 'dhi_qar', 'muthanna', 'qadisiyyah', 'babylon', 'saladin'
 ];
 
-const ProfileModal = ({ isOpen, onClose }) => {
+const ProfileModal = ({ isOpen, onClose, username: externalUsername = null, userType: externalUserType = null }) => {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
   const { instituteData, updateInstituteData } = useInstitute();
   const [profileData, setProfileData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Determine if viewing own profile or another user's profile
+  const isViewingOtherUser = externalUsername !== null;
+  const targetUsername = externalUsername || instituteData.username;
+  const targetUserType = externalUserType || instituteData.userType;
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [profileImagePreview, setProfileImagePreview] = useState(null);
   const fileInputRef = useRef(null);
+  const [expandedImage, setExpandedImage] = useState(null);
+  const [isLecturerMarked, setIsLecturerMarked] = useState(false);
+  const [isCheckingMarked, setIsCheckingMarked] = useState(false);
+  const [isMarkingLecturer, setIsMarkingLecturer] = useState(false);
   
   // Verification modal state
   const [showVerificationModal, setShowVerificationModal] = useState(false);
@@ -126,7 +137,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'https://projecteastapi.ddns.net';
     // Ensure imagePath starts with / and doesn't have duplicate /media/
     let cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
     // Remove duplicate /media/ if present
@@ -134,10 +145,163 @@ const ProfileModal = ({ isOpen, onClose }) => {
     return `${baseUrl}${cleanPath}`;
   };
 
+  // Check if lecturer is marked
+  const checkIfLecturerMarked = async (lecturerId) => {
+    if (!lecturerId || !instituteData.accessToken || instituteData.userType !== 'institution') {
+      return;
+    }
+
+    setIsCheckingMarked(true);
+    try {
+      const response = await authService.isLecturerMarked(instituteData.accessToken, lecturerId, {
+        refreshToken: instituteData.refreshToken,
+        onTokenRefreshed: (tokens) => {
+          updateInstituteData({
+            accessToken: tokens.access,
+            refreshToken: tokens.refresh || instituteData.refreshToken,
+          });
+        },
+        onSessionExpired: () => {
+          toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+        },
+      });
+
+      if (response?.success !== undefined) {
+        setIsLecturerMarked(response.success === true || response.is_marked === true);
+      } else if (response?.is_marked !== undefined) {
+        setIsLecturerMarked(response.is_marked);
+      }
+    } catch (error) {
+      console.error('Error checking if lecturer is marked:', error);
+      setIsLecturerMarked(false);
+    } finally {
+      setIsCheckingMarked(false);
+    }
+  };
+
+  // Handle marking/unmarking lecturer
+  const handleMarkLecturer = async () => {
+    if (!profileData?.id) {
+      toast.error(t('dashboard.lecturerIdRequired') || 'Lecturer ID is required');
+      return;
+    }
+
+    if (!instituteData.accessToken) {
+      toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+      return;
+    }
+
+    setIsMarkingLecturer(true);
+    const lecturerId = profileData.id;
+
+    try {
+      let response;
+      if (isLecturerMarked) {
+        // Unmark lecturer
+        response = await authService.removeMarkedLecturer(
+          instituteData.accessToken,
+          lecturerId,
+          {
+            refreshToken: instituteData.refreshToken,
+            onTokenRefreshed: (tokens) => {
+              updateInstituteData({
+                accessToken: tokens.access,
+                refreshToken: tokens.refresh || instituteData.refreshToken,
+              });
+            },
+            onSessionExpired: () => {
+              toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+            },
+          }
+        );
+
+        if (response?.success) {
+          toast.success(response.message || t('dashboard.lecturerUnmarked') || 'Lecturer removed from marked list');
+          setIsLecturerMarked(false);
+        } else {
+          toast.error(response?.message || t('dashboard.failedToUnmarkLecturer') || 'Failed to unmark lecturer');
+        }
+      } else {
+        // Mark lecturer
+        response = await authService.markLecturer(
+          instituteData.accessToken,
+          lecturerId,
+          {
+            refreshToken: instituteData.refreshToken,
+            onTokenRefreshed: (tokens) => {
+              updateInstituteData({
+                accessToken: tokens.access,
+                refreshToken: tokens.refresh || instituteData.refreshToken,
+              });
+            },
+            onSessionExpired: () => {
+              toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+            },
+          }
+        );
+
+        if (response?.success) {
+          toast.success(response.message || t('dashboard.lecturerMarked') || 'Lecturer marked successfully!');
+          setIsLecturerMarked(true);
+        } else {
+          toast.error(response?.message || t('dashboard.failedToMarkLecturer') || 'Failed to mark lecturer');
+        }
+      }
+    } catch (error) {
+      console.error('Error marking/unmarking lecturer:', error);
+      toast.error(error?.message || t('dashboard.failedToMarkLecturer') || 'Failed to mark lecturer');
+    } finally {
+      setIsMarkingLecturer(false);
+    }
+  };
+
   // Fetch profile data when modal opens
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!isOpen || !instituteData.isAuthenticated || !instituteData.accessToken) {
+      if (!isOpen) {
+        return;
+      }
+
+      // If viewing another user's profile, use public profile endpoint
+      if (isViewingOtherUser && targetUsername) {
+        setIsLoading(true);
+        setError(null);
+        setIsEditMode(false); // Can't edit other users' profiles
+
+        try {
+          let data;
+          if (targetUserType === 'lecturer') {
+            data = await authService.getLecturerPublicProfile(targetUsername);
+          } else if (targetUserType === 'student') {
+            data = await authService.getStudentPublicProfile(targetUsername);
+          } else if (targetUserType === 'institution') {
+            data = await authService.getInstitutionPublicProfile(targetUsername);
+          } else {
+            throw new Error('Unknown user type');
+          }
+
+          if (data?.success && data?.data) {
+            setProfileData(data.data);
+            setEditForm({}); // Don't allow editing other users' profiles
+            
+            // Check if lecturer is marked (when institution views lecturer profile)
+            if (targetUserType === 'lecturer' && instituteData.userType === 'institution' && data.data?.id) {
+              checkIfLecturerMarked(data.data.id);
+            }
+          } else {
+            setError(data?.message || 'Failed to load profile');
+          }
+        } catch (err) {
+          console.error('Error fetching profile:', err);
+          setError(err?.message || 'Failed to load profile');
+        } finally {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      // Viewing own profile - requires authentication
+      if (!instituteData.isAuthenticated || !instituteData.accessToken) {
         return;
       }
 
@@ -180,9 +344,16 @@ const ProfileModal = ({ isOpen, onClose }) => {
 
         if (data?.success && data?.data) {
           setProfileData(data.data);
-          // Initialize edit form with current data
-          setEditForm({
-            first_name: data.data.first_name || '',
+          
+          // Check if lecturer is marked (when institution views lecturer profile)
+          if (isViewingOtherUser && targetUserType === 'lecturer' && instituteData.userType === 'institution' && profileData?.id) {
+            checkIfLecturerMarked(data.data.id);
+          }
+          
+          // Initialize edit form with current data (only for own profile)
+          if (!isViewingOtherUser) {
+            setEditForm({
+              first_name: data.data.first_name || '',
             last_name: data.data.last_name || '',
             phone_number: data.data.phone_number || '',
             city: data.data.city || '',
@@ -193,7 +364,6 @@ const ProfileModal = ({ isOpen, onClose }) => {
             experience: data.data.experience || '',
             free_time: data.data.free_time || '',
             // Institution-specific fields
-            username: data.data.username || '',
             title: data.data.title || '',
             location: data.data.location || '',
           });
@@ -214,6 +384,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
               residence_back: null,
             });
           }
+          }
         } else {
           setError('Failed to load profile data');
         }
@@ -226,7 +397,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
     };
 
     fetchProfile();
-  }, [isOpen, instituteData.isAuthenticated, instituteData.accessToken, instituteData.userType]);
+  }, [isOpen, instituteData.isAuthenticated, instituteData.accessToken, instituteData.userType, isViewingOtherUser, targetUsername, targetUserType]);
 
   // Close on escape key
   useEffect(() => {
@@ -254,6 +425,23 @@ const ProfileModal = ({ isOpen, onClose }) => {
   const getCityName = (cityKey) => {
     if (!cityKey) return '';
     return t(`cities.${cityKey}`) || cityKey.charAt(0).toUpperCase() + cityKey.slice(1);
+  };
+
+  // Format date and time in 24-hour format
+  const formatDateTime24 = (dateTimeString) => {
+    if (!dateTimeString) return '';
+    try {
+      const date = new Date(dateTimeString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    } catch {
+      return dateTimeString;
+    }
   };
 
   const handleInputChange = (field, value) => {
@@ -365,12 +553,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
           });
         }
         
-        // Update username in context if changed (for institutions)
-        if (instituteData.userType === 'institution' && editForm.username) {
-          updateInstituteData({
-            username: editForm.username,
-          });
-        }
+        // Username cannot be changed - removed from edit form
         
         setIsEditMode(false);
         setProfileImagePreview(null);
@@ -781,7 +964,6 @@ const ProfileModal = ({ isOpen, onClose }) => {
         experience: profileData.experience || '',
         free_time: profileData.free_time || '',
         // Institution-specific fields
-        username: profileData.username || '',
         title: profileData.title || '',
         location: profileData.location || '',
         // Student-specific fields
@@ -807,7 +989,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
             onClick={isEditMode ? undefined : onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
           />
 
           {/* Modal */}
@@ -822,7 +1004,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
               stiffness: 300,
               duration: 0.3 
             }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none"
           >
             <div 
               className={`relative w-full max-w-2xl max-h-[90vh] overflow-hidden bg-white dark:bg-navy-800 rounded-2xl shadow-2xl pointer-events-auto ${isRTL ? 'rtl' : 'ltr'}`}
@@ -900,7 +1082,17 @@ const ProfileModal = ({ isOpen, onClose }) => {
                           transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
                           className="relative"
                         >
-                          <div className="w-32 h-32 rounded-full border-4 border-white dark:border-navy-800 shadow-xl overflow-hidden bg-gray-200 dark:bg-navy-700">
+                          <div 
+                            className={`w-32 h-32 rounded-full border-4 border-white dark:border-navy-800 shadow-xl overflow-hidden bg-gray-200 dark:bg-navy-700 ${(profileImagePreview || profileData.profile_image) ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
+                            onClick={() => {
+                              if (profileImagePreview || profileData.profile_image) {
+                                setExpandedImage({ 
+                                  src: profileImagePreview || getImageUrl(profileData.profile_image), 
+                                  alt: t('profile.profileImage') || 'Profile Image' 
+                                });
+                              }
+                            }}
+                          >
                             {(profileImagePreview || profileData.profile_image) ? (
                               <img
                                 src={profileImagePreview || getImageUrl(profileData.profile_image)}
@@ -924,8 +1116,11 @@ const ProfileModal = ({ isOpen, onClose }) => {
                             <motion.button
                               whileHover={{ scale: 1.1 }}
                               whileTap={{ scale: 0.9 }}
-                              onClick={() => fileInputRef.current?.click()}
-                              className="absolute bottom-0 right-0 p-2 bg-primary-600 hover:bg-primary-500 text-white rounded-full shadow-lg"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                fileInputRef.current?.click();
+                              }}
+                              className="absolute bottom-0 right-0 p-2 bg-primary-600 hover:bg-primary-500 text-white rounded-full shadow-lg z-10"
                             >
                               <FaCamera className="w-4 h-4" />
                             </motion.button>
@@ -1089,20 +1284,6 @@ const ProfileModal = ({ isOpen, onClose }) => {
                             {/* Institution-specific fields */}
                             {instituteData.userType === 'institution' && (
                               <>
-                                {/* Username */}
-                                <div className="mb-4">
-                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    {t('profile.username') || 'Username'}
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={editForm.username || ''}
-                                    onChange={(e) => handleInputChange('username', e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 dark:border-navy-600 rounded-lg bg-white dark:bg-navy-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                                    placeholder="username"
-                                  />
-                                </div>
-
                                 {/* First Name */}
                                 <div className="mb-4">
                                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -1295,7 +1476,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
                                   : profileData.title || profileData.username || 'User'}
                               </h2>
                               <p className="text-primary-600 dark:text-teal-400 font-medium capitalize">
-                                {instituteData.userType}
+                                {targetUserType}
                               </p>
                               
                               {/* Verification Badge */}
@@ -1456,6 +1637,34 @@ const ProfileModal = ({ isOpen, onClose }) => {
                                 </div>
                               )}
 
+                              {/* Up Time (Institution) */}
+                              {instituteData.userType === 'institution' && profileData.up_time && (
+                                <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-navy-900/50 rounded-xl">
+                                  <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900/30 rounded-lg flex items-center justify-center">
+                                    <FaClock className="w-5 h-5 text-primary-600 dark:text-teal-400" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">{t('profile.upTime') || 'Last Updated'}</p>
+                                    <p className="text-sm font-medium text-gray-800 dark:text-white">{formatDateTime24(profileData.up_time)}</p>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Up Days (Institution) */}
+                              {instituteData.userType === 'institution' && profileData.up_days && (
+                                <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-navy-900/50 rounded-xl">
+                                  <div className="w-10 h-10 bg-teal-100 dark:bg-teal-900/30 rounded-lg flex items-center justify-center">
+                                    <FaCalendarAlt className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">{t('profile.upDays') || 'Days Active'}</p>
+                                    <p className="text-sm font-medium text-gray-800 dark:text-white">
+                                      {profileData.up_days} {t('profile.days') || 'days'}
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+
                               {/* Studying Level (Student) */}
                               {profileData.studying_level && (
                                 <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-navy-900/50 rounded-xl">
@@ -1598,6 +1807,130 @@ const ProfileModal = ({ isOpen, onClose }) => {
                               </motion.div>
                             )}
 
+                            {/* Documents Section - ID Cards and Residence Documents */}
+                            {(profileData.idcard_front || profileData.idcard_back || profileData.residence_front || profileData.residence_back) && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.65 }}
+                                className="mb-6"
+                              >
+                                <div className="flex items-center gap-2 mb-4">
+                                  <FaUserCheck className="w-5 h-5 text-primary-600 dark:text-teal-400" />
+                                  <h3 className="font-semibold text-gray-800 dark:text-white">{t('profile.documents') || 'Documents'}</h3>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                  {/* ID Card Front */}
+                                  {profileData.idcard_front && (
+                                    <div className="bg-gray-50 dark:bg-navy-900/50 rounded-xl p-3">
+                                      <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 block">
+                                        {t('profile.idcardFront') || 'ID Card Front'}
+                                      </label>
+                                      <div 
+                                        className="relative w-full h-32 bg-gray-100 dark:bg-navy-800 rounded-lg overflow-hidden border border-gray-200 dark:border-navy-700 cursor-pointer hover:opacity-90 transition-opacity"
+                                        onClick={() => setExpandedImage({ src: getImageUrl(profileData.idcard_front), alt: t('profile.idcardFront') || 'ID Card Front' })}
+                                      >
+                                        <img
+                                          src={getImageUrl(profileData.idcard_front)}
+                                          alt="ID Card Front"
+                                          className="w-full h-full object-cover"
+                                          onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.style.display = 'none';
+                                            e.target.nextSibling.style.display = 'flex';
+                                          }}
+                                        />
+                                        <div className="hidden w-full h-full items-center justify-center text-gray-400 dark:text-gray-500">
+                                          <FaUser className="w-8 h-8" />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* ID Card Back */}
+                                  {profileData.idcard_back && (
+                                    <div className="bg-gray-50 dark:bg-navy-900/50 rounded-xl p-3">
+                                      <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 block">
+                                        {t('profile.idcardBack') || 'ID Card Back'}
+                                      </label>
+                                      <div 
+                                        className="relative w-full h-32 bg-gray-100 dark:bg-navy-800 rounded-lg overflow-hidden border border-gray-200 dark:border-navy-700 cursor-pointer hover:opacity-90 transition-opacity"
+                                        onClick={() => setExpandedImage({ src: getImageUrl(profileData.idcard_back), alt: t('profile.idcardBack') || 'ID Card Back' })}
+                                      >
+                                        <img
+                                          src={getImageUrl(profileData.idcard_back)}
+                                          alt="ID Card Back"
+                                          className="w-full h-full object-cover"
+                                          onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.style.display = 'none';
+                                            e.target.nextSibling.style.display = 'flex';
+                                          }}
+                                        />
+                                        <div className="hidden w-full h-full items-center justify-center text-gray-400 dark:text-gray-500">
+                                          <FaUser className="w-8 h-8" />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Residence Front */}
+                                  {profileData.residence_front && (
+                                    <div className="bg-gray-50 dark:bg-navy-900/50 rounded-xl p-3">
+                                      <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 block">
+                                        {t('profile.residenceFront') || 'Residence Front'}
+                                      </label>
+                                      <div 
+                                        className="relative w-full h-32 bg-gray-100 dark:bg-navy-800 rounded-lg overflow-hidden border border-gray-200 dark:border-navy-700 cursor-pointer hover:opacity-90 transition-opacity"
+                                        onClick={() => setExpandedImage({ src: getImageUrl(profileData.residence_front), alt: t('profile.residenceFront') || 'Residence Front' })}
+                                      >
+                                        <img
+                                          src={getImageUrl(profileData.residence_front)}
+                                          alt="Residence Front"
+                                          className="w-full h-full object-cover"
+                                          onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.style.display = 'none';
+                                            e.target.nextSibling.style.display = 'flex';
+                                          }}
+                                        />
+                                        <div className="hidden w-full h-full items-center justify-center text-gray-400 dark:text-gray-500">
+                                          <FaMapMarkerAlt className="w-8 h-8" />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Residence Back */}
+                                  {profileData.residence_back && (
+                                    <div className="bg-gray-50 dark:bg-navy-900/50 rounded-xl p-3">
+                                      <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 block">
+                                        {t('profile.residenceBack') || 'Residence Back'}
+                                      </label>
+                                      <div 
+                                        className="relative w-full h-32 bg-gray-100 dark:bg-navy-800 rounded-lg overflow-hidden border border-gray-200 dark:border-navy-700 cursor-pointer hover:opacity-90 transition-opacity"
+                                        onClick={() => setExpandedImage({ src: getImageUrl(profileData.residence_back), alt: t('profile.residenceBack') || 'Residence Back' })}
+                                      >
+                                        <img
+                                          src={getImageUrl(profileData.residence_back)}
+                                          alt="Residence Back"
+                                          className="w-full h-full object-cover"
+                                          onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.style.display = 'none';
+                                            e.target.nextSibling.style.display = 'flex';
+                                          }}
+                                        />
+                                        <div className="hidden w-full h-full items-center justify-center text-gray-400 dark:text-gray-500">
+                                          <FaMapMarkerAlt className="w-8 h-8" />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </motion.div>
+                            )}
+
                             {/* Action Buttons */}
                             <motion.div
                               initial={{ opacity: 0, y: 20 }}
@@ -1610,6 +1943,32 @@ const ProfileModal = ({ isOpen, onClose }) => {
                                 const isLecturer = instituteData.userType === 'lecturer';
                                 const isInstitution = instituteData.userType === 'institution';
                                 const isStudent = instituteData.userType === 'student';
+                                
+                                // Show mark lecturer button when institution views lecturer profile
+                                if (isViewingOtherUser && targetUserType === 'lecturer' && isInstitution && profileData?.id) {
+                                  return (
+                                    <motion.button
+                                      whileHover={{ scale: 1.02 }}
+                                      whileTap={{ scale: 0.98 }}
+                                      onClick={handleMarkLecturer}
+                                      disabled={isMarkingLecturer || isCheckingMarked}
+                                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold transition-colors ${
+                                        isLecturerMarked
+                                          ? 'bg-primary-600 hover:bg-primary-500 text-white'
+                                          : 'bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-navy-600'
+                                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                    >
+                                      <FaBookmark className="w-4 h-4" />
+                                      {isMarkingLecturer
+                                        ? (isLecturerMarked 
+                                            ? (t('dashboard.unmarking') || 'Unmarking...')
+                                            : (t('dashboard.marking') || 'Marking...'))
+                                        : isLecturerMarked
+                                        ? (t('dashboard.unmarkLecturer') || 'Unmark Lecturer')
+                                        : (t('dashboard.markLecturer') || 'Mark Lecturer')}
+                                    </motion.button>
+                                  );
+                                }
                                 
                                 if ((isLecturer || isInstitution || isStudent) && !isVerified) {
                                   return (
@@ -1624,6 +1983,10 @@ const ProfileModal = ({ isOpen, onClose }) => {
                                     </motion.button>
                                   );
                                 } else {
+                                  // Only show edit button if viewing own profile
+                                  if (isViewingOtherUser) {
+                                    return null;
+                                  }
                                   return (
                                     <motion.button
                                       whileHover={{ scale: 1.02 }}
@@ -1637,11 +2000,11 @@ const ProfileModal = ({ isOpen, onClose }) => {
                                           setIsEditMode(true);
                                         }
                                       }}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-xl font-semibold transition-colors"
-                              >
-                                <FaEdit className="w-4 h-4" />
-                                {t('profile.editProfile') || 'Edit Profile'}
-                              </motion.button>
+                                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-xl font-semibold transition-colors"
+                                    >
+                                      <FaEdit className="w-4 h-4" />
+                                      {t('profile.editProfile') || 'Edit Profile'}
+                                    </motion.button>
                                   );
                                 }
                               })()}
@@ -2211,7 +2574,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
                         ) : (
                           <FaUserCheck className="w-4 h-4" />
                         )}
-                        {isVerifying ? (t('common.saving') || 'Verifying...') : (t('profile.verifyAccount') || 'Verify Account')}
+                        {isVerifying ? (t('common.verifying') || 'Verifying...') : (t('profile.verifyAccount') || 'Verify Account')}
                       </motion.button>
                       <motion.button
                         whileHover={{ scale: 1.02 }}
@@ -2247,6 +2610,59 @@ const ProfileModal = ({ isOpen, onClose }) => {
           </motion.div>
         </>
       )}
+
+      {/* Image Lightbox Modal */}
+      <AnimatePresence>
+        {expandedImage && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setExpandedImage(null)}
+              className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[70] flex items-center justify-center p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                onClick={(e) => e.stopPropagation()}
+                className="relative max-w-5xl max-h-[90vh] w-full"
+              >
+                {/* Close Button */}
+                <motion.button
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setExpandedImage(null)}
+                  className="absolute -top-12 right-0 p-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white transition-colors z-10"
+                >
+                  <FaTimes className="w-6 h-6" />
+                </motion.button>
+
+                {/* Image */}
+                <div className="bg-white dark:bg-navy-800 rounded-xl overflow-hidden shadow-2xl">
+                  <img
+                    src={expandedImage.src}
+                    alt={expandedImage.alt}
+                    className="w-full h-auto max-h-[90vh] object-contain"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%239ca3af" font-family="Arial" font-size="20"%3EImage not available%3C/text%3E%3C/svg%3E';
+                    }}
+                  />
+                  {/* Image Label */}
+                  <div className="px-4 py-3 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 text-center">
+                      {expandedImage.alt}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
       </AnimatePresence>
     </AnimatePresence>
   );

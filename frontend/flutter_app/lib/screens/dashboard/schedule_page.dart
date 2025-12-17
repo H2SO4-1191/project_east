@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../widgets/modern_bottom_nav.dart';
+import '../../utils/navigation_helper.dart';
 import '../../widgets/verification_lock.dart';
 
 class SchedulePage extends StatefulWidget {
@@ -130,6 +132,12 @@ class _SchedulePageState extends State<SchedulePage> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: 1, // Dashboard index for institutions
+        onTap: (index) {
+          NavigationHelper.handleBottomNavTap(context, index);
+        },
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(

@@ -55,6 +55,7 @@ const Overview = () => {
   const [postsError, setPostsError] = useState('');
   const [username, setUsername] = useState(null);
 
+  // Use username first, then firstName, then name (which might be email)
   const displayName =
     username ||
     instituteData.username ||
@@ -298,7 +299,7 @@ const Overview = () => {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'https://projecteastapi.ddns.net';
     let cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
     cleanPath = cleanPath.replace(/^\/media\/media\//, '/media/');
     return `${baseUrl}${cleanPath}`;

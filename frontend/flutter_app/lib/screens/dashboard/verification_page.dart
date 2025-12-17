@@ -19,6 +19,8 @@ class _VerificationPageState extends State<VerificationPage> {
   final _locationController = TextEditingController();
   final _phoneController = TextEditingController();
   final _aboutController = TextEditingController();
+  final _upDaysController = TextEditingController();
+  TimeOfDay? _upTime;
 
   final ImagePicker _picker = ImagePicker();
   
@@ -38,6 +40,7 @@ class _VerificationPageState extends State<VerificationPage> {
     _locationController.dispose();
     _phoneController.dispose();
     _aboutController.dispose();
+    _upDaysController.dispose();
     super.dispose();
   }
 
@@ -205,11 +208,32 @@ class _VerificationPageState extends State<VerificationPage> {
     }
 
     try {
+      if (_upTime == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select up_time')),
+        );
+        setState(() => _isSubmitting = false);
+        return;
+      }
+
+      if (_upDaysController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter up_days')),
+        );
+        setState(() => _isSubmitting = false);
+        return;
+      }
+
+      // Format time in 24-hour format (HH:mm)
+      final timeString = '${_upTime!.hour.toString().padLeft(2, '0')}:${_upTime!.minute.toString().padLeft(2, '0')}';
+
       final payload = {
         'title': _titleController.text.trim(),
         'location': _locationController.text.trim(),
         'phone_number': _phoneController.text.trim(),
         'about': _aboutController.text.trim(),
+        'up_time': timeString,
+        'up_days': _upDaysController.text.trim(),
         'profile_image': _profileImage,
         'idcard_front': _idcardFront,
         'idcard_back': _idcardBack,
@@ -288,6 +312,70 @@ class _VerificationPageState extends State<VerificationPage> {
             }
             return null;
           },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _selectTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _upTime ?? TimeOfDay.now(),
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _upTime = picked;
+      });
+    }
+  }
+
+  Widget _buildTimePicker(String label, {bool required = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+            if (required)
+              const Text(' *', style: TextStyle(color: Colors.red)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: _selectTime,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey),
+              borderRadius: BorderRadius.circular(8),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppTheme.navy700
+                  : Colors.grey.shade50,
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.access_time, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text(
+                  _upTime != null
+                      ? '${_upTime!.hour.toString().padLeft(2, '0')}:${_upTime!.minute.toString().padLeft(2, '0')}'
+                      : 'Select time (24-hour format)',
+                  style: TextStyle(
+                    color: _upTime != null ? Colors.black87 : Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );
@@ -421,6 +509,29 @@ class _VerificationPageState extends State<VerificationPage> {
               ),
               const SizedBox(height: 16),
               _buildTextField('About', _aboutController, required: true, maxLines: 3),
+              const SizedBox(height: 16),
+              
+              // Up Time and Up Days
+              Builder(
+                builder: (context) {
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  final isSmallScreen = screenWidth < 600;
+                  final crossAxisCount = isSmallScreen ? 1 : 2;
+                  
+                  return GridView.count(
+                    crossAxisCount: crossAxisCount,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: isSmallScreen ? 2.5 : 1.3,
+                    children: [
+                      _buildTimePicker('Up Time', required: true),
+                      _buildTextField('Up Days', _upDaysController, required: true),
+                    ],
+                  );
+                },
+              ),
               const SizedBox(height: 24),
               
               // File Upload Fields

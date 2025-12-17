@@ -2,19 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { FaMoon, FaSun, FaArrowLeft } from 'react-icons/fa';
-import { useTheme } from '../context/ThemeContext';
+import { FaArrowLeft } from 'react-icons/fa';
 import AnimatedBackground from '../components/AnimatedBackground';
 import AnimatedButton from '../components/AnimatedButton';
 import Card from '../components/Card';
-import LanguageSwitcher from '../components/LanguageSwitcher';
 import toast from 'react-hot-toast';
 import { authService } from '../services/authService';
 
 const EnhancedLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isDark, toggleTheme } = useTheme();
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
@@ -80,27 +77,6 @@ const EnhancedLogin = () => {
     <AnimatedBackground>
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          {/* Language Switcher */}
-          <div className="fixed top-6 right-6 rtl:left-6 rtl:right-auto z-50">
-            <LanguageSwitcher />
-          </div>
-
-          {/* Theme Toggle */}
-          <motion.button
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            onClick={toggleTheme}
-            className="fixed top-6 right-20 rtl:left-20 rtl:right-auto p-3 bg-white/80 dark:bg-navy-800/80 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-all z-50"
-            whileHover={{ scale: 1.1, rotate: 180 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            {isDark ? (
-              <FaSun className="w-6 h-6 text-gold-500" />
-            ) : (
-              <FaMoon className="w-6 h-6 text-navy-700" />
-            )}
-          </motion.button>
-
           {/* Back Button */}
           <motion.button
             initial={{ opacity: 0, x: -20 }}

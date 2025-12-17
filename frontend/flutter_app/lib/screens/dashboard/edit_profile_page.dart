@@ -15,13 +15,14 @@ class EditProfilePage extends StatefulWidget {
 
 class _EditProfilePageState extends State<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _titleController = TextEditingController();
   final _locationController = TextEditingController();
   final _phoneController = TextEditingController();
   final _aboutController = TextEditingController();
+  final _upDaysController = TextEditingController();
+  TimeOfDay? _upTime;
 
   final ImagePicker _picker = ImagePicker();
   
@@ -45,24 +46,37 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final data = authProvider.instituteData;
     
-    _usernameController.text = data['username'] ?? '';
     _firstNameController.text = data['firstName'] ?? '';
     _lastNameController.text = data['lastName'] ?? '';
     _titleController.text = data['title'] ?? '';
     _locationController.text = data['location'] ?? '';
     _phoneController.text = data['phoneNumber'] ?? '';
     _aboutController.text = data['about'] ?? '';
+    _upDaysController.text = data['up_days'] ?? '';
+    
+    // Load up_time if available
+    if (data['up_time'] != null && data['up_time'].toString().isNotEmpty) {
+      final timeString = data['up_time'].toString();
+      final parts = timeString.split(':');
+      if (parts.length == 2) {
+        final hour = int.tryParse(parts[0]);
+        final minute = int.tryParse(parts[1]);
+        if (hour != null && minute != null) {
+          _upTime = TimeOfDay(hour: hour, minute: minute);
+        }
+      }
+    }
   }
 
   @override
   void dispose() {
-    _usernameController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
     _titleController.dispose();
     _locationController.dispose();
     _phoneController.dispose();
     _aboutController.dispose();
+    _upDaysController.dispose();
     super.dispose();
   }
 
@@ -226,9 +240,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final payload = <String, dynamic>{};
       
       // Add text fields only if they have values
-      if (_usernameController.text.trim().isNotEmpty) {
-        payload['username'] = _usernameController.text.trim();
-      }
       if (_firstNameController.text.trim().isNotEmpty) {
         payload['first_name'] = _firstNameController.text.trim();
       }
@@ -246,6 +257,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
       if (_aboutController.text.trim().isNotEmpty) {
         payload['about'] = _aboutController.text.trim();
+      }
+      if (_upTime != null) {
+        // Format time in 24-hour format (HH:mm)
+        payload['up_time'] = '${_upTime!.hour.toString().padLeft(2, '0')}:${_upTime!.minute.toString().padLeft(2, '0')}';
+      }
+      if (_upDaysController.text.trim().isNotEmpty) {
+        payload['up_days'] = _upDaysController.text.trim();
       }
 
       // Add file fields only if they are provided
@@ -266,13 +284,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
           authProvider.onSessionExpired();
         },
       );
-
-      // Update username in auth provider if it was changed
-      if (_usernameController.text.trim().isNotEmpty) {
-        await authProvider.updateInstituteData({
-          'username': _usernameController.text.trim(),
-        });
-      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -326,6 +337,75 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ? AppTheme.navy700
                 : Colors.grey.shade50,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _selectTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _upTime ?? TimeOfDay.now(),
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _upTime = picked;
+      });
+    }
+  }
+
+  Widget _buildTimePicker(String label) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+            Text(
+              ' (Optional)',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: _selectTime,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey),
+              borderRadius: BorderRadius.circular(8),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppTheme.navy700
+                  : Colors.grey.shade50,
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.access_time, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text(
+                  _upTime != null
+                      ? '${_upTime!.hour.toString().padLeft(2, '0')}:${_upTime!.minute.toString().padLeft(2, '0')}'
+                      : 'Select time (24-hour format)',
+                  style: TextStyle(
+                    color: _upTime != null ? Colors.black87 : Colors.grey,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -456,7 +536,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     mainAxisSpacing: 12,
                     childAspectRatio: isSmallScreen ? 2.5 : 1.3,
                     children: [
-                      _buildTextField('Username', _usernameController),
                       _buildTextField('First Name', _firstNameController),
                       _buildTextField('Last Name', _lastNameController),
                       _buildTextField('Institution Title', _titleController),
@@ -468,6 +547,29 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
               const SizedBox(height: 16),
               _buildTextField('About', _aboutController, maxLines: 3),
+              const SizedBox(height: 16),
+              
+              // Up Time and Up Days
+              Builder(
+                builder: (context) {
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  final isSmallScreen = screenWidth < 600;
+                  final crossAxisCount = isSmallScreen ? 1 : 2;
+                  
+                  return GridView.count(
+                    crossAxisCount: crossAxisCount,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: isSmallScreen ? 2.5 : 1.3,
+                    children: [
+                      _buildTimePicker('Up Time'),
+                      _buildTextField('Up Days', _upDaysController),
+                    ],
+                  );
+                },
+              ),
               const SizedBox(height: 24),
               
               // File Upload Fields

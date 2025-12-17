@@ -6,6 +6,8 @@ import '../../providers/auth_provider.dart';
 import '../../config/theme.dart';
 import '../../widgets/card_widget.dart';
 import '../../services/api_service.dart';
+import '../../widgets/modern_bottom_nav.dart';
+import '../../utils/navigation_helper.dart';
 import 'verification_page.dart';
 import 'edit_profile_page.dart';
 
@@ -138,9 +140,16 @@ class _SettingsPageState extends State<SettingsPage> {
     final authProvider = Provider.of<AuthProvider>(context);
     final isVerified = authProvider.isVerified;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return Scaffold(
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: 1, // Dashboard index for institutions
+        onTap: (index) {
+          NavigationHelper.handleBottomNavTap(context, index);
+        },
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Settings', style: theme.textTheme.displaySmall),
@@ -585,6 +594,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

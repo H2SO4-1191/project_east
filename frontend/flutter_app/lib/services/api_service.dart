@@ -20,7 +20,7 @@ class ApiException implements Exception {
 }
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.0.249:8000';
+  static const String baseUrl = 'https://projecteastapi.ddns.net';
   
   static final Map<String, String> _defaultHeaders = {
     'Content-Type': 'application/json',
@@ -321,6 +321,8 @@ class ApiService {
       if (payload['location'] != null) request.fields['location'] = payload['location'].toString();
       if (payload['phone_number'] != null) request.fields['phone_number'] = payload['phone_number'].toString();
       if (payload['about'] != null) request.fields['about'] = payload['about'].toString();
+      if (payload['up_time'] != null) request.fields['up_time'] = payload['up_time'].toString();
+      if (payload['up_days'] != null) request.fields['up_days'] = payload['up_days'].toString();
 
       // Add file fields
       if (payload['profile_image'] != null && payload['profile_image'] is File) {
@@ -415,6 +417,8 @@ class ApiService {
       if (payload['location'] != null) request.fields['location'] = payload['location'].toString();
       if (payload['phone_number'] != null) request.fields['phone_number'] = payload['phone_number'].toString();
       if (payload['about'] != null) request.fields['about'] = payload['about'].toString();
+      if (payload['up_time'] != null) request.fields['up_time'] = payload['up_time'].toString();
+      if (payload['up_days'] != null) request.fields['up_days'] = payload['up_days'].toString();
 
       // Add file fields (only if provided)
       if (payload['profile_image'] != null && payload['profile_image'] is File) {
@@ -447,6 +451,196 @@ class ApiService {
           final retryRequest = http.MultipartRequest(
             'PUT',
             Uri.parse('$baseUrl/institution/edit-profile/'),
+          );
+          retryRequest.headers['Authorization'] = 'Bearer ${refreshed['access']}';
+          retryRequest.fields.addAll(request.fields);
+          retryRequest.files.addAll(request.files);
+
+          response = await retryRequest.send();
+          final retryBody = await response.stream.bytesToString();
+          final retryData = _parseResponse(retryBody);
+
+          if (response.statusCode != 200) {
+            throw _buildError(response.statusCode, retryData);
+          }
+
+          return retryData;
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      if (response.statusCode != 200) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  /// Edit lecturer profile
+  static Future<Map<String, dynamic>> editLecturerProfile({
+    required String accessToken,
+    String? refreshToken,
+    required Map<String, dynamic> payload,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'PUT',
+        Uri.parse('$baseUrl/lecturer/profile/edit/'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $accessToken';
+
+      // Add text fields (no username field - users can't change username)
+      if (payload['first_name'] != null) request.fields['first_name'] = payload['first_name'].toString();
+      if (payload['last_name'] != null) request.fields['last_name'] = payload['last_name'].toString();
+      if (payload['city'] != null) request.fields['city'] = payload['city'].toString();
+      if (payload['phone_number'] != null) request.fields['phone_number'] = payload['phone_number'].toString();
+      if (payload['about'] != null) request.fields['about'] = payload['about'].toString();
+      if (payload['academic_achievement'] != null) request.fields['academic_achievement'] = payload['academic_achievement'].toString();
+      if (payload['specialty'] != null) request.fields['specialty'] = payload['specialty'].toString();
+      if (payload['skills'] != null) request.fields['skills'] = payload['skills'].toString();
+      if (payload['experience'] != null) request.fields['experience'] = payload['experience'].toString();
+      if (payload['free_time'] != null) request.fields['free_time'] = payload['free_time'].toString();
+
+      // Add file fields (only if provided)
+      if (payload['profile_image'] != null && payload['profile_image'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('profile_image', (payload['profile_image'] as File).path));
+      }
+      if (payload['idcard_front'] != null && payload['idcard_front'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('idcard_front', (payload['idcard_front'] as File).path));
+      }
+      if (payload['idcard_back'] != null && payload['idcard_back'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('idcard_back', (payload['idcard_back'] as File).path));
+      }
+      if (payload['residence_front'] != null && payload['residence_front'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('residence_front', (payload['residence_front'] as File).path));
+      }
+      if (payload['residence_back'] != null && payload['residence_back'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('residence_back', (payload['residence_back'] as File).path));
+      }
+
+      var response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      final data = _parseResponse(responseBody);
+
+      // Handle token refresh on 401
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+
+          // Retry request with new token
+          final retryRequest = http.MultipartRequest(
+            'PUT',
+            Uri.parse('$baseUrl/lecturer/profile/edit/'),
+          );
+          retryRequest.headers['Authorization'] = 'Bearer ${refreshed['access']}';
+          retryRequest.fields.addAll(request.fields);
+          retryRequest.files.addAll(request.files);
+
+          response = await retryRequest.send();
+          final retryBody = await response.stream.bytesToString();
+          final retryData = _parseResponse(retryBody);
+
+          if (response.statusCode != 200) {
+            throw _buildError(response.statusCode, retryData);
+          }
+
+          return retryData;
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      if (response.statusCode != 200) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  /// Edit student profile
+  static Future<Map<String, dynamic>> editStudentProfile({
+    required String accessToken,
+    String? refreshToken,
+    required Map<String, dynamic> payload,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'PUT',
+        Uri.parse('$baseUrl/student/profile/edit/'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $accessToken';
+
+      // Add text fields (no username field - users can't change username)
+      if (payload['first_name'] != null) request.fields['first_name'] = payload['first_name'].toString();
+      if (payload['last_name'] != null) request.fields['last_name'] = payload['last_name'].toString();
+      if (payload['city'] != null) request.fields['city'] = payload['city'].toString();
+      if (payload['phone_number'] != null) request.fields['phone_number'] = payload['phone_number'].toString();
+      if (payload['about'] != null) request.fields['about'] = payload['about'].toString();
+      if (payload['studying_level'] != null) request.fields['studying_level'] = payload['studying_level'].toString();
+
+      // Add file fields (only if provided)
+      if (payload['profile_image'] != null && payload['profile_image'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('profile_image', (payload['profile_image'] as File).path));
+      }
+      if (payload['idcard_front'] != null && payload['idcard_front'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('idcard_front', (payload['idcard_front'] as File).path));
+      }
+      if (payload['idcard_back'] != null && payload['idcard_back'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('idcard_back', (payload['idcard_back'] as File).path));
+      }
+      if (payload['residence_front'] != null && payload['residence_front'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('residence_front', (payload['residence_front'] as File).path));
+      }
+      if (payload['residence_back'] != null && payload['residence_back'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('residence_back', (payload['residence_back'] as File).path));
+      }
+
+      var response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      final data = _parseResponse(responseBody);
+
+      // Handle token refresh on 401
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+
+          // Retry request with new token
+          final retryRequest = http.MultipartRequest(
+            'PUT',
+            Uri.parse('$baseUrl/student/profile/edit/'),
           );
           retryRequest.headers['Authorization'] = 'Bearer ${refreshed['access']}';
           retryRequest.fields.addAll(request.fields);
@@ -604,6 +798,54 @@ class ApiService {
   }) async {
     return getProtected(
       endpoint: '/institution/profile/self/',
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      onTokenRefreshed: onTokenRefreshed,
+      onSessionExpired: onSessionExpired,
+    );
+  }
+
+  /// Get institution my profile (own account information)
+  static Future<Map<String, dynamic>> getInstitutionMyProfile({
+    required String accessToken,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    return getProtected(
+      endpoint: '/institution/my-profile/',
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      onTokenRefreshed: onTokenRefreshed,
+      onSessionExpired: onSessionExpired,
+    );
+  }
+
+  /// Get lecturer my profile (own account information)
+  static Future<Map<String, dynamic>> getLecturerMyProfile({
+    required String accessToken,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    return getProtected(
+      endpoint: '/lecturer/profile/self/',
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      onTokenRefreshed: onTokenRefreshed,
+      onSessionExpired: onSessionExpired,
+    );
+  }
+
+  /// Get student my profile (own account information)
+  static Future<Map<String, dynamic>> getStudentMyProfile({
+    required String accessToken,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    return getProtected(
+      endpoint: '/student/profile/self/',
       accessToken: accessToken,
       refreshToken: refreshToken,
       onTokenRefreshed: onTokenRefreshed,

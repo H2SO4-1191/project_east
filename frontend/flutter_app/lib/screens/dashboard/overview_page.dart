@@ -163,7 +163,7 @@ class _OverviewPageState extends State<OverviewPage> {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    const baseUrl = 'http://192.168.0.249:8000';
+    const baseUrl = 'https://projecteastapi.ddns.net';
     String cleanPath = imagePath.startsWith('/') ? imagePath : '/$imagePath';
     cleanPath = cleanPath.replaceAll(RegExp(r'/media/media+'), '/media/');
     if (cleanPath.startsWith('/media/media/')) {

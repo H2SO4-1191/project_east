@@ -1,9 +1,11 @@
+import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { InstituteProvider } from './context/InstituteContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import WelcomeModal from './components/WelcomeModal';
 import Feed from './pages/Feed';
 import EnhancedHome from './pages/EnhancedHome';
 import EnhancedLogin from './pages/EnhancedLogin';
@@ -83,6 +85,20 @@ function AnimatedRoutes() {
 }
 
 function App() {
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    // Check if user has seen welcome screen
+    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
+    
+    if (!hasSeenWelcome) {
+      // Small delay to ensure smooth rendering
+      setTimeout(() => {
+        setShowWelcome(true);
+      }, 500);
+    }
+  }, []);
+
   return (
     <ThemeProvider>
       <InstituteProvider>
@@ -104,6 +120,8 @@ function App() {
               },
             }}
           />
+          {/* Welcome Modal - Shows only on first visit */}
+          {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
         </Router>
       </InstituteProvider>
     </ThemeProvider>

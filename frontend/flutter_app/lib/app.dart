@@ -12,14 +12,21 @@ import 'screens/signup_student_screen.dart';
 import 'screens/signup_lecturer_screen.dart';
 import 'screens/account_type_selection_screen.dart';
 import 'screens/otp_screen.dart';
-import 'screens/feed_screen.dart';
 import 'screens/explore_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
+import 'widgets/main_navigation_wrapper.dart';
 import 'screens/lecturer/lecturer_courses_screen.dart';
 import 'screens/lecturer/lecturer_schedule_screen.dart';
 import 'screens/student/student_courses_screen.dart';
 import 'screens/student/student_schedule_screen.dart';
 import 'screens/institution_profile_screen.dart';
+import 'screens/profile_screen.dart';
+import 'screens/dashboard/my_profile_screen.dart';
+import 'screens/dashboard/edit_profile_page.dart';
+import 'screens/lecturer/my_profile_screen.dart';
+import 'screens/lecturer/edit_profile_page.dart';
+import 'screens/student/my_profile_screen.dart';
+import 'screens/student/edit_profile_page.dart';
 import 'widgets/protected_route.dart';
 
 class MyApp extends StatelessWidget {
@@ -79,7 +86,7 @@ class MyApp extends StatelessWidget {
           themeMode: themeProvider.isDark ? ThemeMode.dark : ThemeMode.light,
           initialRoute: '/',
           routes: {
-            '/': (context) => const FeedScreen(),
+            '/': (context) => const MainNavigationWrapper(),
             '/home': (context) => const HomeScreen(),
             '/login': (context) => const LoginScreen(),
             '/signup': (context) => const SignupScreen(),
@@ -90,12 +97,18 @@ class MyApp extends StatelessWidget {
             '/otp': (context) => const OTPScreen(),
             '/explore': (context) => const ExploreScreen(),
             '/dashboard': (context) => const ProtectedRoute(
+              requireInstitution: true,
               child: DashboardScreen(),
             ),
             '/lecturer/courses': (context) => const LecturerCoursesScreen(),
             '/lecturer/schedule': (context) => const LecturerScheduleScreen(),
             '/student/courses': (context) => const StudentCoursesScreen(),
             '/student/schedule': (context) => const StudentScheduleScreen(),
+            '/profile': (context) => const ProfileScreen(),
+            '/lecturer/my-profile': (context) => const LecturerMyProfileScreen(),
+            '/lecturer/edit-profile': (context) => const LecturerEditProfilePage(),
+            '/student/my-profile': (context) => const StudentMyProfileScreen(),
+            '/student/edit-profile': (context) => const StudentEditProfilePage(),
             '/institution-profile': (context) {
               final args = ModalRoute.of(context)!.settings.arguments;
               return InstitutionProfileScreen(

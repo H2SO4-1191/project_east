@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../config/theme.dart';
-import '../providers/theme_provider.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
 
@@ -24,6 +22,28 @@ class _SignupLecturerScreenState extends State<SignupLecturerScreen> {
   bool _isLoading = false;
   String _formError = '';
   Map<String, String> _fieldErrors = {};
+  String? _selectedCity;
+
+  static const Map<String, String> _cities = {
+    'baghdad': 'Baghdad',
+    'basra': 'Basra',
+    'maysan': 'Maysan',
+    'dhi_qar': 'Dhi Qar',
+    'muthanna': 'Muthanna',
+    'qadisiyyah': 'Qadisiyyah',
+    'najaf': 'Najaf',
+    'karbala': 'Karbala',
+    'babel': 'Babel',
+    'wasit': 'Wasit',
+    'anbar': 'Anbar',
+    'salah_al_din': 'Salah Al-Din',
+    'kirkuk': 'Kirkuk',
+    'diyala': 'Diyala',
+    'mosul': 'Mosul',
+    'erbil': 'Erbil',
+    'duhok': 'Duhok',
+    'sulaymaniyah': 'Sulaymaniyah',
+  };
 
   @override
   void dispose() {
@@ -42,11 +62,25 @@ class _SignupLecturerScreenState extends State<SignupLecturerScreen> {
         _fieldErrors = {};
       });
 
+      if (_selectedCity == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a city'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
       final payload = {
         'username': _usernameController.text.trim(),
         'email': _emailController.text.trim(),
         'first_name': _firstNameController.text.trim(),
         'last_name': _lastNameController.text.trim(),
+        'city': _selectedCity!,
         'user_type': 'lecturer',
       };
 
@@ -87,6 +121,9 @@ class _SignupLecturerScreenState extends State<SignupLecturerScreen> {
           _emailController.clear();
           _firstNameController.clear();
           _lastNameController.clear();
+          setState(() {
+            _selectedCity = null;
+          });
 
           await Future.delayed(const Duration(milliseconds: 800));
           
@@ -289,6 +326,36 @@ class _SignupLecturerScreenState extends State<SignupLecturerScreen> {
                     }
                     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
                       return 'Invalid email';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedCity,
+                  decoration: InputDecoration(
+                    labelText: 'City',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    errorText: _fieldErrors['city'],
+                  ),
+                  items: _cities.entries.map((entry) {
+                    return DropdownMenuItem<String>(
+                      value: entry.key,
+                      child: Text(entry.value),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedCity = value;
+                      _fieldErrors.remove('city');
+                      _formError = '';
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Required';
                     }
                     return null;
                   },

@@ -370,7 +370,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: theme.textTheme.bodySmall,
                             ),
                             TextButton(
-                              onPressed: () => Navigator.pushNamed(context, '/signup'),
+                              onPressed: () => Navigator.pushNamed(context, '/account-type-selection'),
                               child: Text(
                                 'Sign up here',
                                 style: TextStyle(

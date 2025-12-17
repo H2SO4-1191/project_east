@@ -47,7 +47,7 @@ const Explore = () => {
   const { isDark, toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
-  const [activeTab, setActiveTab] = useState('all'); // 'all', 'students', 'lecturers', 'positions', 'courses'
+  const [activeTab, setActiveTab] = useState('all'); // 'all', 'students', 'lecturers', 'positions', 'courses', 'institutions'
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [profileType, setProfileType] = useState(null);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
@@ -196,7 +196,7 @@ const Explore = () => {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'https://projecteastapi.ddns.net';
     // Ensure imagePath starts with / and doesn't have duplicate /media/
     let cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
     // Remove duplicate /media/ if present
@@ -350,7 +350,7 @@ const Explore = () => {
         else if (activeTab === 'lecturers') filter = 'lecturers';
         else if (activeTab === 'positions') filter = 'jobs';
         else if (activeTab === 'courses') filter = 'courses';
-        // Note: 'institutions' filter can be added if needed
+        else if (activeTab === 'institutions') filter = 'institutions';
 
         // Use empty query to fetch all data from /explore/ endpoint
         const query = searchQuery.trim() || '';
@@ -450,11 +450,72 @@ const Explore = () => {
               setAllResults([]);
             } else if (activeTab === 'courses') {
               const coursesData = Array.isArray(results?.courses) ? results.courses : [];
-              setCourses(coursesData);
+              // Check enrollment status for courses if user is a student
+              if (instituteData.isAuthenticated && instituteData.userType === 'student' && instituteData.accessToken && coursesData.length > 0) {
+                const enrollmentChecks = await Promise.allSettled(
+                  coursesData.map(async (course) => {
+                    const courseId = course.id || course.course_id;
+                    if (!courseId) return null;
+                    try {
+                      const enrollmentStatus = await authService.isEnrolled(
+                        instituteData.accessToken,
+                        courseId,
+                        {
+                          refreshToken: instituteData.refreshToken,
+                          onTokenRefreshed: (tokens) => {
+                            updateInstituteData({
+                              accessToken: tokens.access,
+                              refreshToken: tokens.refresh || instituteData.refreshToken,
+                            });
+                          },
+                          onSessionExpired: () => {
+                            // Silently fail - don't show error for enrollment check
+                          },
+                        }
+                      );
+                      return { courseId, isEnrolled: enrollmentStatus?.is_enrolled || enrollmentStatus?.enrolled || false };
+                    } catch (error) {
+                      console.warn(`Failed to check enrollment for course ${courseId}:`, error);
+                      return { courseId, isEnrolled: false };
+                    }
+                  })
+                );
+                
+                // Create a map of course IDs to enrollment status
+                const enrollmentMap = new Map();
+                enrollmentChecks.forEach((result) => {
+                  if (result.status === 'fulfilled' && result.value) {
+                    enrollmentMap.set(result.value.courseId, result.value.isEnrolled);
+                  }
+                });
+                
+                // Update courses with enrollment status
+                const coursesWithEnrollment = coursesData.map(course => {
+                  const courseId = course.id || course.course_id;
+                  return {
+                    ...course,
+                    is_enrolled: enrollmentMap.get(courseId) || false,
+                  };
+                });
+                
+                setCourses(coursesWithEnrollment);
+              } else {
+                setCourses(coursesData);
+              }
               setStudents([]);
               setLecturers([]);
               setPositions([]);
               setInstitutionJobPosts([]);
+              setInstitutions([]);
+              setAllResults([]);
+            } else if (activeTab === 'institutions') {
+              const institutionsData = Array.isArray(results?.institutions) ? results.institutions : [];
+              setInstitutions(institutionsData);
+              setStudents([]);
+              setLecturers([]);
+              setPositions([]);
+              setInstitutionJobPosts([]);
+              setCourses([]);
               setAllResults([]);
             }
           }
@@ -813,24 +874,9 @@ const Explore = () => {
         }
       );
 
-      // Handle checkout URL for payment
-      if (enrollResponse?.success && enrollResponse?.checkout_url) {
-        toast.success(t('feed.redirectingToCheckout') || 'Redirecting to checkout...');
-        const checkoutWindow = window.open(enrollResponse.checkout_url, '_blank', 'width=800,height=600');
-        
-        if (!checkoutWindow) {
-          toast.error(t('feed.popupBlocked') || 'Popup blocked. Please allow popups and try again.');
-        } else {
-          // Listen for window close
-          const checkClosed = setInterval(() => {
-            if (checkoutWindow.closed) {
-              clearInterval(checkClosed);
-              toast.info(t('feed.completePayment') || 'Please complete the payment in the checkout window.');
-            }
-          }, 1000);
-        }
-      } else if (enrollResponse?.success) {
-        toast.success(enrollResponse.message || t('feed.enrollmentSuccess') || 'Enrolled successfully!');
+      // Handle enrollment success
+      if (enrollResponse?.success) {
+        toast.success(enrollResponse?.message || t('feed.enrollmentSuccess') || 'Enrolled successfully!');
         // Close course modal if open
         if (selectedCourse?.id === course.id) {
           setSelectedCourse(null);
@@ -937,14 +983,12 @@ const Explore = () => {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               if (sidebarTimeoutRef.current) {
                 clearTimeout(sidebarTimeoutRef.current);
               }
-              // Check if we're already on the feed page
-              if (location.pathname !== '/feed') {
-                navigate('/feed', { replace: false });
-              }
+              navigate('/feed');
             }}
             onMouseEnter={() => {
               if (sidebarTimeoutRef.current) {
@@ -967,6 +1011,7 @@ const Explore = () => {
                 <button
                   type="button"
                   onClick={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     if (sidebarTimeoutRef.current) {
                       clearTimeout(sidebarTimeoutRef.current);
@@ -978,9 +1023,7 @@ const Explore = () => {
                     }
                     */
                     const targetPath = instituteData.userType === 'student' ? '/student/courses' : '/lecturer/courses';
-                    if (location.pathname !== targetPath) {
-                      navigate(targetPath, { replace: false });
-                    }
+                    navigate(targetPath);
                   }}
                   onMouseEnter={() => {
                     if (sidebarTimeoutRef.current) {
@@ -1001,6 +1044,7 @@ const Explore = () => {
                 <button
                   type="button"
                   onClick={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     if (sidebarTimeoutRef.current) {
                       clearTimeout(sidebarTimeoutRef.current);
@@ -1012,9 +1056,7 @@ const Explore = () => {
                     }
                     */
                     const targetPath = instituteData.userType === 'student' ? '/student/schedule' : '/lecturer/schedule';
-                    if (location.pathname !== targetPath) {
-                      navigate(targetPath, { replace: false });
-                    }
+                    navigate(targetPath);
                   }}
                   onMouseEnter={() => {
                     if (sidebarTimeoutRef.current) {
@@ -1037,14 +1079,12 @@ const Explore = () => {
                 <button
                   type="button"
                   onClick={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     if (sidebarTimeoutRef.current) {
                       clearTimeout(sidebarTimeoutRef.current);
                     }
-                    // Check if we're already on the dashboard page
-                    if (!location.pathname.startsWith('/dashboard')) {
-                      navigate('/dashboard', { replace: false });
-                    }
+                    navigate('/dashboard');
                   }}
                   onMouseEnter={() => {
                     if (sidebarTimeoutRef.current) {
@@ -1179,9 +1219,11 @@ const Explore = () => {
                 <div className="flex-1">
                 {/* Back Button */}
                 <motion.button
-                  onClick={() => {
-                    navigate('/feed');
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     setIsMobileSidebarOpen(false);
+                    navigate('/feed');
                   }}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 mb-6"
                   whileTap={{ scale: 0.95 }}
@@ -1200,9 +1242,11 @@ const Explore = () => {
                       <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => {
-                          navigate('/login');
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           setIsMobileSidebarOpen(false);
+                          navigate('/login');
                         }}
                         className="w-full px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-sm font-semibold transition-colors"
                       >
@@ -1211,9 +1255,11 @@ const Explore = () => {
                       <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => {
-                          navigate('/home');
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           setIsMobileSidebarOpen(false);
+                          navigate('/home');
                         }}
                         className="w-full px-3 py-2 border border-primary-600 dark:border-teal-400 text-primary-600 dark:text-teal-400 rounded-lg text-sm font-semibold hover:bg-primary-50 dark:hover:bg-navy-700 transition-colors"
                       >
@@ -1228,7 +1274,9 @@ const Explore = () => {
                   <div className="space-y-2 mb-6">
                     {(instituteData.userType === 'student' || instituteData.userType === 'lecturer') && (
                       <button
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           /* UNCOMMENT FOR PRODUCTION - Verification Check
                           if (!instituteData.isVerified) {
                             setShowVerificationPopup(true);
@@ -1236,12 +1284,12 @@ const Explore = () => {
                             return;
                           }
                           */
+                          setIsMobileSidebarOpen(false);
                           if (instituteData.userType === 'student') {
                             navigate('/student/courses');
                           } else {
                             navigate('/lecturer/courses');
                           }
-                          setIsMobileSidebarOpen(false);
                         }}
                         className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
                       >
@@ -1252,7 +1300,9 @@ const Explore = () => {
 
                     {(instituteData.userType === 'student' || instituteData.userType === 'lecturer') && (
                       <button
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           /* UNCOMMENT FOR PRODUCTION - Verification Check
                           if (!instituteData.isVerified) {
                             setShowVerificationPopup(true);
@@ -1260,12 +1310,12 @@ const Explore = () => {
                             return;
                           }
                           */
+                          setIsMobileSidebarOpen(false);
                           if (instituteData.userType === 'student') {
                             navigate('/student/schedule');
                           } else {
                             navigate('/lecturer/schedule');
                           }
-                          setIsMobileSidebarOpen(false);
                         }}
                         className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
                       >
@@ -1278,9 +1328,11 @@ const Explore = () => {
 
                     {isInstitution && (
                       <button
-                        onClick={() => {
-                          navigate('/dashboard');
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           setIsMobileSidebarOpen(false);
+                          navigate('/dashboard');
                         }}
                         className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
                       >
@@ -1774,6 +1826,28 @@ const Explore = () => {
                   />
                 )}
               </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setActiveTab('institutions')}
+                className={`px-6 py-3 font-semibold text-sm transition-all relative ${
+                  activeTab === 'institutions'
+                    ? 'text-primary-600 dark:text-teal-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <FaUniversity className="w-5 h-5" />
+                  <span>{t('feed.institutions') || 'Institutions+'}</span>
+                </div>
+                {activeTab === 'institutions' && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600 dark:bg-teal-400"
+                  />
+                )}
+              </motion.button>
             </div>
           </div>
 
@@ -2207,11 +2281,14 @@ const Explore = () => {
                                 className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
                               >
                                 <div className="relative h-32 overflow-hidden bg-gradient-to-br from-primary-100 to-teal-100 dark:from-primary-900 dark:to-teal-900">
-                                  {item.publisher_profile_image && (
+                                  {(item.course_image || item.publisher_profile_image) && (
                                     <img
-                                      src={getImageUrl(item.publisher_profile_image)}
+                                      src={getImageUrl(item.course_image || item.publisher_profile_image)}
                                       alt={item.title}
                                       className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                      }}
                                     />
                                   )}
                                 </div>
@@ -2752,6 +2829,71 @@ const Explore = () => {
             )}
 
             {/* Courses Tab */}
+            {!isLoadingSearch && !searchError && activeTab === 'institutions' && (
+              <>
+                {institutions.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center py-12"
+                  >
+                    <FaUniversity className="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-600 dark:text-gray-400 text-lg">
+                      {t('feed.noInstitutionsFound') || 'No institutions found'}
+                    </p>
+                    {searchQuery && (
+                      <p className="text-gray-500 dark:text-gray-500 text-sm mt-2">
+                        {t('feed.tryDifferentSearch') || 'Try a different search term'}
+                      </p>
+                    )}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  >
+                    {institutions.map((institution, index) => (
+                      <motion.div
+                        key={institution.id || institution.username}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        onClick={() => handleViewProfile(institution, 'institution')}
+                        className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 p-6 hover:shadow-xl transition-all cursor-pointer"
+                      >
+                        <div className="flex items-start gap-4 mb-4">
+                          <img
+                            src={getImageUrl(institution.profile_image || institution.image) || 'https://i.pravatar.cc/150?img=12'}
+                            alt={institution.title || institution.name || institution.username}
+                            className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-bold text-gray-800 dark:text-white">{institution.title || institution.name || institution.username}</h3>
+                            </div>
+                            <p className="text-sm text-primary-600 dark:text-teal-400 mb-1">{institution.username}</p>
+                            {institution.location && (
+                              <p className="text-xs text-gray-500 dark:text-gray-500">{institution.location}</p>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">{institution.about || institution.bio}</p>
+                        {institution.isVerified && (
+                          <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-xs font-semibold">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            <span>{t('feed.verified')}</span>
+                          </div>
+                        )}
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                )}
+              </>
+            )}
+
             {!isLoadingSearch && !searchError && activeTab === 'courses' && (
               <>
                 {/* Filters for Courses */}
@@ -2831,11 +2973,14 @@ const Explore = () => {
                         >
                           {/* Course Image */}
                           <div className="relative h-48 overflow-hidden bg-gradient-to-br from-primary-100 to-teal-100 dark:from-primary-900 dark:to-teal-900">
-                            {course.publisher_profile_image && (
+                            {(course.course_image || course.publisher_profile_image) && (
                               <img
-                                src={getImageUrl(course.publisher_profile_image)}
+                                src={getImageUrl(course.course_image || course.publisher_profile_image)}
                                 alt={course.title}
                                 className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
                               />
                             )}
                           </div>
@@ -3170,6 +3315,24 @@ const Explore = () => {
                       @{selectedProfile.username}
                     </p>
                   </div>
+                )}
+                
+                {/* See Full Page Button */}
+                {selectedProfile.username && (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleCloseProfile();
+                      navigate(`/institution/profile/${selectedProfile.username}`);
+                    }}
+                    className="w-full px-6 py-3 bg-gradient-to-r from-primary-600 to-teal-500 hover:from-primary-700 hover:to-teal-600 text-white rounded-lg font-semibold transition-all flex items-center justify-center gap-2 mt-4"
+                  >
+                    <FaUniversity className="w-5 h-5" />
+                    <span>{t('feed.seeFullPage') || 'See Full Page'}</span>
+                  </motion.button>
                 )}
               </>
             )}

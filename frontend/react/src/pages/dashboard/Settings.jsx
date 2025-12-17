@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FaUniversity, FaCheckCircle, FaExclamationTriangle, FaUpload, FaSpinner, FaCreditCard, FaCrown } from 'react-icons/fa';
+import { FaUniversity, FaCheckCircle, FaExclamationTriangle, FaUpload, FaSpinner, FaCreditCard, FaCrown, FaClock, FaCalendarAlt } from 'react-icons/fa';
 import { useTranslation } from 'react-i18next';
 import Card from '../../components/Card';
 import AnimatedButton from '../../components/AnimatedButton';
@@ -31,7 +31,6 @@ const Settings = () => {
 
   // Edit profile form state
   const [editForm, setEditForm] = useState({
-    username: '',
     first_name: '',
     last_name: '',
     title: '',
@@ -69,6 +68,51 @@ const Settings = () => {
   const [isAddingPaymentMethod, setIsAddingPaymentMethod] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('3m');
+  const [profileData, setProfileData] = useState(null);
+
+  // Format date and time in 24-hour format
+  const formatDateTime24 = (dateTimeString) => {
+    if (!dateTimeString) return '';
+    try {
+      const date = new Date(dateTimeString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    } catch {
+      return dateTimeString;
+    }
+  };
+
+  // Fetch institution profile data to get up_time and up_days
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!instituteData.isAuthenticated || !instituteData.accessToken) return;
+      
+      try {
+        const data = await authService.getInstitutionProfile(instituteData.accessToken, {
+          refreshToken: instituteData.refreshToken,
+          onTokenRefreshed: (tokens) => {
+            updateInstituteData({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh || instituteData.refreshToken,
+            });
+          },
+        });
+        
+        if (data?.success && data?.data) {
+          setProfileData(data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching profile data:', error);
+      }
+    };
+
+    fetchProfile();
+  }, [instituteData.isAuthenticated, instituteData.accessToken, instituteData.refreshToken, updateInstituteData]);
 
 
   const handleFileChange = async (fieldName, file) => {
@@ -349,10 +393,7 @@ const Settings = () => {
         }
       );
 
-      // Update username in context if it was changed
-      if (editForm.username && editForm.username !== instituteData.username) {
-        updateInstituteData({ username: editForm.username });
-      }
+      // Username cannot be changed - removed from edit form
 
     confetti({
       particleCount: 100,
@@ -365,7 +406,6 @@ const Settings = () => {
       
       // Reset form
       setEditForm({
-        username: '',
         first_name: '',
         last_name: '',
         title: '',
@@ -556,6 +596,22 @@ const Settings = () => {
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   {t('dashboard.settingsPage.institutionVerifiedSuccess')}
                 </p>
+                {(profileData?.up_time || profileData?.up_days) && (
+                  <div className="mt-2 flex flex-wrap gap-4 text-xs text-gray-500 dark:text-gray-400">
+                    {profileData.up_time && (
+                      <div className="flex items-center gap-1">
+                        <FaClock className="w-3 h-3" />
+                        <span>{t('profile.upTime') || 'Updated at'}: {formatDateTime24(profileData.up_time)}</span>
+                      </div>
+                    )}
+                    {profileData.up_days && (
+                      <div className="flex items-center gap-1">
+                        <FaCalendarAlt className="w-3 h-3" />
+                        <span>{t('profile.upDays') || 'Days active'}: {profileData.up_days}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             <AnimatedButton onClick={() => setShowEditProfileModal(true)} variant="secondary">
@@ -613,6 +669,40 @@ const Settings = () => {
             />
           </div>
         </div>
+
+        {/* Display up_time and up_days if available */}
+        {(profileData?.up_time || profileData?.up_days) && (
+          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-navy-700">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {profileData.up_time && (
+                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-navy-800 rounded-lg">
+                  <FaClock className="w-5 h-5 text-primary-600 dark:text-teal-400" />
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      {t('profile.upTime') || 'Last Updated'}
+                    </p>
+                    <p className="text-sm font-medium text-gray-800 dark:text-white">
+                      {formatDateTime24(profileData.up_time)}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {profileData.up_days && (
+                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-navy-800 rounded-lg">
+                  <FaCalendarAlt className="w-5 h-5 text-primary-600 dark:text-teal-400" />
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      {t('profile.upDays') || 'Days Active'}
+                    </p>
+                    <p className="text-sm font-medium text-gray-800 dark:text-white">
+                      {profileData.up_days} {t('profile.days') || 'days'}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Payment Method Section */}
@@ -885,22 +975,6 @@ const Settings = () => {
 
           {/* Text Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                {t('dashboard.settingsPage.username')}
-              </label>
-              <input
-                type="text"
-                value={editForm.username}
-                onChange={(e) => setEditForm(prev => ({ ...prev, username: e.target.value }))}
-                placeholder={instituteData.username || t('dashboard.settingsPage.enterNewUsername')}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-              />
-              {editErrors.username && (
-                <p className="text-red-500 text-xs mt-1">{editErrors.username[0]}</p>
-              )}
-            </div>
-
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
                 {t('dashboard.settingsPage.institutionTitle')}

@@ -1,9 +1,9 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../providers/auth_provider.dart';
-import '../providers/theme_provider.dart';
-import '../widgets/language_switcher.dart';
+import '../widgets/profile_button.dart';
 import '../services/api_service.dart';
 import '../models/feed_item.dart';
 import '../services/profile_service.dart';
@@ -16,12 +16,14 @@ class FeedScreen extends StatefulWidget {
   State<FeedScreen> createState() => _FeedScreenState();
 }
 
-class _FeedScreenState extends State<FeedScreen> {
+class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMixin {
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = true;
   String? _error;
   List<FeedItem> _feedItems = [];
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -81,6 +83,7 @@ class _FeedScreenState extends State<FeedScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final authProvider = Provider.of<AuthProvider>(context);
@@ -88,12 +91,8 @@ class _FeedScreenState extends State<FeedScreen> {
     final instituteData = authProvider.instituteData;
 
     return Scaffold(
-      key: _scaffoldKey,
       backgroundColor: isDark ? AppTheme.navy900 : const Color(0xFFF9FAFB),
-      drawer: _buildDrawer(context, isDark, isAuthenticated, instituteData),
       appBar: _buildAppBar(context, isDark, isAuthenticated, instituteData),
-      floatingActionButton: _buildFloatingMenuButton(context, isDark, isAuthenticated, instituteData),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       body: RefreshIndicator(
         onRefresh: _loadFeed,
         child: CustomScrollView(
@@ -201,184 +200,21 @@ class _FeedScreenState extends State<FeedScreen> {
     return AppBar(
       elevation: 0,
       backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
-      automaticallyImplyLeading: false, // Remove default back button
-      title: const Text(
-            'Project East',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+      automaticallyImplyLeading: false,
+      leading: const Padding(
+        padding: EdgeInsets.only(left: 8.0),
+        child: ProfileButton(),
       ),
-      actions: [
-        // Account button (always visible)
-        IconButton(
-          icon: isAuthenticated
-              ? CircleAvatar(
-              radius: 16,
-              backgroundColor: AppTheme.primary600,
-              child: Text(
-                (instituteData['username'] ?? instituteData['name'] ?? 'U')
-                    .toString()
-                    .substring(0, 1)
-                    .toUpperCase(),
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-              ),
-                )
-              : const Icon(Icons.account_circle),
-            onPressed: () {
-            _showAccountOptions(context, isDark, isAuthenticated, instituteData);
-            },
-          ),
-      ],
-    );
-  }
-
-  Widget _buildDrawer(
-    BuildContext context,
-    bool isDark,
-    bool isAuthenticated,
-    Map<String, dynamic> instituteData,
-  ) {
-    return Drawer(
-      backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
-      child: _buildDrawerContent(context, isDark, isAuthenticated, instituteData),
-    );
-  }
-
-  Widget _buildDrawerContent(
-    BuildContext context,
-    bool isDark,
-    bool isAuthenticated,
-    Map<String, dynamic> instituteData,
-  ) {
-    return ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppTheme.primary600, AppTheme.teal500],
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                const Text(
-                  'Project East',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (isAuthenticated)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      instituteData['username'] ?? instituteData['name'] ?? 'User',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        // Explore button - Public (visible to everyone)
-        ListTile(
-          leading: const Icon(Icons.explore),
-          title: const Text('Explore'),
-          onTap: () {
-            Navigator.pop(context);
-            Navigator.pushNamed(context, '/explore');
-          },
+      title: const Text(
+        'Project East',
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
         ),
-          if (isAuthenticated) ...[
-          const Divider(),
-          // Lecturer-specific buttons
-          if (instituteData['userType'] == 'lecturer') ...[
-            ListTile(
-              leading: const Icon(Icons.book),
-              title: const Text('Current Courses'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/lecturer/courses');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.calendar_today),
-              title: const Text('Schedules'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/lecturer/schedule');
-              },
-            ),
-            const Divider(),
-          ],
-          // Student-specific buttons
-          if (instituteData['userType'] == 'student') ...[
-            ListTile(
-              leading: const Icon(Icons.book),
-              title: const Text('My Courses'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/student/courses');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.calendar_today),
-              title: const Text('My Schedule'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/student/schedule');
-              },
-            ),
-            const Divider(),
-          ],
-          // Institution-specific buttons
-          if (instituteData['userType'] == 'institution') ...[
-            ListTile(
-              leading: const Icon(Icons.dashboard),
-              title: const Text('Dashboard'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/dashboard');
-              },
-            ),
-          ],
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Profile'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Navigate to profile
-              },
-            ),
-            const Divider(),
-          ],
-          ListTile(
-            leading: Icon(isDark ? Icons.wb_sunny : Icons.nightlight_round),
-            title: Text(isDark ? 'Light Mode' : 'Dark Mode'),
-            onTap: () {
-              Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
-            },
-          ),
-        const Divider(),
-        const LanguageSwitcher(isInDrawer: true),
-            const Divider(),
-            ListTile(
-          leading: Icon(isAuthenticated ? Icons.account_circle : Icons.account_circle_outlined),
-          title: Text(isAuthenticated ? 'Account' : 'Account'),
-              onTap: () {
-                Navigator.pop(context);
-            _showAccountOptions(context, isDark, isAuthenticated, instituteData);
-              },
-            ),
-          ],
+      ),
     );
   }
+
 
   Widget _buildHeroSection(
     BuildContext context,
@@ -401,29 +237,127 @@ class _FeedScreenState extends State<FeedScreen> {
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-      child: Column(
+      child: Stack(
         children: [
-          Text(
-            isAuthenticated 
-                ? 'Welcome Back, $firstName!'
-                : 'Discover Excellence',
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-            textAlign: TextAlign.center,
+          // Animated icons behind the text
+          _buildAnimatedIcons(),
+          // Text content
+          Column(
+            children: [
+              Text(
+                isAuthenticated 
+                    ? 'Welcome Back, $firstName!'
+                    : 'Discover Excellence',
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Animated icons behind the subtitle
+                  _buildAnimatedSubtitleIcons(),
+                  // Subtitle text
+                  Text(
+                    isAuthenticated
+                        ? 'Explore institutions, courses, and opportunities'
+                        : 'Explore institutions, courses, and opportunities',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white70,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            isAuthenticated
-                ? 'Explore institutions, courses, and opportunities'
-                : 'Explore institutions, courses, and opportunities',
-            style: const TextStyle(
-              fontSize: 16,
-              color: Colors.white70,
-            ),
-            textAlign: TextAlign.center,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnimatedIcons() {
+    return Positioned.fill(
+      child: Stack(
+        children: [
+          const _AnimatedBackgroundIcon(
+            icon: Icons.business,
+            delay: 0,
+            startX: 0.1,
+            startY: 0.2,
+          ),
+          const _AnimatedBackgroundIcon(
+            icon: Icons.school,
+            delay: 500,
+            startX: 0.8,
+            startY: 0.3,
+          ),
+          const _AnimatedBackgroundIcon(
+            icon: Icons.book,
+            delay: 1000,
+            startX: 0.2,
+            startY: 0.6,
+          ),
+          const _AnimatedBackgroundIcon(
+            icon: Icons.work,
+            delay: 1500,
+            startX: 0.7,
+            startY: 0.7,
+          ),
+          const _AnimatedBackgroundIcon(
+            icon: Icons.edit,
+            delay: 2000,
+            startX: 0.5,
+            startY: 0.5,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnimatedSubtitleIcons() {
+    return Positioned.fill(
+      child: Stack(
+        children: [
+          const _AnimatedBackgroundIcon(
+            icon: Icons.business,
+            delay: 0,
+            startX: 0.15,
+            startY: 0.5,
+            size: 20,
+          ),
+          const _AnimatedBackgroundIcon(
+            icon: Icons.book,
+            delay: 800,
+            startX: 0.4,
+            startY: 0.5,
+            size: 20,
+          ),
+          const _AnimatedBackgroundIcon(
+            icon: Icons.work,
+            delay: 1600,
+            startX: 0.65,
+            startY: 0.5,
+            size: 20,
+          ),
+          const _AnimatedBackgroundIcon(
+            icon: Icons.school,
+            delay: 400,
+            startX: 0.3,
+            startY: 0.5,
+            size: 20,
+          ),
+          const _AnimatedBackgroundIcon(
+            icon: Icons.edit,
+            delay: 1200,
+            startX: 0.55,
+            startY: 0.5,
+            size: 20,
           ),
         ],
       ),
@@ -1821,250 +1755,131 @@ class _FeedScreenState extends State<FeedScreen> {
     );
   }
 
-  void _handleLogout(BuildContext context) async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.logout();
-    if (context.mounted) {
-      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
-    }
-  }
-
-  Widget _buildFloatingMenuButton(
-    BuildContext context,
-    bool isDark,
-    bool isAuthenticated,
-    Map<String, dynamic> instituteData,
-  ) {
-    return FloatingActionButton(
-      onPressed: () {
-        _showAnimatedDrawer(context, isDark, isAuthenticated, instituteData);
-      },
-      backgroundColor: AppTheme.primary600,
-      child: Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: const LinearGradient(
-            colors: [AppTheme.primary600, AppTheme.teal500],
-          ),
-        ),
-        child: const Icon(
-          Icons.school,
-          color: Colors.white,
-          size: 28,
-        ),
-      ),
-    );
-  }
-
-  void _showAnimatedDrawer(
-    BuildContext context,
-    bool isDark,
-    bool isAuthenticated,
-    Map<String, dynamic> instituteData,
-  ) {
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-      barrierColor: Colors.black.withOpacity(0.5),
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return _AnimatedDrawerContent(
-          animation: animation,
-          isDark: isDark,
-          isAuthenticated: isAuthenticated,
-          instituteData: instituteData,
-          drawerContent: _buildDrawerContent(context, isDark, isAuthenticated, instituteData),
-        );
-      },
-    );
-  }
-
-  void _showAccountOptions(
-    BuildContext context,
-    bool isDark,
-    bool isAuthenticated,
-    Map<String, dynamic> instituteData,
-  ) {
-    if (isAuthenticated) {
-      // Show user menu
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: Colors.transparent,
-        builder: (context) => Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppTheme.navy800 : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.person),
-                  title: Text(instituteData['username'] ?? instituteData['name'] ?? 'User'),
-                  subtitle: Text(instituteData['userType'] ?? 'User'),
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.logout, color: Colors.red),
-                  title: const Text('Logout', style: TextStyle(color: Colors.red)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _handleLogout(context);
-                  },
-                ),
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-        ),
-      );
-    } else {
-      // Show Login/Sign Up options
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: Colors.transparent,
-        builder: (context) => Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppTheme.navy800 : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Welcome',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.pushNamed(context, '/login');
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primary600,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text('Login'),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.pushNamed(context, '/account-type-selection');
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.primary600,
-                        side: const BorderSide(color: AppTheme.primary600, width: 2),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text('Sign Up'),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-  }
 }
 
-class _AnimatedDrawerContent extends StatelessWidget {
-  final Animation<double> animation;
-  final bool isDark;
-  final bool isAuthenticated;
-  final Map<String, dynamic> instituteData;
-  final Widget drawerContent;
+class _AnimatedBackgroundIcon extends StatefulWidget {
+  final IconData icon;
+  final int delay;
+  final double startX;
+  final double startY;
+  final double size;
 
-  const _AnimatedDrawerContent({
-    required this.animation,
-    required this.isDark,
-    required this.isAuthenticated,
-    required this.instituteData,
-    required this.drawerContent,
+  const _AnimatedBackgroundIcon({
+    required this.icon,
+    required this.delay,
+    required this.startX,
+    required this.startY,
+    this.size = 32,
   });
 
   @override
+  State<_AnimatedBackgroundIcon> createState() => _AnimatedBackgroundIconState();
+}
+
+class _AnimatedBackgroundIconState extends State<_AnimatedBackgroundIcon>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _xAnimation;
+  late Animation<double> _yAnimation;
+  late Animation<double> _opacityAnimation;
+  
+  // Random values for independent movement
+  late double _randomXRange;
+  late double _randomYRange;
+  late double _randomXOffset;
+  late double _randomYOffset;
+  late double _randomDuration;
+  late double _randomOpacityMin;
+  late double _randomOpacityMax;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Generate random values for each icon to move independently
+    final random = math.Random();
+    _randomXRange = 15 + random.nextDouble() * 25; // 15-40px range
+    _randomYRange = 10 + random.nextDouble() * 20; // 10-30px range
+    _randomXOffset = random.nextDouble() * 40 - 20; // -20 to 20
+    _randomYOffset = random.nextDouble() * 30 - 15; // -15 to 15
+    _randomDuration = 6 + random.nextDouble() * 6; // 6-12 seconds
+    _randomOpacityMin = 0.1 + random.nextDouble() * 0.1; // 0.1-0.2
+    _randomOpacityMax = 0.25 + random.nextDouble() * 0.15; // 0.25-0.4
+    
+    _controller = AnimationController(
+      duration: Duration(milliseconds: (_randomDuration * 1000).round()),
+      vsync: this,
+    );
+
+    // Independent movement with random ranges
+    _xAnimation = Tween<double>(
+      begin: _randomXOffset - _randomXRange,
+      end: _randomXOffset + _randomXRange,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    ));
+
+    _yAnimation = Tween<double>(
+      begin: _randomYOffset - _randomYRange,
+      end: _randomYOffset + _randomYRange,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    ));
+
+    // Independent opacity animation
+    _opacityAnimation = Tween<double>(
+      begin: _randomOpacityMin,
+      end: _randomOpacityMax,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    ));
+
+    // Start animation after delay with random initial position
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) {
+        _controller.value = random.nextDouble(); // Start at random position
+        _controller.repeat();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: animation,
-        curve: Curves.easeInOut,
-      ),
-    );
-
-    final slideAnimation = Tween<Offset>(
-      begin: const Offset(-1.0, 0.0),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: animation,
-        curve: Curves.easeOutCubic,
-      ),
-    );
-
-    return GestureDetector(
-      onTap: () => Navigator.of(context).pop(),
-      child: Container(
-        color: Colors.transparent,
-        child: Stack(
-          children: [
-            // Backdrop
-            FadeTransition(
-              opacity: fadeAnimation,
-              child: Container(
-                color: Colors.black.withOpacity(0.5),
-              ),
-            ),
-            // Drawer
-            SlideTransition(
-              position: slideAnimation,
-              child: FadeTransition(
-                opacity: fadeAnimation,
-                child: GestureDetector(
-                  onTap: () {}, // Prevent closing when tapping inside drawer
-                  child: Material(
-                    color: isDark ? AppTheme.navy800 : Colors.white,
-                    child: Container(
-                      width: MediaQuery.of(context).size.width * 0.75,
-                      child: SafeArea(
-                        child: drawerContent,
-                      ),
-                    ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Positioned(
+          left: constraints.maxWidth * widget.startX,
+          top: constraints.maxHeight * widget.startY,
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(
+                  _xAnimation.value,
+                  _yAnimation.value,
+                ),
+                child: Opacity(
+                  opacity: _opacityAnimation.value,
+                  child: Icon(
+                    widget.icon,
+                    size: widget.size,
+                    color: Colors.white,
                   ),
                 ),
-              ),
-            ),
-          ],
-        ),
-      ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }

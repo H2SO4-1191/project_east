@@ -5,6 +5,8 @@ import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../widgets/verification_lock.dart';
+import '../../widgets/modern_bottom_nav.dart';
+import '../../utils/navigation_helper.dart';
 
 class StudentsPage extends StatefulWidget {
   const StudentsPage({super.key});
@@ -31,7 +33,7 @@ class _StudentsPageState extends State<StudentsPage> {
   bool _showProfileModal = false;
   bool _isLoadingProfile = false;
 
-  static const String _baseUrl = 'http://192.168.0.249:8000';
+  static const String _baseUrl = 'https://projecteastapi.ddns.net';
 
   @override
   void initState() {
@@ -221,6 +223,12 @@ class _StudentsPageState extends State<StudentsPage> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: 1, // Dashboard index for institutions
+        onTap: (index) {
+          NavigationHelper.handleBottomNavTap(context, index);
+        },
+      ),
       body: Stack(
         children: [
           SingleChildScrollView(

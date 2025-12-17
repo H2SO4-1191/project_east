@@ -1,16 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaMoon, FaSun } from 'react-icons/fa';
 import { useInstitute } from '../context/InstituteContext';
-import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
-import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const Login = () => {
   const navigate = useNavigate();
   const { setInstituteData } = useInstitute();
-  const { isDark, toggleTheme } = useTheme();
   const { t } = useTranslation();
   const [formData, setFormData] = useState({
     email: '',
@@ -43,27 +39,6 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100 dark:from-navy-900 dark:via-navy-800 dark:to-navy-900 flex items-center justify-center p-4 relative">
-      {/* Theme Toggle & Language Switcher - Fixed Position */}
-      <div className="fixed top-4 right-4 flex flex-col items-end gap-3 z-50">
-        {/* Theme Toggle */}
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={toggleTheme}
-          className="p-3 rounded-lg bg-white dark:bg-navy-700 shadow-md hover:shadow-lg transition-all border border-gray-200 dark:border-navy-600"
-          title={isDark ? t('lightMode') || 'Light Mode' : t('darkMode') || 'Dark Mode'}
-        >
-          {isDark ? (
-            <FaSun className="w-5 h-5 text-yellow-400" />
-          ) : (
-            <FaMoon className="w-5 h-5 text-gray-600" />
-          )}
-        </motion.button>
-
-        {/* Language Switcher */}
-        <LanguageSwitcher />
-      </div>
-
       <div className="w-full max-w-md">
         {/* Logo and Title */}
         <div className="text-center mb-12">

@@ -26,7 +26,8 @@ import {
   FaTimes,
   FaCalendarAlt,
   FaCreditCard,
-  FaSpinner
+  FaSpinner,
+  FaNewspaper
 } from 'react-icons/fa';
 import { useInstitute } from '../context/InstituteContext';
 import { useTheme } from '../context/ThemeContext';
@@ -320,7 +321,7 @@ const Feed = () => {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'https://projecteastapi.ddns.net';
     // Ensure imagePath starts with / and doesn't have duplicate /media/
     let cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
     // Remove duplicate /media/ segments (handle multiple duplicates)
@@ -566,7 +567,67 @@ const Feed = () => {
 
           console.log('Processed feed items:', processedItems.length);
           console.log('Sample processed item:', processedItems[0]);
-          setFeedItems(processedItems);
+          
+          // Check enrollment status for courses if user is a student
+          if (instituteData.isAuthenticated && instituteData.userType === 'student' && instituteData.accessToken) {
+            const courses = processedItems.filter(item => item.type === 'course');
+            if (courses.length > 0) {
+              const enrollmentChecks = await Promise.allSettled(
+                courses.map(async (course) => {
+                  const courseId = course.id || course.course_id;
+                  if (!courseId) return null;
+                  try {
+                    const enrollmentStatus = await authService.isEnrolled(
+                      instituteData.accessToken,
+                      courseId,
+                      {
+                        refreshToken: instituteData.refreshToken,
+                        onTokenRefreshed: (tokens) => {
+                          updateInstituteData({
+                            accessToken: tokens.access,
+                            refreshToken: tokens.refresh || instituteData.refreshToken,
+                          });
+                        },
+                        onSessionExpired: () => {
+                          // Silently fail - don't show error for enrollment check
+                        },
+                      }
+                    );
+                    return { courseId, isEnrolled: enrollmentStatus?.is_enrolled || enrollmentStatus?.enrolled || false };
+                  } catch (error) {
+                    console.warn(`Failed to check enrollment for course ${courseId}:`, error);
+                    return { courseId, isEnrolled: false };
+                  }
+                })
+              );
+              
+              // Create a map of course IDs to enrollment status
+              const enrollmentMap = new Map();
+              enrollmentChecks.forEach((result) => {
+                if (result.status === 'fulfilled' && result.value) {
+                  enrollmentMap.set(result.value.courseId, result.value.isEnrolled);
+                }
+              });
+              
+              // Update processed items with enrollment status
+              const itemsWithEnrollment = processedItems.map(item => {
+                if (item.type === 'course') {
+                  const courseId = item.id || item.course_id;
+                  return {
+                    ...item,
+                    is_enrolled: enrollmentMap.get(courseId) || false,
+                  };
+                }
+                return item;
+              });
+              
+              setFeedItems(itemsWithEnrollment);
+            } else {
+              setFeedItems(processedItems);
+            }
+          } else {
+            setFeedItems(processedItems);
+          }
         } else {
           console.warn('No feed items found in response');
           setFeedItems([]);
@@ -812,24 +873,9 @@ const Feed = () => {
         },
       });
 
-      // Handle checkout URL for payment
-      if (enrollResponse?.success && enrollResponse?.checkout_url) {
-        toast.success(t('feed.redirectingToCheckout') || 'Redirecting to checkout...');
-        const checkoutWindow = window.open(enrollResponse.checkout_url, '_blank', 'width=800,height=600');
-        
-        if (!checkoutWindow) {
-          toast.error(t('feed.popupBlocked') || 'Popup blocked. Please allow popups and try again.');
-        } else {
-          // Listen for window close
-          const checkClosed = setInterval(() => {
-            if (checkoutWindow.closed) {
-              clearInterval(checkClosed);
-              toast.info(t('feed.completePayment') || 'Please complete the payment in the checkout window.');
-            }
-          }, 1000);
-        }
-      } else if (enrollResponse?.success) {
-        toast.success(t('feed.enrolledSuccess') || 'Enrolled successfully');
+      // Handle enrollment success
+      if (enrollResponse?.success) {
+        toast.success(enrollResponse?.message || t('feed.enrolledSuccess') || 'Enrolled successfully');
         // Mark course as enrolled in local state if present
         setFeedItems((prev) =>
           prev.map((item) =>
@@ -1223,7 +1269,7 @@ const Feed = () => {
                         navigate('/explore');
                       setIsMobileSidebarOpen(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
                   >
                       <FaCompass className="w-5 h-5 flex-shrink-0" />
                       <span className="font-medium">{t('feed.explore')}</span>
@@ -1709,7 +1755,7 @@ const Feed = () => {
             className="text-4xl md:text-5xl font-bold mb-4"
           >
             {instituteData.isAuthenticated 
-              ? `${t('feed.welcomeBack')}, ${instituteData.firstName || instituteData.name || instituteData.username || 'User'}!`
+              ? `${t('feed.welcomeBack')}, ${instituteData.username || instituteData.firstName || instituteData.name || 'User'}!`
               : t('feed.discoverExcellence')
             }
           </motion.h1>

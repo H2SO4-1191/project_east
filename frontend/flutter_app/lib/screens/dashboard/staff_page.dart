@@ -7,6 +7,8 @@ import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../widgets/verification_lock.dart';
+import '../../widgets/modern_bottom_nav.dart';
+import '../../utils/navigation_helper.dart';
 
 // Purple colors for staff page (matching React)
 class StaffColors {
@@ -83,7 +85,7 @@ class _StaffPageState extends State<StaffPage> {
   };
 
   final ImagePicker _picker = ImagePicker();
-  static const String _baseUrl = 'http://192.168.0.249:8000';
+  static const String _baseUrl = 'https://projecteastapi.ddns.net';
 
   @override
   void initState() {
@@ -782,6 +784,12 @@ class _StaffPageState extends State<StaffPage> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: 1, // Dashboard index for institutions
+        onTap: (index) {
+          NavigationHelper.handleBottomNavTap(context, index);
+        },
+      ),
       body: Stack(
         children: [
           SingleChildScrollView(

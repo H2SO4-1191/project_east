@@ -56,6 +56,11 @@ const InstitutionProfile = () => {
   const [showCourseModal, setShowCourseModal] = useState(false);
   const [isLoadingCourseDetails, setIsLoadingCourseDetails] = useState(false);
   const [courseProgress, setCourseProgress] = useState(null);
+  
+  // Enrollment and job application states
+  const [enrollingCourseId, setEnrollingCourseId] = useState(null);
+  const [isApplyingToJob, setIsApplyingToJob] = useState(false);
+  const [applyJobMessage, setApplyJobMessage] = useState('');
 
   // Helper function to convert relative image URLs to full URLs
   const getImageUrl = (imagePath) => {
@@ -63,7 +68,7 @@ const InstitutionProfile = () => {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'https://projecteastapi.ddns.net';
     let cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
     cleanPath = cleanPath.replace(/\/media\/media+/g, '/media/');
     if (cleanPath.startsWith('/media/media/')) {
@@ -124,12 +129,64 @@ const InstitutionProfile = () => {
     setIsLoadingCourses(true);
     try {
       const data = await authService.getInstitutionCourses(username);
+      let coursesData = [];
       if (data?.success && data?.data) {
-        setCourses(Array.isArray(data.data) ? data.data : []);
+        coursesData = Array.isArray(data.data) ? data.data : [];
       } else if (data?.results) {
-        setCourses(Array.isArray(data.results) ? data.results : []);
+        coursesData = Array.isArray(data.results) ? data.results : [];
+      }
+      
+      // Check enrollment status for courses if user is a student
+      if (instituteData.isAuthenticated && instituteData.userType === 'student' && instituteData.accessToken && coursesData.length > 0) {
+        const enrollmentChecks = await Promise.allSettled(
+          coursesData.map(async (course) => {
+            const courseId = course.id || course.course_id;
+            if (!courseId) return null;
+            try {
+              const enrollmentStatus = await authService.isEnrolled(
+                instituteData.accessToken,
+                courseId,
+                {
+                  refreshToken: instituteData.refreshToken,
+                  onTokenRefreshed: (tokens) => {
+                    updateInstituteData({
+                      accessToken: tokens.access,
+                      refreshToken: tokens.refresh || instituteData.refreshToken,
+                    });
+                  },
+                  onSessionExpired: () => {
+                    // Silently fail - don't show error for enrollment check
+                  },
+                }
+              );
+              return { courseId, isEnrolled: enrollmentStatus?.is_enrolled || enrollmentStatus?.enrolled || false };
+            } catch (error) {
+              console.warn(`Failed to check enrollment for course ${courseId}:`, error);
+              return { courseId, isEnrolled: false };
+            }
+          })
+        );
+        
+        // Create a map of course IDs to enrollment status
+        const enrollmentMap = new Map();
+        enrollmentChecks.forEach((result) => {
+          if (result.status === 'fulfilled' && result.value) {
+            enrollmentMap.set(result.value.courseId, result.value.isEnrolled);
+          }
+        });
+        
+        // Update courses with enrollment status
+        const coursesWithEnrollment = coursesData.map(course => {
+          const courseId = course.id || course.course_id;
+          return {
+            ...course,
+            is_enrolled: enrollmentMap.get(courseId) || false,
+          };
+        });
+        
+        setCourses(coursesWithEnrollment);
       } else {
-        setCourses([]);
+        setCourses(coursesData);
       }
     } catch (error) {
       console.error('Error fetching courses:', error);
@@ -203,8 +260,8 @@ const InstitutionProfile = () => {
     setCourseProgress(null);
     
     try {
-      // Fetch course details and progress in parallel
-      const [courseDetails, progressData] = await Promise.all([
+      // Fetch course details, progress, and enrollment status in parallel
+      const promises = [
         authService.getCourseDetails(courseId),
         authService.getCourseProgress(
           courseId,
@@ -218,11 +275,48 @@ const InstitutionProfile = () => {
               });
             },
           }
-        ).catch(() => null) // Progress is optional, don't fail if it errors
-      ]);
+        ).catch(() => null), // Progress is optional, don't fail if it errors
+      ];
+      
+      // Add enrollment check if user is a student
+      if (instituteData.isAuthenticated && instituteData.userType === 'student' && instituteData.accessToken) {
+        promises.push(
+          authService.isEnrolled(
+            instituteData.accessToken,
+            courseId,
+            {
+              refreshToken: instituteData.refreshToken,
+              onTokenRefreshed: (tokens) => {
+                updateInstituteData({
+                  accessToken: tokens.access,
+                  refreshToken: tokens.refresh || instituteData.refreshToken,
+                });
+              },
+              onSessionExpired: () => {
+                // Silently fail - don't show error for enrollment check
+              },
+            }
+          ).catch(() => ({ is_enrolled: false })) // Default to not enrolled if check fails
+        );
+      }
+      
+      const results = await Promise.all(promises);
+      const [courseDetails, progressData, enrollmentStatus] = results;
       
       if (courseDetails?.success && courseDetails?.data) {
-        setSelectedCourse({ ...course, ...courseDetails.data });
+        const courseData = { ...course, ...courseDetails.data };
+        // Add enrollment status if available
+        if (enrollmentStatus) {
+          courseData.is_enrolled = enrollmentStatus?.is_enrolled || enrollmentStatus?.enrolled || false;
+        }
+        setSelectedCourse(courseData);
+      } else {
+        // If course details fetch fails, still set the course with enrollment status
+        const courseData = { ...course };
+        if (enrollmentStatus) {
+          courseData.is_enrolled = enrollmentStatus?.is_enrolled || enrollmentStatus?.enrolled || false;
+        }
+        setSelectedCourse(courseData);
       }
       
       if (progressData?.success && progressData?.progress) {
@@ -254,6 +348,142 @@ const InstitutionProfile = () => {
       return date.toLocaleDateString();
     } catch {
       return createdAt;
+    }
+  };
+
+  // Format date and time in 24-hour format
+  const formatDateTime24 = (dateTimeString) => {
+    if (!dateTimeString) return '';
+    try {
+      const date = new Date(dateTimeString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    } catch {
+      return dateTimeString;
+    }
+  };
+
+  // Handle course enrollment
+  const handleEnrollCourse = async (course) => {
+    if (!instituteData.isAuthenticated) {
+      toast.error(t('common.loginRequired') || 'Please log in to enroll');
+      return;
+    }
+
+    if (instituteData.userType !== 'student') {
+      toast.error(t('feed.studentOnly') || 'Only students can enroll in courses');
+      return;
+    }
+
+    if (!instituteData.isVerified) {
+      toast.error(t('feed.verificationRequired') || 'Please verify your account to enroll');
+      return;
+    }
+
+    if (!instituteData.accessToken) {
+      toast.error(t('common.sessionExpired') || 'Session expired');
+      return;
+    }
+
+    const courseId = course.id || course.course_id;
+    if (!courseId) {
+      toast.error(t('feed.courseIdMissing') || 'Course id missing');
+      return;
+    }
+
+    try {
+      setEnrollingCourseId(courseId);
+      const enrollResponse = await authService.enrollInCourse(instituteData.accessToken, courseId, {
+        refreshToken: instituteData.refreshToken,
+        onTokenRefreshed: (tokens) => {
+          updateInstituteData({
+            accessToken: tokens.access,
+            refreshToken: tokens.refresh || instituteData.refreshToken,
+          });
+        },
+        onSessionExpired: () => {
+          toast.error(t('common.sessionExpired') || 'Session expired');
+        },
+      });
+
+      if (enrollResponse?.success) {
+        toast.success(enrollResponse?.message || t('feed.enrolledSuccess') || 'Enrolled successfully');
+        // Close course modal
+        setShowCourseModal(false);
+        setSelectedCourse(null);
+      } else {
+        toast.error(enrollResponse?.message || t('feed.enrollmentFailed') || 'Failed to enroll');
+      }
+    } catch (error) {
+      console.error('Enroll failed:', error);
+      toast.error(error?.message || error?.data?.message || t('feed.enrollFailed') || 'Failed to enroll');
+    } finally {
+      setEnrollingCourseId(null);
+    }
+  };
+
+  // Handle job application
+  const handleApplyToJob = async () => {
+    if (!selectedJob) return;
+
+    if (!instituteData.isAuthenticated) {
+      toast.error(t('common.loginRequired') || 'Please log in to apply');
+      return;
+    }
+
+    if (instituteData.userType !== 'lecturer') {
+      toast.error(t('feed.applyJobLecturerOnly') || 'Only lecturers can apply to jobs');
+      return;
+    }
+
+    if (!instituteData.isVerified) {
+      toast.error(t('feed.verificationRequired') || 'Please verify your account to apply');
+      return;
+    }
+
+    if (!instituteData.accessToken) {
+      toast.error(t('common.sessionExpired') || 'Session expired');
+      return;
+    }
+
+    setIsApplyingToJob(true);
+    try {
+      const response = await authService.applyToJob(
+        instituteData.accessToken,
+        selectedJob.id,
+        applyJobMessage,
+        {
+          refreshToken: instituteData.refreshToken,
+          onTokenRefreshed: (tokens) => {
+            updateInstituteData({
+              accessToken: tokens.access,
+              refreshToken: tokens.refresh || instituteData.refreshToken,
+            });
+          },
+          onSessionExpired: () => {
+            toast.error(t('common.sessionExpired') || 'Session expired');
+          },
+        }
+      );
+
+      if (response?.success) {
+        toast.success(response.message || t('feed.applicationSubmitted') || 'Application submitted successfully!');
+        setApplyJobMessage('');
+        setShowJobModal(false);
+        setSelectedJob(null);
+      } else {
+        toast.error(response?.message || t('feed.applicationFailed') || 'Failed to submit application');
+      }
+    } catch (error) {
+      console.error('Apply job failed:', error);
+      toast.error(error?.message || error?.data?.message || t('feed.applicationFailed') || 'Failed to submit application');
+    } finally {
+      setIsApplyingToJob(false);
     }
   };
 
@@ -342,6 +572,25 @@ const InstitutionProfile = () => {
                 <p className="text-gray-700 dark:text-gray-300 text-sm mt-2 line-clamp-2">
                   {institutionInfo.about}
                 </p>
+              )}
+              {/* Display up_time and up_days if available */}
+              {(institutionInfo.up_time || institutionInfo.up_days) && (
+                <div className="mt-4 flex flex-wrap gap-4 text-sm">
+                  {institutionInfo.up_time && (
+                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                      <FaClock className="w-4 h-4 text-primary-600 dark:text-teal-400" />
+                      <span className="font-medium">{t('profile.upTime') || 'Updated at'}:</span>
+                      <span>{formatDateTime24(institutionInfo.up_time)}</span>
+                    </div>
+                  )}
+                  {institutionInfo.up_days && (
+                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                      <FaCalendarAlt className="w-4 h-4 text-primary-600 dark:text-teal-400" />
+                      <span className="font-medium">{t('profile.upDays') || 'Days active'}:</span>
+                      <span>{institutionInfo.up_days} {t('profile.days') || 'days'}</span>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -593,6 +842,7 @@ const InstitutionProfile = () => {
         onClose={() => {
           setShowJobModal(false);
           setSelectedJob(null);
+          setApplyJobMessage('');
         }}
         title={selectedJob?.title || t('feed.jobDetails') || 'Job Details'}
         size="lg"
@@ -672,6 +922,42 @@ const InstitutionProfile = () => {
                 </div>
               )}
             </div>
+
+            {/* Apply to Job Button (for lecturers) */}
+            {instituteData.isAuthenticated && instituteData.userType === 'lecturer' && (
+              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-navy-700">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                      {t('feed.messageToInstitution') || 'Message to Institution'} ({t('common.optional') || 'Optional'})
+                    </label>
+                    <textarea
+                      value={applyJobMessage}
+                      onChange={(e) => setApplyJobMessage(e.target.value)}
+                      placeholder={t('feed.messagePlaceholder') || 'Add a message to the institution (optional)...'}
+                      rows={4}
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white resize-none"
+                    />
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleApplyToJob}
+                    disabled={isApplyingToJob}
+                    className="w-full px-6 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isApplyingToJob ? (
+                      <>
+                        <FaSpinner className="w-4 h-4 animate-spin" />
+                        <span>{t('feed.applying') || 'Applying...'}</span>
+                      </>
+                    ) : (
+                      <span>{t('feed.applyToJob') || 'Apply to Job'}</span>
+                    )}
+                  </motion.button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center py-12">
@@ -818,6 +1104,37 @@ const InstitutionProfile = () => {
                 </div>
               )}
             </div>
+
+            {/* Enroll Button (for students) */}
+            {instituteData.isAuthenticated && instituteData.userType === 'student' && (
+              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-navy-700">
+                {selectedCourse?.is_enrolled ? (
+                  <button
+                    disabled
+                    className="w-full px-6 py-3 bg-gray-200 dark:bg-navy-700 text-gray-600 dark:text-gray-400 rounded-lg font-semibold cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {t('feed.enrolled') || 'Enrolled'}
+                  </button>
+                ) : (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleEnrollCourse(selectedCourse)}
+                    disabled={enrollingCourseId === selectedCourse?.id}
+                    className="w-full px-6 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {enrollingCourseId === selectedCourse?.id ? (
+                      <>
+                        <FaSpinner className="w-4 h-4 animate-spin" />
+                        <span>{t('feed.enrolling') || 'Enrolling...'}</span>
+                      </>
+                    ) : (
+                      <span>{t('feed.enrollInCourse') || 'Enroll in Course'}</span>
+                    )}
+                  </motion.button>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center py-12">

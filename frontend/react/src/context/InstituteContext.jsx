@@ -8,7 +8,8 @@ import {
   FaUser, 
   FaMoon, 
   FaSun, 
-  FaTimes 
+  FaTimes,
+  FaNewspaper
 } from 'react-icons/fa';
 import { useTheme } from './ThemeContext';
 import LanguageSwitcher from '../components/LanguageSwitcher';
@@ -289,6 +290,16 @@ const SidebarComponent = ({
                   </button>
                 )}
 
+                {/* Feed - All Authenticated Users */}
+                <button
+                  onClick={() => navigate('/feed')}
+                  className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
+                  title={t('nav.feed') || 'Feed'}
+                >
+                  <FaNewspaper className="w-5 h-5 flex-shrink-0" />
+                  {isSidebarExpanded && <span className="font-medium">{t('nav.feed') || 'Feed'}</span>}
+                </button>
+
                 {/* Explore - All Authenticated Users */}
                 <button
                   onClick={() => navigate('/explore')}
@@ -317,6 +328,14 @@ const SidebarComponent = ({
             {/* Guest Navigation */}
             {!instituteData.isAuthenticated && (
               <div className="space-y-2 mb-6">
+                <button
+                  onClick={() => navigate('/feed')}
+                  className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
+                  title={t('nav.feed') || 'Feed'}
+                >
+                  <FaNewspaper className="w-5 h-5 flex-shrink-0" />
+                  {isSidebarExpanded && <span className="font-medium">{t('nav.feed') || 'Feed'}</span>}
+                </button>
                 <button
                   onClick={() => navigate('/explore')}
                   className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
@@ -473,6 +492,18 @@ const SidebarComponent = ({
                       </button>
                     )}
                     
+                    {/* Feed */}
+                    <button
+                      onClick={() => {
+                        navigate('/feed');
+                        closeMobileSidebar();
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
+                    >
+                      <FaNewspaper className="w-5 h-5 flex-shrink-0" />
+                      <span className="font-medium">{t('nav.feed') || 'Feed'}</span>
+                    </button>
+
                     {/* Explore */}
                     <button
                       onClick={() => {
@@ -502,6 +533,16 @@ const SidebarComponent = ({
                 {/* Guest Navigation */}
                 {!instituteData.isAuthenticated && (
                   <div className="space-y-2 mb-6">
+                    <button
+                      onClick={() => {
+                        navigate('/feed');
+                        closeMobileSidebar();
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
+                    >
+                      <FaNewspaper className="w-5 h-5 flex-shrink-0" />
+                      <span className="font-medium">{t('nav.feed') || 'Feed'}</span>
+                    </button>
                     <button
                       onClick={() => {
                         navigate('/explore');

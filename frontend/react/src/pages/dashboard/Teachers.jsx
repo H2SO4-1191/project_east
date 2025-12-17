@@ -17,7 +17,7 @@ const getImageUrl = (imagePath) => {
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     return imagePath;
   }
-  const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
+  const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'https://projecteastapi.ddns.net';
   // Ensure imagePath starts with / and doesn't have duplicate /media/
   let cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
   // Remove duplicate /media/ if present

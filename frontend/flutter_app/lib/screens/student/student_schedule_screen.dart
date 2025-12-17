@@ -43,6 +43,38 @@ class _StudentScheduleScreenState extends State<StudentScheduleScreen> {
     super.initState();
     _setCurrentDay();
     _fetchSchedule();
+    _checkVerificationStatus();
+  }
+
+  Future<void> _checkVerificationStatus() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final instituteData = authProvider.instituteData;
+    final email = instituteData['email'];
+    final accessToken = instituteData['accessToken'];
+    final refreshToken = instituteData['refreshToken'];
+
+    if (email != null && accessToken != null) {
+      try {
+        final verificationStatus = await ApiService.checkVerificationStatus(
+          email,
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          onTokenRefreshed: (tokens) {
+            authProvider.onTokenRefreshed(tokens);
+          },
+          onSessionExpired: () {
+            authProvider.onSessionExpired();
+          },
+        );
+        if (mounted && verificationStatus['is_verified'] != instituteData['isVerified']) {
+          await authProvider.updateInstituteData({
+            'isVerified': verificationStatus['is_verified'] ?? false,
+          });
+        }
+      } catch (e) {
+        // Silently fail - verification check is not critical
+      }
+    }
   }
 
   void _setCurrentDay() {
@@ -170,6 +202,41 @@ class _StudentScheduleScreenState extends State<StudentScheduleScreen> {
         ),
         title: const Text('My Schedule'),
         actions: [
+          // Verification Status Badge
+          Consumer<AuthProvider>(
+            builder: (context, authProvider, _) {
+              final isVerified = authProvider.instituteData['isVerified'] == true;
+              return Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isVerified
+                      ? Colors.green.withOpacity(isDark ? 0.3 : 0.2)
+                      : Colors.orange.withOpacity(isDark ? 0.3 : 0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isVerified ? Icons.verified : Icons.pending,
+                      size: 16,
+                      color: isVerified ? Colors.green.shade700 : Colors.orange.shade700,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      isVerified ? 'Verified' : 'Pending',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isVerified ? Colors.green.shade700 : Colors.orange.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
           const LanguageSwitcher(),
           IconButton(
             icon: Icon(isDark ? Icons.wb_sunny : Icons.nightlight_round),

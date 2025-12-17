@@ -32,7 +32,7 @@ const getImageUrl = (imagePath) => {
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     return imagePath;
   }
-  const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
+  const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'https://projecteastapi.ddns.net';
   let cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
   cleanPath = cleanPath.replace(/^\/media\/media\//, '/media/');
   return `${baseUrl}${cleanPath}`;

@@ -11,6 +11,7 @@ import '../config/theme.dart';
 import '../utils/page_transitions.dart';
 import '../services/api_service.dart';
 import '../models/auth_response.dart';
+import '../widgets/main_navigation_wrapper.dart';
 import 'dashboard/dashboard_screen.dart';
 
 class OTPScreen extends StatefulWidget {
@@ -119,10 +120,10 @@ class _OTPScreenState extends State<OTPScreen> {
         final username = payload?.username ?? 
             _recentSignup?['username'] ?? 
             usernameFromEmail;
+        final nameParts = [firstName, lastName].where((s) => s.isNotEmpty).toList();
         final displayName = payload?.fullName ?? 
             payload?.name ?? 
-            [firstName, lastName].where((s) => s.isNotEmpty).join(' ').ifEmpty ?? 
-            username;
+            (nameParts.isNotEmpty ? nameParts.join(' ') : username);
 
         // Extract tokens
         final accessToken = result['access'];
@@ -149,6 +150,9 @@ class _OTPScreenState extends State<OTPScreen> {
           }
         }
 
+        // Get user type
+        final userType = result['user_type'] ?? _recentSignup?['userType'] ?? 'institution';
+
         // Update auth provider with all data
         await authProvider.updateInstituteData({
           'name': displayName,
@@ -157,7 +161,7 @@ class _OTPScreenState extends State<OTPScreen> {
           'firstName': firstName,
           'lastName': lastName,
           'userId': result['user_id'],
-          'userType': result['user_type'] ?? _recentSignup?['userType'] ?? 'institution',
+          'userType': userType,
           'accessToken': accessToken,
           'refreshToken': refreshToken,
           'isAuthenticated': true,
@@ -194,9 +198,19 @@ class _OTPScreenState extends State<OTPScreen> {
         await Future.delayed(const Duration(milliseconds: 500));
         
         if (mounted) {
-          Navigator.of(context).pushReplacement(
-            ScaleSlideTransition(page: const DashboardScreen()),
-          );
+          // Navigate based on user type
+          // Only institutions should see the dashboard
+          // Students and lecturers should go to the main navigation (feed screen)
+          if (userType == 'institution') {
+            Navigator.of(context).pushReplacement(
+              ScaleSlideTransition(page: const DashboardScreen()),
+            );
+          } else {
+            // For students and lecturers, navigate to main navigation wrapper
+            Navigator.of(context).pushReplacement(
+              ScaleSlideTransition(page: const MainNavigationWrapper()),
+            );
+          }
         }
       }
     } catch (e) {
@@ -534,10 +548,66 @@ class _OTPScreenState extends State<OTPScreen> {
                                                 _error = '';
                                               });
                                             },
+                                            onTap: () async {
+                                              // Check clipboard for OTP code when field is tapped
+                                              final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+                                              if (clipboardData?.text != null) {
+                                                final text = clipboardData!.text!.trim();
+                                                // Check if clipboard contains a 6-digit code
+                                                if (RegExp(r'^\d{6}$').hasMatch(text)) {
+                                                  // Fill all fields with the code
+                                                  for (int i = 0; i < 6 && i < text.length; i++) {
+                                                    _controllers[i].text = text[i];
+                                                  }
+                                                  // Move focus to last field
+                                                  _focusNodes[5].requestFocus();
+                                                  setState(() {
+                                                    _error = '';
+                                                  });
+                                                }
+                                              }
+                                            },
                                           ),
                                         ),
                                       );
                                     }),
+                                  ),
+                                ),
+                                
+                                // Paste button
+                                const SizedBox(height: 12),
+                                TextButton.icon(
+                                  onPressed: () async {
+                                    final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+                                    if (clipboardData?.text != null) {
+                                      final text = clipboardData!.text!.trim();
+                                      // Check if clipboard contains a 6-digit code
+                                      if (RegExp(r'^\d{6}$').hasMatch(text)) {
+                                        // Fill all fields with the code
+                                        for (int i = 0; i < 6 && i < text.length; i++) {
+                                          _controllers[i].text = text[i];
+                                        }
+                                        // Move focus to last field
+                                        _focusNodes[5].requestFocus();
+                                        setState(() {
+                                          _error = '';
+                                        });
+                                      } else {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Clipboard does not contain a valid 6-digit code'),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  icon: const Icon(Icons.paste, size: 18),
+                                  label: const Text('Paste from clipboard'),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: isDark
+                                        ? AppTheme.teal400
+                                        : AppTheme.primary600,
                                   ),
                                 ),
                                 
@@ -612,8 +682,4 @@ class _OTPScreenState extends State<OTPScreen> {
       ),
     );
   }
-}
-
-extension on String {
-  String get ifEmpty => isEmpty ? '' : this;
 }

@@ -50,14 +50,21 @@
     "idcardBack": "ID Card Back",
     "residenceFront": "Residence Document (Front)",
     "residenceBack": "Residence Document (Back)",
+    "documents": "Documents",
+    "idcardFront": "ID Card Front",
+    "idcardBack": "ID Card Back",
     "enterInstitutionTitle": "Enter institution title",
-    "enterLocation": "Enter location address"
+    "enterLocation": "Enter location address",
+    "upTime": "Last Updated",
+    "upDays": "Days Active",
+    "days": "days"
   },
   "common": {
     "loading": "Loading...",
     "close": "Close",
     "cancel": "Cancel",
     "saving": "Saving...",
+    "verifying": "Verifying...",
     "retry": "Retry",
     "back": "Back",
     "search": "Search",
@@ -93,6 +100,7 @@
     "noNotifications": "No new notifications",
     "viewAllNotifications": "View All Notifications",
     "homeFeed": "Home Feed",
+    "feed": "Feed",
     "lightMode": "Light Mode",
     "darkMode": "Dark Mode",
     "verificationRequired": "Verification Required"
@@ -314,6 +322,12 @@
     "selectLecturer": "Select Lecturer",
     "lecturerPlaceholder": "Enter lecturer ID or name",
     "selectFromList": "Select from list",
+    "selectFromMarkedLecturers": "Select from Marked Lecturers",
+    "fromMarkedLecturers": "From Marked Lecturers",
+    "noMarkedLecturers": "No marked lecturers. Please mark lecturers first to add them to courses.",
+    "lecturerAdded": "Lecturer added",
+    "lecturerHasConflicts": "Not available - conflicts found",
+    "viewConflicts": "View Conflicts",
     "courseImage": "Course Image",
     "about": "About",
     "aboutPlaceholder": "Course description...",
@@ -675,6 +689,7 @@
     "welcome": "Welcome",
     "explore": "Explore",
     "discover": "Discover",
+    "all": "All",
     "students": "Students",
     "lecturers": "Lecturers",
     "courses": "Courses",
@@ -689,6 +704,11 @@
     "tryDifferentSearch": "Try a different search term",
     "searchPlaceholder": "Search students, lecturers, or courses...",
     "institution": "Institution",
+    "institutions": "Institutions+",
+    "institutionName": "Institution Name",
+    "ownerName": "Owner Name",
+    "noInstitutionsFound": "No institutions found",
+    "seeFullPage": "See Full Page",
     "exploreCourses": "Explore Courses",
     "aboutUs": "About Us",
     "viewAllCourses": "View All Courses",
@@ -758,9 +778,13 @@
     "lecturerUnmarked": "Lecturer removed from marked list",
     "failedToMarkLecturer": "Failed to mark lecturer",
     "failedToUnmarkLecturer": "Failed to unmark lecturer",
+    "markLecturer": "Mark Lecturer",
+    "unmarkLecturer": "Unmark Lecturer",
+    "lecturerIdRequired": "Lecturer ID is required",
     "lecturerIdNotFound": "Lecturer ID not found",
     "unmarking": "Unmarking...",
     "enroll": "Enroll",
+    "enrollInCourse": "Enroll in Course",
     "enrolling": "Enrolling...",
     "enrollmentSuccess": "Successfully enrolled in course!",
     "enrollmentFailed": "Failed to enroll in course",
@@ -1119,5 +1143,72 @@
     "tip3": "Shortcuts are disabled when typing in input fields",
     "footerHint": "Press",
     "footerHint2": "anytime to show this help"
+  },
+  "welcome": {
+    "title": "Welcome to Project East!",
+    "subtitle": "Your Gateway to Excellence in Education",
+    "featuresTitle": "Powerful Features for Modern Education",
+    "academyTitle": "Excellence in Education",
+    "academyDesc": "Join thousands of students and educators in a platform designed to transform the way we learn, teach, and grow together. Experience the future of educational management.",
+    "continue": "Get Started",
+    "feature1": {
+      "title": "Student Management",
+      "desc": "Complete student profiles, enrollment tracking, grade management, and academic records"
+    },
+    "feature2": {
+      "title": "Lecturer Management",
+      "desc": "Manage faculty profiles, subject assignments, department organization, and status tracking"
+    },
+    "feature3": {
+      "title": "Employee Management",
+      "desc": "Comprehensive employee records, role assignments, and department tracking"
+    },
+    "feature4": {
+      "title": "Schedule Management",
+      "desc": "Class timetables, day-wise organization, teacher and room assignments with time slots"
+    },
+    "feature5": {
+      "title": "Finance Tracking",
+      "desc": "Invoice management, payment tracking, financial statistics, and status monitoring"
+    },
+    "feature6": {
+      "title": "Course Management",
+      "desc": "Browse and enroll in courses, track progress, access materials, and manage your learning"
+    },
+    "feature7": {
+      "title": "Feed & Explore",
+      "desc": "Discover posts, courses, job opportunities, and connect with educational institutions"
+    },
+    "feature8": {
+      "title": "Dashboard Analytics",
+      "desc": "Real-time statistics, interactive charts, activity feeds, and comprehensive overviews"
+    },
+    "benefitsTitle": "Additional Benefits",
+    "benefit1": "Secure OTP Verification",
+    "benefit2": "Dark/Light Theme",
+    "benefit3": "Multi-Language Support",
+    "benefit4": "Smart Notifications",
+    "benefit5": "Progress Tracking",
+    "benefit6": "Flexible Scheduling",
+    "carousel1": {
+      "caption": "Modern Learning Environment",
+      "description": "State-of-the-art facilities for optimal learning experience"
+    },
+    "carousel2": {
+      "caption": "Expert Faculty",
+      "description": "Learn from industry professionals and academic experts"
+    },
+    "carousel3": {
+      "caption": "Collaborative Learning",
+      "description": "Work together with peers and build lasting connections"
+    },
+    "carousel4": {
+      "caption": "Innovative Programs",
+      "description": "Cutting-edge curriculum designed for the future"
+    },
+    "carousel5": {
+      "caption": "Digital Excellence",
+      "description": "Embrace technology for enhanced educational experiences"
+    }
   }
 }
