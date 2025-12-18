@@ -1137,16 +1137,26 @@ class LecturerMarkAttendanceView(APIView):
 
         return Response({"success": True, "message": "Attendance saved successfully."})
 
-class LecturerViewLectureAttendanceView(APIView):
-    permission_classes = [IsLecturer, IsVerified]
+class InstitutionOrLecturerViewLectureAttendanceView(APIView):
+    permission_classes = [IsAuthenticated, IsVerified]
 
     def get(self, request, course_id, lecture_number):
-        lecturer = request.user.lecturer
+        user = request.user
 
         try:
-            course = Course.objects.get(id=course_id, lecturer=lecturer)
+            course = Course.objects.select_related("institution", "lecturer__user").get(id=course_id)
         except Course.DoesNotExist:
             return Response({"success": False, "message": "Course not found."}, status=404)
+
+        # PERMISSION CHECKS
+        if user.user_type == "lecturer":
+            if course.lecturer != user.lecturer:
+                return Response({"success": False, "message": "Not allowed."}, status=403)
+        elif user.user_type == "institution":
+            if course.institution != user.institution:
+                return Response({"success": False, "message": "Not allowed."}, status=403)
+        else:
+            return Response({"success": False, "message": "Not allowed."}, status=403)
 
         if lecture_number < 1 or lecture_number > course.total_lectures:
             return Response({"success": False, "message": "Invalid lecture number."}, status=400)
@@ -1154,10 +1164,7 @@ class LecturerViewLectureAttendanceView(APIView):
         attendances = Attendance.objects.filter(course=course, lecture_number=lecture_number)
 
         data = [
-            {
-                "username": att.student.user.username,
-                "status": att.status
-            }
+            {"username": att.student.user.username, "status": att.status}
             for att in attendances
         ]
 
