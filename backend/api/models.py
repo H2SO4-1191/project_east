@@ -234,7 +234,6 @@ class Attendance(models.Model):
     STATUS_CHOICES = (
         ('present', 'Present'),
         ('absent', 'Absent'),
-        ('late', 'Late'),
     )
 
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="attendances")

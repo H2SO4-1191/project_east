@@ -585,6 +585,7 @@ class StaffDetailSerializer(serializers.ModelSerializer):
 class LecturerSelfProfileSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source="user.first_name")
     last_name = serializers.CharField(source="user.last_name")
+    username = serializers.CharField(source="user.username")
     email = serializers.EmailField(source="user.email")
     city = serializers.CharField(source="user.city")
     phone_number = serializers.CharField(source="user.phone_number")
@@ -606,6 +607,7 @@ class LecturerSelfProfileSerializer(serializers.ModelSerializer):
 
             "first_name",
             "last_name",
+            "username",
             "email",
             "city",
             "phone_number",

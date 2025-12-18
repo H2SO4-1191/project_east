@@ -256,7 +256,10 @@ class InstitutionTotalStudentsView(APIView):
 
     def get(self, request):
         institution = Institution.objects.get(user=request.user)
-        total_students = institution.students.count()
+
+        total_students = Student.objects.filter(
+            courses__institution=institution
+        ).distinct().count()
 
         return Response({
             "success": True,
@@ -271,12 +274,10 @@ class InstitutionTotalLecturersView(APIView):
         today = timezone.now().date()
 
         total_lecturers = Lecturer.objects.filter(
-            Q(courses__institution=institution,
-              courses__starting_date__lte=today,
-              courses__ending_date__gte=today)
-            |
+            Q(courses__institution=institution) |
             Q(marked_by_institutions=institution)
         ).distinct().count()
+
 
         return Response({
             "success": True,
@@ -1198,22 +1199,28 @@ class LecturerWeeklyScheduleView(APIView):
             "schedule": schedule
         })
 
-class LecturerViewGradesView(APIView):
-    permission_classes = [IsLecturer, IsVerified]
+class InstitutionOrLecturerViewGradesView(APIView):
+    permission_classes = [IsVerified]  # We'll do manual type checks
 
     def get(self, request, exam_id):
-        lecturer = request.user.lecturer
+        user = request.user
 
         try:
-            exam = Exam.objects.select_related("course").get(
-                id=exam_id,
-                course__lecturer=lecturer
-            )
+            exam = Exam.objects.select_related("course__lecturer", "course__institution").get(id=exam_id)
         except Exam.DoesNotExist:
             return Response({"success": False, "message": "Exam not found."}, status=404)
 
-        grades = Grade.objects.filter(exam=exam).select_related("student__user")
+        # Permission check
+        if user.user_type == "lecturer":
+            if exam.course.lecturer != user.lecturer:
+                return Response({"success": False, "message": "Not allowed."}, status=403)
+        elif user.user_type == "institution":
+            if exam.course.institution != user.institution:
+                return Response({"success": False, "message": "Not allowed."}, status=403)
+        else:
+            return Response({"success": False, "message": "Not allowed."}, status=403)
 
+        grades = Grade.objects.filter(exam=exam).select_related("student__user")
         data = LecturerGradeViewSerializer(grades, many=True).data
 
         return Response({
@@ -2058,5 +2065,36 @@ class StudentSetupPaymentMethodView(APIView):
             "success": True,
             "portal_url": session.url
         })
+
+class ExamsListView(APIView):
+    permission_classes = [IsAuthenticated, IsVerified, IsInstitution | IsLecturer]
+
+    def get(self, request):
+        user = request.user
+
+        if user.user_type == "institution":
+            exams = Exam.objects.filter(course__institution=user.institution).select_related("course")
+        elif user.user_type == "lecturer":
+            exams = Exam.objects.filter(course__lecturer=user.lecturer).select_related("course")
+        else:
+            return Response({"success": False, "message": "Not allowed."}, status=403)
+
+        exam_list = [
+            {
+                "exam_id": exam.id,
+                "exam_title": exam.title,
+                "date": exam.date,
+                "max_score": exam.max_score,
+                "course_id": exam.course.id,
+                "course_title": exam.course.title
+            }
+            for exam in exams
+        ]
+
+        return Response({
+            "success": True,
+            "exams": exam_list
+        })
+
 
 
