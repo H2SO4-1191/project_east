@@ -6,9 +6,315 @@ import '../providers/theme_provider.dart';
 import '../providers/language_provider.dart';
 import '../screens/dashboard/my_profile_screen.dart';
 import '../screens/dashboard/edit_profile_page.dart';
+import '../services/api_service.dart';
 
-class ProfileButton extends StatelessWidget {
+class ProfileButton extends StatefulWidget {
   const ProfileButton({super.key});
+
+  @override
+  State<ProfileButton> createState() => _ProfileButtonState();
+}
+
+class _ProfileButtonState extends State<ProfileButton> {
+  String? _profileImageUrl;
+  bool _isLoadingImage = false;
+  String? _lastUserType;
+  bool _hasAttemptedLoad = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadProfileImage();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!mounted) return;
+    
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final userType = authProvider.instituteData['userType'];
+      
+      // Load image if:
+      // 1. User type changed, OR
+      // 2. Haven't attempted to load yet, OR
+      // 3. Image URL is null and not currently loading
+      if (_lastUserType != userType || 
+          !_hasAttemptedLoad || 
+          (_profileImageUrl == null && !_isLoadingImage && _lastUserType == userType)) {
+        _lastUserType = userType;
+        _hasAttemptedLoad = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _loadProfileImage();
+          }
+        });
+      }
+    } catch (e) {
+      // Silently handle any errors
+    }
+  }
+
+  Future<void> _loadProfileImage() async {
+    if (!mounted) return;
+    
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final instituteData = authProvider.instituteData;
+      final userType = instituteData['userType'];
+      final accessToken = instituteData['accessToken'];
+      final refreshToken = instituteData['refreshToken'];
+
+      // Only fetch for students, lecturers, and institutions
+      if ((userType != 'student' && userType != 'lecturer' && userType != 'institution') || accessToken == null) {
+        if (mounted) {
+          setState(() {
+            _isLoadingImage = false;
+          });
+        }
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          _isLoadingImage = true;
+        });
+      }
+
+      Map<String, dynamic> response;
+      if (userType == 'student') {
+        response = await ApiService.getStudentMyProfile(
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          onTokenRefreshed: (tokens) {
+            if (mounted) {
+              authProvider.onTokenRefreshed(tokens);
+            }
+          },
+          onSessionExpired: () {
+            if (mounted) {
+              authProvider.onSessionExpired();
+            }
+          },
+        );
+      } else if (userType == 'lecturer') {
+        response = await ApiService.getLecturerMyProfile(
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          onTokenRefreshed: (tokens) {
+            if (mounted) {
+              authProvider.onTokenRefreshed(tokens);
+            }
+          },
+          onSessionExpired: () {
+            if (mounted) {
+              authProvider.onSessionExpired();
+            }
+          },
+        );
+      } else if (userType == 'institution') {
+        response = await ApiService.getInstitutionMyProfile(
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          onTokenRefreshed: (tokens) {
+            if (mounted) {
+              authProvider.onTokenRefreshed(tokens);
+            }
+          },
+          onSessionExpired: () {
+            if (mounted) {
+              authProvider.onSessionExpired();
+            }
+          },
+        );
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoadingImage = false;
+          });
+        }
+        return;
+      }
+
+      if (!mounted) return;
+
+      // Extract profile_image from response - check both 'data' wrapper and direct
+      // Also check 'logo' field for institutions
+      dynamic profileImage;
+      // Check if wrapped in 'data'
+      if (response.containsKey('data') && response['data'] is Map) {
+        final data = response['data'] as Map;
+        profileImage = data['profile_image'] ?? data['logo'];
+      } else {
+        // Check direct in response
+        profileImage = response['profile_image'] ?? response['logo'];
+      }
+
+      // Only care about the image - ignore everything else
+      if (profileImage != null && profileImage.toString().trim().isNotEmpty) {
+        final imagePath = profileImage.toString().trim();
+        final imageUrl = _getImageUrl(imagePath);
+        
+        if (imageUrl.isNotEmpty && mounted) {
+          setState(() {
+            _profileImageUrl = imageUrl;
+            _isLoadingImage = false;
+          });
+          return;
+        }
+      }
+      
+      // No image found or invalid
+      if (mounted) {
+        setState(() {
+          _profileImageUrl = null;
+          _isLoadingImage = false;
+        });
+      }
+    } catch (e) {
+      // Silently fail - profile image is optional
+      if (mounted) {
+        setState(() {
+          _profileImageUrl = null;
+          _isLoadingImage = false;
+        });
+      }
+    }
+  }
+
+  String _getImageUrl(String imagePath) {
+    if (imagePath.isEmpty) return '';
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    final baseUrl = ApiService.baseUrl;
+    String cleanPath = imagePath.startsWith('/') ? imagePath : '/$imagePath';
+    cleanPath = cleanPath.replaceAll(RegExp(r'/media/media+'), '/media/');
+    if (cleanPath.startsWith('/media/media/')) {
+      cleanPath = cleanPath.replaceFirst('/media/media/', '/media/');
+    }
+    return '$baseUrl$cleanPath';
+  }
+
+  Widget _buildAvatar() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final instituteData = authProvider.instituteData;
+
+    final displayName = instituteData['username'] ??
+        instituteData['firstName'] ??
+        instituteData['name'] ??
+        '';
+    final displayNameStr = displayName.toString().trim();
+    final initial = displayNameStr.isNotEmpty 
+        ? displayNameStr.substring(0, 1).toUpperCase()
+        : 'U';
+
+    // Show image if available and not loading
+    if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty && !_isLoadingImage) {
+      return Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isDark ? AppTheme.navy600 : AppTheme.primary200,
+            width: 2,
+          ),
+        ),
+        child: ClipOval(
+          child: Image.network(
+            _profileImageUrl!,
+            width: 36,
+            height: 36,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              // Fall back to initial on error and clear the image URL
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    _profileImageUrl = null;
+                  });
+                }
+              });
+              return Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isDark ? AppTheme.navy700 : AppTheme.primary50,
+                ),
+                child: Center(
+                  child: Text(
+                    initial,
+                    style: TextStyle(
+                      color: isDark ? AppTheme.teal400 : AppTheme.primary600,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              );
+            },
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isDark ? AppTheme.navy700 : AppTheme.primary50,
+                ),
+                child: const Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    }
+
+    // Default: show initial letter or loading
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isDark ? AppTheme.navy700 : AppTheme.primary50,
+        border: Border.all(
+          color: isDark ? AppTheme.navy600 : AppTheme.primary200,
+          width: 2,
+        ),
+      ),
+      child: _isLoadingImage
+          ? const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          : Center(
+              child: Text(
+                initial,
+                style: TextStyle(
+                  color: isDark ? AppTheme.teal400 : AppTheme.primary600,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,38 +329,13 @@ class ProfileButton extends StatelessWidget {
         instituteData['firstName'] ??
         instituteData['name'] ??
         '';
-    final displayNameStr = displayName.toString().trim();
-    final initial = displayNameStr.isNotEmpty 
-        ? displayNameStr.substring(0, 1).toUpperCase()
-        : 'U';
 
     return PopupMenuButton<String>(
       offset: const Offset(0, 56),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: isDark ? AppTheme.navy700 : AppTheme.primary50,
-          border: Border.all(
-            color: isDark ? AppTheme.navy600 : AppTheme.primary200,
-            width: 2,
-          ),
-        ),
-        child: Center(
-          child: Text(
-            initial,
-            style: TextStyle(
-              color: isDark ? AppTheme.teal400 : AppTheme.primary600,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-        ),
-      ),
+      child: _buildAvatar(),
       itemBuilder: (context) => [
         // User Info Header
         PopupMenuItem<String>(
@@ -155,22 +436,49 @@ class ProfileButton extends StatelessWidget {
           ),
         ),
         const PopupMenuDivider(),
-        // View Profile
-        PopupMenuItem<String>(
-          value: 'profile',
-          child: Row(
-            children: [
-              const Icon(Icons.person_outline, size: 20),
-              const SizedBox(width: 12),
-              Text(
-                'View Profile',
-                style: theme.textTheme.bodyMedium,
-              ),
-            ],
+        // For guests: Show Sign Up and Login
+        if (!isAuthenticated) ...[
+          PopupMenuItem<String>(
+            value: 'signup',
+            child: Row(
+              children: [
+                const Icon(Icons.person_add_outlined, size: 20),
+                const SizedBox(width: 12),
+                Text(
+                  'Sign Up',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ],
+            ),
           ),
-        ),
-        // Edit Profile (for authenticated users)
-        if (isAuthenticated) ...[
+          PopupMenuItem<String>(
+            value: 'login',
+            child: Row(
+              children: [
+                const Icon(Icons.login, size: 20),
+                const SizedBox(width: 12),
+                Text(
+                  'Login',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+        ] else ...[
+          // For authenticated users: Show View Profile and Edit Profile
+          PopupMenuItem<String>(
+            value: 'profile',
+            child: Row(
+              children: [
+                const Icon(Icons.person_outline, size: 20),
+                const SizedBox(width: 12),
+                Text(
+                  'View Profile',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
           PopupMenuItem<String>(
             value: 'edit_profile',
             child: Row(
@@ -261,7 +569,11 @@ class ProfileButton extends StatelessWidget {
         ],
       ],
       onSelected: (value) {
-        if (value == 'profile') {
+        if (value == 'signup') {
+          Navigator.pushNamed(context, '/account-type-selection');
+        } else if (value == 'login') {
+          Navigator.pushNamed(context, '/login');
+        } else if (value == 'profile') {
           final userType = instituteData['userType'] ?? '';
           if (userType == 'institution') {
             Navigator.push(

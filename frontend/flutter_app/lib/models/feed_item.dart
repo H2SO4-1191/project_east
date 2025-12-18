@@ -86,26 +86,41 @@ class FeedItem {
         json['institution_profile_image'] ?? 
         json['institution']?['profile_image'];
 
+    // Handle course_image - it might be nested in a course object or directly in json
+    // For course type, also check 'image' field directly
+    dynamic courseImageData = json['course_image'] ?? 
+        json['course']?['course_image'] ?? 
+        json['course']?['image'] ??
+        (json['type'] == 'course' ? json['image'] : null);
+    String? courseImage;
+    if (courseImageData != null) {
+      if (courseImageData is String) {
+        courseImage = courseImageData;
+      } else if (courseImageData is Map) {
+        courseImage = courseImageData['image'] ?? courseImageData['url'];
+      }
+    }
+
     return FeedItem(
       id: json['id'],
       type: json['type'] ?? 'post',
-      title: json['title'],
-      description: json['description'],
+      title: json['title'] ?? json['course']?['title'],
+      description: json['description'] ?? json['course']?['about'] ?? json['course']?['description'],
       images: images,
       publisherUsername: publisherUsername,
       publisherName: publisherName,
       publisherProfileImage: publisherProfileImage,
       timestamp: timestamp,
       createdAt: createdAt,
-      courseImage: json['course_image'],
-      level: json['level'],
-      price: json['price'],
-      currency: json['currency'],
-      startingDate: json['starting_date'],
-      endingDate: json['ending_date'],
-      city: json['city'],
-      isEnrolled: json['is_enrolled'],
-      institution: json['institution'],
+      courseImage: courseImage,
+      level: json['level'] ?? json['course']?['level'],
+      price: json['price'] ?? json['course']?['price']?.toString(),
+      currency: json['currency'] ?? json['course']?['currency'],
+      startingDate: json['starting_date'] ?? json['course']?['starting_date'],
+      endingDate: json['ending_date'] ?? json['course']?['ending_date'],
+      city: json['city'] ?? json['course']?['city'],
+      isEnrolled: json['is_enrolled'] ?? json['course']?['is_enrolled'],
+      institution: json['institution'] ?? json['course']?['institution'],
     );
   }
 

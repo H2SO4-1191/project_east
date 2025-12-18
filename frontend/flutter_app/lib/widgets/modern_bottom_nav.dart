@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/theme.dart';
@@ -214,106 +215,162 @@ class _ModernBottomNavState extends State<ModernBottomNav>
 
     // Determine navigation items based on user type
     final isInstitute = userType == 'institution';
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    const navBarHeight = 72.0;
+    const buttonSize = 64.0;
 
-    return Container(
-      height: 72 + MediaQuery.of(context).padding.bottom,
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.navy800 : Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Stack(
-          children: [
-            // Regular navigation items
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Home button
-                _buildNavItem(
-                  context: context,
-                  icon: Icons.home_outlined,
-                  filledIcon: Icons.home,
-                  label: 'Home',
-                  index: 0,
-                  isActive: widget.currentIndex == 0,
-                ),
-                // Spacer for middle button
-                const SizedBox(width: 80),
-                // Explore button
-                _buildNavItem(
-                  context: context,
-                  icon: Icons.explore_outlined,
-                  filledIcon: Icons.explore,
-                  label: 'Explore',
-                  index: 2,
-                  isActive: widget.currentIndex == 2,
-                ),
-              ],
-            ),
-            // Floating middle button
-            Center(
-              child: GestureDetector(
-                onTapDown: (_) => _middleButtonController.forward(),
-                onTapUp: (_) {
-                  _middleButtonController.reverse();
-                  _handleMiddleButtonTap(context);
-                },
-                onTapCancel: () => _middleButtonController.reverse(),
-                child: ScaleTransition(
-                  scale: _middleButtonScale,
-                  child: Container(
-                    width: 64,
-                    height: 64,
-                    margin: const EdgeInsets.only(bottom: 8),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [AppTheme.primary600, AppTheme.teal500],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.primary600.withOpacity(0.4),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+    return SizedBox(
+      height: navBarHeight + bottomPadding,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Navigation bar with curved cutout (transparent cutout area)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: ClipPath(
+              clipper: _BottomNavClipper(buttonSize: buttonSize),
+              child: Container(
+                height: navBarHeight + bottomPadding,
+                decoration: BoxDecoration(
+                  color: isDark ? AppTheme.navy800 : Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.15),
+                      blurRadius: 10,
+                      offset: const Offset(0, -2),
                     ),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      transitionBuilder: (child, animation) {
-                        return ScaleTransition(
-                          scale: animation,
-                          child: child,
-                        );
-                      },
-                      child: Icon(
-                        isInstitute
-                            ? (widget.currentIndex == 1
-                                ? Icons.add
-                                : Icons.dashboard)
-                            : Icons.school,
-                        key: ValueKey(
-                            '${isInstitute}_${widget.currentIndex == 1}'),
-                        color: Colors.white,
-                        size: 28,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Content on top (buttons) - no background
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: SizedBox(
+              height: navBarHeight + bottomPadding,
+              child: SafeArea(
+                top: false,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Home button
+                    Expanded(
+                      child: _buildNavItem(
+                        context: context,
+                        icon: Icons.home_outlined,
+                        filledIcon: Icons.home,
+                        label: 'Home',
+                        index: 0,
+                        isActive: widget.currentIndex == 0,
                       ),
+                    ),
+                    // Spacer for middle button
+                    SizedBox(width: buttonSize + 60),
+                    // Explore button
+                    Expanded(
+                      child: _buildNavItem(
+                        context: context,
+                        icon: Icons.explore_outlined,
+                        filledIcon: Icons.explore,
+                        label: 'Explore',
+                        index: 2,
+                        isActive: widget.currentIndex == 2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Animated dot indicator that moves between tabs
+          // Only show for Home (0) and Explore (2), hide for Academic (1)
+          if (widget.currentIndex == 0 || widget.currentIndex == 2)
+            _AnimatedDotIndicator(
+              currentIndex: widget.currentIndex == 2 ? 1 : 0,
+              isDark: isDark,
+            ),
+          // Show dot under middle button when Academic is active
+          if (widget.currentIndex == 1)
+            Positioned(
+              bottom: 8 + MediaQuery.of(context).padding.bottom,
+              left: MediaQuery.of(context).size.width / 2 - 3,
+              child: Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isDark ? AppTheme.teal500 : AppTheme.primary600,
+                ),
+              ),
+            ),
+          // Floating middle button
+          Positioned(
+            bottom: navBarHeight / 2 - buttonSize / 2 + bottomPadding,
+            left: MediaQuery.of(context).size.width / 2 - buttonSize / 2,
+            child: GestureDetector(
+              onTapDown: (_) => _middleButtonController.forward(),
+              onTapUp: (_) {
+                _middleButtonController.reverse();
+                _handleMiddleButtonTap(context);
+              },
+              onTapCancel: () => _middleButtonController.reverse(),
+              child: ScaleTransition(
+                scale: _middleButtonScale,
+                child: Container(
+                  width: buttonSize,
+                  height: buttonSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      colors: [AppTheme.primary600, AppTheme.teal500],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primary600.withOpacity(0.5),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                        spreadRadius: 2,
+                      ),
+                      BoxShadow(
+                        color: AppTheme.teal500.withOpacity(0.3),
+                        blurRadius: 15,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    transitionBuilder: (child, animation) {
+                      return ScaleTransition(
+                        scale: animation,
+                        child: child,
+                      );
+                    },
+                    child: Icon(
+                      isInstitute
+                          ? (widget.currentIndex == 1
+                              ? Icons.add
+                              : Icons.dashboard)
+                          : Icons.school,
+                      key: ValueKey(
+                          '${isInstitute}_${widget.currentIndex == 1}'),
+                      color: Colors.white,
+                      size: 28,
                     ),
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -329,52 +386,157 @@ class _ModernBottomNavState extends State<ModernBottomNav>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => widget.onTap(index),
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  transitionBuilder: (child, animation) {
-                    return ScaleTransition(
-                      scale: animation,
-                      child: child,
-                    );
-                  },
-                  child: Icon(
-                    isActive ? filledIcon : icon,
-                    key: ValueKey(isActive),
-                    color: isActive
-                        ? (isDark ? AppTheme.teal500 : AppTheme.primary600)
-                        : (isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
-                    size: 24,
-                  ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => widget.onTap(index),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                transitionBuilder: (child, animation) {
+                  return ScaleTransition(
+                    scale: animation,
+                    child: child,
+                  );
+                },
+                child: Icon(
+                  isActive ? filledIcon : icon,
+                  key: ValueKey(isActive),
+                  color: isActive
+                      ? (isDark ? AppTheme.teal500 : AppTheme.primary600)
+                      : (isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
+                  size: 24,
                 ),
-                const SizedBox(height: 4),
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 200),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                    color: isActive
-                        ? (isDark ? AppTheme.teal500 : AppTheme.primary600)
-                        : (isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
-                  ),
-                  child: Text(label),
+              ),
+              const SizedBox(height: 4),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 200),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  color: isActive
+                      ? (isDark ? AppTheme.teal500 : AppTheme.primary600)
+                      : (isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
                 ),
-              ],
-            ),
+                child: Text(label),
+              ),
+              // Placeholder for dot height
+              const SizedBox(height: 10),
+            ],
           ),
         ),
       ),
     );
   }
+
+}
+
+// Animated dot indicator widget
+class _AnimatedDotIndicator extends StatelessWidget {
+  final int currentIndex;
+  final bool isDark;
+
+  const _AnimatedDotIndicator({
+    required this.currentIndex,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    const buttonSize = 64.0;
+    final sideWidth = (screenWidth - buttonSize - 60) / 2;
+    
+    // Calculate target position
+    double targetX;
+    if (currentIndex == 0) {
+      targetX = sideWidth / 2 - 3; // -3 for dot width/2
+    } else {
+      targetX = screenWidth - sideWidth / 2 - 3;
+    }
+
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOutCirc,
+      left: targetX,
+      bottom: 16,
+      child: Container(
+        width: 6,
+        height: 6,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isDark ? AppTheme.teal500 : AppTheme.primary600,
+        ),
+      ),
+    );
+  }
+}
+
+// Custom clipper to create curved cutout for the floating button
+class _BottomNavClipper extends CustomClipper<Path> {
+  final double buttonSize;
+
+  _BottomNavClipper({required this.buttonSize});
+
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    final centerX = size.width / 2;
+    final buttonRadius = buttonSize / 2;
+    final curveRadius = buttonRadius + 8; // Slightly larger than button to wrap around it
+    final curveDepth = buttonRadius * 2 + 16; // Deep enough to go UNDER the entire button
+
+    // Start from bottom-left
+    path.moveTo(0, size.height);
+
+    // Line up to top-left
+    path.lineTo(0, 0);
+
+    // Line across to start of curve (left side)
+    path.lineTo(centerX - curveRadius - 15, 0);
+
+    // Smooth curve down (left side) - goes down to the depth
+    path.quadraticBezierTo(
+      centerX - curveRadius - 5, 0, // Control point (smooth entry)
+      centerX - curveRadius, curveDepth / 3, // End point (start of vertical)
+    );
+
+    // Continue down on left side
+    path.lineTo(centerX - curveRadius, curveDepth - curveRadius);
+
+    // Semicircle at the bottom - goes UNDER the button completely
+    path.arcToPoint(
+      Offset(centerX + curveRadius, curveDepth - curveRadius),
+      radius: Radius.circular(curveRadius),
+      clockwise: false,
+    );
+
+    // Continue up on right side
+    path.lineTo(centerX + curveRadius, curveDepth / 3);
+
+    // Smooth curve back up (right side)
+    path.quadraticBezierTo(
+      centerX + curveRadius + 5, 0, // Control point (smooth exit)
+      centerX + curveRadius + 15, 0, // End point
+    );
+
+    // Line across to top-right
+    path.lineTo(size.width, 0);
+
+    // Line down to bottom-right
+    path.lineTo(size.width, size.height);
+
+    // Close the path
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 

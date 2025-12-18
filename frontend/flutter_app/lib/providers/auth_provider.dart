@@ -152,7 +152,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   /// Get schedule with automatic token refresh
-  Future<List<dynamic>> getSchedule() async {
+  Future<Map<String, dynamic>> getSchedule() async {
     await _ensureInitialized();
     
     if (!isAuthenticated || accessToken == null) {

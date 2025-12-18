@@ -27,10 +27,14 @@ class _EditCoursesPageState extends State<EditCoursesPage> {
   final _endingDateController = TextEditingController();
   final _startTimeController = TextEditingController();
   final _endTimeController = TextEditingController();
-  final _lecturerController = TextEditingController();
 
   String _level = 'beginner';
   List<String> _selectedDays = [];
+  Map<String, dynamic>? _selectedLecturer;
+  bool _isLoadingLecturers = false;
+  bool _isCheckingAvailability = false;
+  List<dynamic> _markedLecturers = [];
+  Map<String, dynamic>? _lecturerConflict;
   File? _courseImage;
   final ImagePicker _picker = ImagePicker();
 
@@ -48,6 +52,7 @@ class _EditCoursesPageState extends State<EditCoursesPage> {
   void initState() {
     super.initState();
     _fetchCourses();
+    _fetchMarkedLecturers();
   }
 
   @override
@@ -55,12 +60,11 @@ class _EditCoursesPageState extends State<EditCoursesPage> {
     _titleController.dispose();
     _priceController.dispose();
     _aboutController.dispose();
-    _startingDateController.dispose();
-    _endingDateController.dispose();
-    _startTimeController.dispose();
-    _endTimeController.dispose();
-    _lecturerController.dispose();
-    super.dispose();
+      _startingDateController.dispose();
+      _endingDateController.dispose();
+      _startTimeController.dispose();
+      _endTimeController.dispose();
+      super.dispose();
   }
 
   Future<void> _fetchCourses() async {
@@ -71,21 +75,46 @@ class _EditCoursesPageState extends State<EditCoursesPage> {
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final username = authProvider.instituteData['username'];
+      final accessToken = authProvider.accessToken;
+      final refreshToken = authProvider.refreshToken;
 
-      if (username == null) {
-        throw Exception('Username not available');
+      if (accessToken == null) {
+        throw Exception('Not authenticated');
       }
 
-      final data = await ApiService.getInstitutionCourses(username);
+      // Step 1: Fetch profile information from /institution/my-profile/
+      final profileData = await ApiService.getInstitutionMyProfile(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        onTokenRefreshed: (tokens) {
+          authProvider.onTokenRefreshed(tokens);
+        },
+        onSessionExpired: () {
+          authProvider.logout();
+        },
+      );
 
-      if (data['results'] != null) {
+      // Step 2: Extract username from profile
+      String? username;
+      if (profileData['success'] == true && profileData['data'] != null) {
+        final data = profileData['data'];
+        username = data['username']?.toString();
+      }
+
+      if (username == null || username.isEmpty) {
+        throw Exception('Username not found in profile');
+      }
+
+      // Step 3: Use username to fetch courses from /institution/<username>/courses/
+      final coursesData = await ApiService.getInstitutionCourses(username);
+
+      if (coursesData['results'] != null) {
         setState(() {
-          _courses = data['results'] is List ? data['results'] : [];
+          _courses = coursesData['results'] is List ? coursesData['results'] : [];
         });
-      } else if (data['data'] != null) {
+      } else if (coursesData['data'] != null) {
         setState(() {
-          _courses = data['data'] is List ? data['data'] : [];
+          _courses = coursesData['data'] is List ? coursesData['data'] : [];
         });
       } else {
         setState(() {
@@ -104,6 +133,136 @@ class _EditCoursesPageState extends State<EditCoursesPage> {
     }
   }
 
+  Future<void> _fetchMarkedLecturers() async {
+    setState(() {
+      _isLoadingLecturers = true;
+    });
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final accessToken = authProvider.accessToken;
+      final refreshToken = authProvider.refreshToken;
+
+      if (accessToken == null) {
+        throw Exception('Not authenticated');
+      }
+
+      final data = await ApiService.getMarkedLecturers(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        onTokenRefreshed: (tokens) {
+          authProvider.onTokenRefreshed(tokens);
+        },
+        onSessionExpired: () {
+          authProvider.logout();
+        },
+      );
+
+      if (data['success'] == true && data['lecturers'] != null) {
+        setState(() {
+          _markedLecturers = data['lecturers'] is List ? data['lecturers'] : [];
+        });
+      } else {
+        setState(() {
+          _markedLecturers = [];
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading lecturers: ${e.toString()}')),
+        );
+      }
+      setState(() {
+        _markedLecturers = [];
+      });
+    } finally {
+      setState(() {
+        _isLoadingLecturers = false;
+      });
+    }
+  }
+
+  Future<void> _checkLecturerAvailability() async {
+    if (_selectedLecturer == null ||
+        _selectedDays.isEmpty ||
+        _startTimeController.text.trim().isEmpty ||
+        _endTimeController.text.trim().isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _isCheckingAvailability = true;
+      _lecturerConflict = null;
+    });
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final accessToken = authProvider.accessToken;
+      final refreshToken = authProvider.refreshToken;
+
+      if (accessToken == null) {
+        throw Exception('Not authenticated');
+      }
+
+      final lecturerId = _selectedLecturer!['id'] as int;
+      final data = await ApiService.checkLecturerAvailability(
+        accessToken: accessToken,
+        lecturerId: lecturerId,
+        days: _selectedDays,
+        startTime: _startTimeController.text.trim(),
+        endTime: _endTimeController.text.trim(),
+        refreshToken: refreshToken,
+        onTokenRefreshed: (tokens) {
+          authProvider.onTokenRefreshed(tokens);
+        },
+        onSessionExpired: () {
+          authProvider.logout();
+        },
+      );
+
+      if (data['success'] == true) {
+        if (data['contradiction'] == null) {
+          // Lecturer is free
+          setState(() {
+            _lecturerConflict = null;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Lecturer is available for the selected schedule'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } else {
+          // Lecturer has conflicts
+          setState(() {
+            _lecturerConflict = data['contradiction'];
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Lecturer has scheduling conflicts'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error checking availability: ${e.toString()}')),
+        );
+      }
+    } finally {
+      setState(() {
+        _isCheckingAvailability = false;
+      });
+    }
+  }
+
   void _selectCourse(Map<String, dynamic> course) {
     setState(() {
       _selectedCourse = course;
@@ -112,13 +271,30 @@ class _EditCoursesPageState extends State<EditCoursesPage> {
       _aboutController.text = course['about'] ?? '';
       _startingDateController.text = course['starting_date'] ?? '';
       _endingDateController.text = course['ending_date'] ?? '';
-      _startTimeController.text = course['start_time'] ?? '';
-      _endTimeController.text = course['end_time'] ?? '';
-      _lecturerController.text = course['lecturer']?.toString() ?? '';
+      
+      // Convert 24-hour time to 12-hour format for display
+      final startTime = course['start_time'] ?? '';
+      final endTime = course['end_time'] ?? '';
+      _startTimeController.text = startTime.isNotEmpty ? _convertTo12Hour(startTime) : '';
+      _endTimeController.text = endTime.isNotEmpty ? _convertTo12Hour(endTime) : '';
+      
+      // Find and set selected lecturer from marked lecturers
+      final lecturerId = course['lecturer'];
+      if (lecturerId != null) {
+        final lecturer = _markedLecturers.firstWhere(
+          (l) => l['id'] == lecturerId,
+          orElse: () => null,
+        );
+        _selectedLecturer = lecturer;
+      } else {
+        _selectedLecturer = null;
+      }
+      
       _level = course['level'] ?? 'beginner';
       _selectedDays = course['days'] is List
           ? List<String>.from(course['days'])
           : [];
+      _lecturerConflict = null;
       _courseImage = null;
     });
   }
@@ -133,11 +309,45 @@ class _EditCoursesPageState extends State<EditCoursesPage> {
       _endingDateController.clear();
       _startTimeController.clear();
       _endTimeController.clear();
-      _lecturerController.clear();
       _level = 'beginner';
       _selectedDays = [];
+      _selectedLecturer = null;
+      _lecturerConflict = null;
       _courseImage = null;
     });
+  }
+
+  void _unselectLecturer() {
+    setState(() {
+      _selectedLecturer = null;
+      _lecturerConflict = null;
+    });
+  }
+
+  String _convertTo24Hour(String time12) {
+    try {
+      final parts = time12.split(' ');
+      if (parts.length != 2) return time12; // Already 24-hour or invalid
+      
+      final timePart = parts[0];
+      final period = parts[1].toUpperCase();
+      final timeComponents = timePart.split(':');
+      
+      if (timeComponents.length != 2) return time12;
+      
+      int hour = int.parse(timeComponents[0]);
+      final minute = timeComponents[1];
+      
+      if (period == 'PM' && hour != 12) {
+        hour += 12;
+      } else if (period == 'AM' && hour == 12) {
+        hour = 0;
+      }
+      
+      return '${hour.toString().padLeft(2, '0')}:$minute';
+    } catch (e) {
+      return time12; // Return original if conversion fails
+    }
   }
 
   Future<void> _pickImage() async {
@@ -202,6 +412,11 @@ class _EditCoursesPageState extends State<EditCoursesPage> {
       } else {
         _endTimeController.text = time12;
       }
+      
+      // Check availability when time is selected
+      if (_selectedLecturer != null && _selectedDays.isNotEmpty) {
+        _checkLecturerAvailability();
+      }
     }
   }
 
@@ -240,14 +455,15 @@ class _EditCoursesPageState extends State<EditCoursesPage> {
       if (_endingDateController.text.trim().isNotEmpty) {
         payload['ending_date'] = _endingDateController.text.trim();
       }
+      // Convert 12-hour time to 24-hour format for backend
       if (_startTimeController.text.trim().isNotEmpty) {
-        payload['start_time'] = _startTimeController.text.trim();
+        payload['start_time'] = _convertTo24Hour(_startTimeController.text.trim());
       }
       if (_endTimeController.text.trim().isNotEmpty) {
-        payload['end_time'] = _endTimeController.text.trim();
+        payload['end_time'] = _convertTo24Hour(_endTimeController.text.trim());
       }
-      if (_lecturerController.text.trim().isNotEmpty) {
-        payload['lecturer'] = int.tryParse(_lecturerController.text.trim());
+      if (_selectedLecturer != null) {
+        payload['lecturer'] = _selectedLecturer!['id'];
       }
       payload['level'] = _level;
       if (_selectedDays.isNotEmpty) {
@@ -529,19 +745,179 @@ class _EditCoursesPageState extends State<EditCoursesPage> {
           ),
           const SizedBox(height: 16),
 
-          // Lecturer
-          TextFormField(
-            controller: _lecturerController,
-            decoration: InputDecoration(
-              labelText: 'Lecturer ID',
-              border: OutlineInputBorder(
+          // Lecturer Selection
+          Text(
+            'Lecturer',
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'The list of lecturers you have',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Colors.grey,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (_isLoadingLecturers)
+            const Center(child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: CircularProgressIndicator(),
+            ))
+          else if (_markedLecturers.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
                 borderRadius: BorderRadius.circular(8),
               ),
-              filled: true,
-              fillColor: isDark ? Colors.grey[900] : Colors.white,
+              child: const Text('No marked lecturers available'),
+            )
+          else
+            Container(
+              height: 200,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ListView.builder(
+                itemCount: _markedLecturers.length,
+                itemBuilder: (context, index) {
+                  final lecturer = _markedLecturers[index];
+                  final isSelected = _selectedLecturer?['id'] == lecturer['id'];
+                  final fullName = lecturer['full_name'] ?? 'Unknown';
+                  final profileImage = lecturer['profile_image'];
+                  
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundImage: profileImage != null
+                          ? NetworkImage(profileImage.toString().startsWith('http')
+                              ? profileImage.toString()
+                              : 'https://projecteastapi.ddns.net$profileImage')
+                          : null,
+                      child: profileImage == null
+                          ? Text(fullName.isNotEmpty ? fullName[0].toUpperCase() : '?')
+                          : null,
+                    ),
+                    title: Text(fullName),
+                    subtitle: Text(lecturer['username'] ?? ''),
+                    selected: isSelected,
+                    selectedTileColor: isDark ? Colors.grey[800] : Colors.blue[50],
+                    onTap: () {
+                      setState(() {
+                        _selectedLecturer = lecturer;
+                        _lecturerConflict = null;
+                      });
+                      
+                      // Check availability if days and times are already selected
+                      if (_selectedDays.isNotEmpty &&
+                          _startTimeController.text.trim().isNotEmpty &&
+                          _endTimeController.text.trim().isNotEmpty) {
+                        _checkLecturerAvailability();
+                      }
+                    },
+                  );
+                },
+              ),
             ),
-            keyboardType: TextInputType.number,
-          ),
+          if (_selectedLecturer != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              'You chose:',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.grey,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[800] : Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _lecturerConflict != null ? Colors.red : Colors.blue,
+                  width: 2,
+                ),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundImage: _selectedLecturer!['profile_image'] != null
+                        ? NetworkImage(
+                            _selectedLecturer!['profile_image'].toString().startsWith('http')
+                                ? _selectedLecturer!['profile_image'].toString()
+                                : 'https://projecteastapi.ddns.net${_selectedLecturer!['profile_image']}')
+                        : null,
+                    child: _selectedLecturer!['profile_image'] == null
+                        ? Text(
+                            (_selectedLecturer!['full_name'] ?? 'Unknown')[0].toUpperCase())
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _selectedLecturer!['full_name'] ?? 'Unknown',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        if (_lecturerConflict != null)
+                          Text(
+                            '⚠️ Has scheduling conflicts',
+                            style: TextStyle(color: Colors.red, fontSize: 12),
+                          )
+                        else if (_isCheckingAvailability)
+                          const Text(
+                            'Checking availability...',
+                            style: TextStyle(fontSize: 12),
+                          )
+                        else if (_selectedDays.isNotEmpty &&
+                            _startTimeController.text.trim().isNotEmpty &&
+                            _endTimeController.text.trim().isNotEmpty)
+                          const Text(
+                            '✓ Available',
+                            style: TextStyle(color: Colors.green, fontSize: 12),
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    color: Colors.grey,
+                    tooltip: 'Unselect lecturer',
+                    onPressed: _unselectLecturer,
+                  ),
+                ],
+              ),
+            ),
+            if (_lecturerConflict != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Scheduling Conflict:',
+                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                    ),
+                    const SizedBox(height: 4),
+                    Text('Course: ${_lecturerConflict!['course_title'] ?? 'N/A'}'),
+                    Text('Institution: ${_lecturerConflict!['institution'] ?? 'N/A'}'),
+                    Text('Day: ${_lecturerConflict!['day'] ?? 'N/A'}'),
+                    Text('Time: ${_lecturerConflict!['time'] ?? 'N/A'}'),
+                  ],
+                ),
+              ),
+            ],
+          ],
           const SizedBox(height: 16),
 
           // Days
@@ -563,6 +939,13 @@ class _EditCoursesPageState extends State<EditCoursesPage> {
                       _selectedDays.remove(day);
                     }
                   });
+                  
+                  // Check availability when days change
+                  if (_selectedLecturer != null && 
+                      _startTimeController.text.trim().isNotEmpty &&
+                      _endTimeController.text.trim().isNotEmpty) {
+                    _checkLecturerAvailability();
+                  }
                 },
               );
             }).toList(),

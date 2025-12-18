@@ -6,6 +6,7 @@ import '../../config/theme.dart';
 import '../../services/student_service.dart';
 import '../../services/api_service.dart';
 import '../../widgets/language_switcher.dart';
+import '../../widgets/modern_bottom_nav.dart';
 
 class StudentScheduleScreen extends StatefulWidget {
   const StudentScheduleScreen({super.key});
@@ -433,6 +434,17 @@ class _StudentScheduleScreenState extends State<StudentScheduleScreen> {
                     ],
                   ),
                 ),
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: 1,
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+          } else if (index == 2) {
+            Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+            Navigator.pushNamed(context, '/explore');
+          }
+        },
+      ),
     );
   }
 
@@ -466,162 +478,258 @@ class _StudentScheduleScreenState extends State<StudentScheduleScreen> {
     Map<String, dynamic> session,
     int index,
   ) {
+    final courseTitle = session['course'] ?? 'Course';
+    final courseId = session['course_id'];
+    final time = session['time'] ?? '';
+    final instructor = session['instructor'] ?? 'TBA';
+    final institution = session['institution'] ?? 'N/A';
+    final startTime = session['start_time'];
+    final endTime = session['end_time'];
+
+    // Calculate duration if times are available
+    String? duration;
+    if (startTime != null && endTime != null) {
+      try {
+        final start = _parseTime(startTime);
+        final end = _parseTime(endTime);
+        if (start != null && end != null) {
+          final startMinutes = start.hour * 60 + start.minute;
+          final endMinutes = end.hour * 60 + end.minute;
+          final diffMinutes = endMinutes - startMinutes;
+          if (diffMinutes > 0) {
+            final hours = diffMinutes ~/ 60;
+            final minutes = diffMinutes % 60;
+            if (hours > 0) {
+              duration = minutes > 0 ? '${hours}h ${minutes}m' : '${hours}h';
+            } else {
+              duration = '${minutes}m';
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore parsing errors
+      }
+    }
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         color: isDark ? AppTheme.navy800 : Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              session['course'] ?? 'Course',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with gradient
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.primary600,
+                  AppTheme.teal500,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
               ),
             ),
-            const SizedBox(height: 16),
-            Row(
+            child: Row(
               children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.access_time,
-                          color: Colors.blue,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Time',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            Text(
-                              session['time'] ?? '',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
-                ),
-                Expanded(
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.purple.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.person,
-                          color: Colors.purple,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Instructor',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            Text(
-                              session['instructor'] ?? 'TBA',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  child: const Icon(
+                    Icons.book,
+                    color: Colors.white,
+                    size: 28,
                   ),
                 ),
+                const SizedBox(width: 16),
                 Expanded(
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
+                      Text(
+                        courseTitle,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
-                        child: const Icon(
-                          Icons.school,
-                          color: Colors.green,
-                          size: 20,
-                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Institution',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
+                      if (courseId != null) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'ID: $courseId',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w500,
                             ),
-                            Text(
-                              session['institution'] ?? 'N/A',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+
+          // Content Section
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Time Information
+                _buildInfoRow(
+                  icon: Icons.access_time,
+                  iconColor: Colors.blue,
+                  label: 'Time',
+                  value: time,
+                  secondaryValue: duration != null ? 'Duration: $duration' : null,
+                  isDark: isDark,
+                ),
+                const SizedBox(height: 16),
+
+                // Instructor Information
+                _buildInfoRow(
+                  icon: Icons.person_outline,
+                  iconColor: Colors.purple,
+                  label: 'Instructor',
+                  value: instructor,
+                  isDark: isDark,
+                ),
+                const SizedBox(height: 16),
+
+                // Institution Information
+                _buildInfoRow(
+                  icon: Icons.school,
+                  iconColor: Colors.green,
+                  label: 'Institution',
+                  value: institution,
+                  isDark: isDark,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildInfoRow({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+    String? secondaryValue,
+    required bool isDark,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icon,
+            color: iconColor,
+            size: 24,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (secondaryValue != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  secondaryValue,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade600,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  TimeOfDay? _parseTime(String timeString) {
+    try {
+      final parts = timeString.split(':');
+      if (parts.length >= 2) {
+        final hour = int.parse(parts[0]);
+        final minute = int.parse(parts[1]);
+        return TimeOfDay(hour: hour, minute: minute);
+      }
+    } catch (e) {
+      // Ignore parsing errors
+    }
+    return null;
   }
 }
 

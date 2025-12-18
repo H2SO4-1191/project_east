@@ -18,6 +18,7 @@ class StudentsFilteredView extends StatefulWidget {
 
 class _StudentsFilteredViewState extends State<StudentsFilteredView> {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   Timer? _debounceTimer;
   
   bool _isLoading = false;
@@ -38,6 +39,7 @@ class _StudentsFilteredViewState extends State<StudentsFilteredView> {
   void dispose() {
     _debounceTimer?.cancel();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -235,18 +237,24 @@ class _StudentsFilteredViewState extends State<StudentsFilteredView> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? AppTheme.navy900 : const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: TextField(
-          controller: _searchController,
-          decoration: InputDecoration(
+    return GestureDetector(
+      onTap: () {
+        // Unfocus search field when tapping outside
+        _searchFocusNode.unfocus();
+      },
+      child: Scaffold(
+        backgroundColor: isDark ? AppTheme.navy900 : const Color(0xFFF9FAFB),
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: TextField(
+            controller: _searchController,
+            focusNode: _searchFocusNode,
+            decoration: InputDecoration(
             hintText: 'Search students...',
             prefixIcon: const Icon(Icons.search),
             suffixIcon: _searchController.text.isNotEmpty
@@ -325,6 +333,7 @@ class _StudentsFilteredViewState extends State<StudentsFilteredView> {
                         },
                       ),
                     ),
+      ),
     );
   }
 }

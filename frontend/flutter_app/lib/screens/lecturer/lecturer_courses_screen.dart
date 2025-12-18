@@ -7,7 +7,7 @@ import '../../services/lecturer_service.dart';
 import '../../services/explore_service.dart';
 import '../../services/api_service.dart';
 import '../../widgets/language_switcher.dart';
-import '../../providers/auth_provider.dart';
+import '../../widgets/modern_bottom_nav.dart';
 
 class LecturerCoursesScreen extends StatefulWidget {
   const LecturerCoursesScreen({super.key});
@@ -21,91 +21,17 @@ class _LecturerCoursesScreenState extends State<LecturerCoursesScreen> {
   bool _isLoading = true;
   String? _error;
   Map<int, Map<String, dynamic>> _courseProgress = {};
-  Map<String, dynamic>? _selectedCourse;
-
-  // Modal states
-  bool _showExamModal = false;
-  bool _showGradesModal = false;
-  bool _showAttendanceModal = false;
-  bool _showViewGradesModal = false;
-  bool _showViewAttendanceModal = false;
-
-  // Form states
-  final _examTitleController = TextEditingController();
-  final _examDateController = TextEditingController();
-  final _examMaxScoreController = TextEditingController(text: '100');
-  bool _isCreatingExam = false;
-  List<Map<String, dynamic>> _gradesForm = [];
-  bool _isSubmittingGrades = false;
-  int? _selectedExamId;
-  int? _selectedLectureForAttendance;
-  List<dynamic> _courseStudents = [];
-  bool _isLoadingStudents = false;
-  Map<String, dynamic>? _attendanceForm;
-  Map<String, dynamic>? _examGrades;
-  Map<String, dynamic>? _lectureAttendance;
-  int? _viewLectureNumber;
-  bool _isLoadingGrades = false;
-  bool _isLoadingAttendance = false;
-  bool _isSubmittingAttendance = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchCourses();
-    _checkVerificationStatus();
+    _fetchUsernameAndCourses();
   }
 
-  Future<void> _checkVerificationStatus() async {
+  Future<void> _fetchUsernameAndCourses() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final instituteData = authProvider.instituteData;
-    final email = instituteData['email'];
-    final accessToken = instituteData['accessToken'];
-    final refreshToken = instituteData['refreshToken'];
-
-    if (email != null && accessToken != null) {
-      try {
-        final verificationStatus = await ApiService.checkVerificationStatus(
-          email,
-          accessToken: accessToken,
-          refreshToken: refreshToken,
-          onTokenRefreshed: (tokens) {
-            authProvider.onTokenRefreshed(tokens);
-          },
-          onSessionExpired: () {
-            authProvider.onSessionExpired();
-          },
-        );
-        if (mounted && verificationStatus['is_verified'] != instituteData['isVerified']) {
-          await authProvider.updateInstituteData({
-            'isVerified': verificationStatus['is_verified'] ?? false,
-          });
-        }
-      } catch (e) {
-        // Silently fail - verification check is not critical
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _examTitleController.dispose();
-    _examDateController.dispose();
-    _examMaxScoreController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _fetchCourses() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final username = authProvider.instituteData['username'];
-    
-    if (username == null) {
-      setState(() {
-        _error = 'Username not available';
-        _isLoading = false;
-      });
-      return;
-    }
+    final accessToken = authProvider.instituteData['accessToken'];
+    final refreshToken = authProvider.instituteData['refreshToken'];
 
     setState(() {
       _isLoading = true;
@@ -113,6 +39,31 @@ class _LecturerCoursesScreenState extends State<LecturerCoursesScreen> {
     });
 
     try {
+      // First fetch username from lecturer/my-profile
+      final profileResponse = await ApiService.getLecturerMyProfile(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        onTokenRefreshed: (tokens) {
+          authProvider.onTokenRefreshed(tokens);
+        },
+        onSessionExpired: () {
+          authProvider.onSessionExpired();
+        },
+      );
+
+      final username = profileResponse['data']?['username'] ?? 
+                       profileResponse['username'];
+      
+      if (username == null) {
+        setState(() {
+          _error = 'Username not available';
+          _isLoading = false;
+        });
+        return;
+      }
+
+
+      // Then fetch courses using the username
       final response = await LecturerService.getLecturerCourses(username);
       
       List<dynamic> courses = [];
@@ -246,7 +197,7 @@ class _LecturerCoursesScreenState extends State<LecturerCoursesScreen> {
           const LanguageSwitcher(),
           IconButton(
             icon: Icon(_isLoading ? Icons.refresh : Icons.refresh),
-            onPressed: _isLoading ? null : _fetchCourses,
+            onPressed: _isLoading ? null : _fetchUsernameAndCourses,
           ),
           IconButton(
             icon: Icon(isDark ? Icons.wb_sunny : Icons.nightlight_round),
@@ -263,12 +214,12 @@ class _LecturerCoursesScreenState extends State<LecturerCoursesScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
                       const SizedBox(height: 16),
                       Text(_error!),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: _fetchCourses,
+                        onPressed: _fetchUsernameAndCourses,
                         child: const Text('Retry'),
                       ),
                     ],
@@ -278,11 +229,11 @@ class _LecturerCoursesScreenState extends State<LecturerCoursesScreen> {
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
+                        children: const [
                           Icon(Icons.book, size: 64, color: Colors.grey),
-                          const SizedBox(height: 16),
-                          const Text('No Courses Found'),
-                          const Text("You don't have any courses assigned yet."),
+                          SizedBox(height: 16),
+                          Text('No Courses Found'),
+                          Text("You don't have any courses assigned yet."),
                         ],
                       ),
                     )
@@ -303,58 +254,60 @@ class _LecturerCoursesScreenState extends State<LecturerCoursesScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Hello, ${instituteData['firstName'] ?? instituteData['username'] ?? 'Lecturer'}!',
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Hello, ${instituteData['firstName'] ?? instituteData['username'] ?? 'Lecturer'}!',
+                                        style: const TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      "You're teaching ${_courses.length} courses",
-                                      style: const TextStyle(
-                                        color: Colors.white70,
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        "You're teaching ${_courses.length} courses",
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: isVerified
-                                            ? Colors.green.withOpacity(0.2)
-                                            : Colors.amber.withOpacity(0.2),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            isVerified
-                                                ? Icons.check_circle
-                                                : Icons.warning,
-                                            size: 16,
-                                            color: Colors.white,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            isVerified ? 'Verified' : 'Pending Verification',
-                                            style: const TextStyle(
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isVerified
+                                              ? Colors.green.withOpacity(0.2)
+                                              : Colors.amber.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              isVerified
+                                                  ? Icons.check_circle
+                                                  : Icons.warning,
+                                              size: 16,
                                               color: Colors.white,
-                                              fontWeight: FontWeight.w600,
                                             ),
-                                          ),
-                                        ],
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              isVerified ? 'Verified' : 'Pending Verification',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -413,7 +366,6 @@ class _LecturerCoursesScreenState extends State<LecturerCoursesScreen> {
 
                           // Course Cards
                           ..._courses.asMap().entries.map((entry) {
-                            final index = entry.key;
                             final course = entry.value;
                             final progress = _courseProgress[course['id']] ?? {};
 
@@ -422,13 +374,22 @@ class _LecturerCoursesScreenState extends State<LecturerCoursesScreen> {
                               isDark,
                               course,
                               progress,
-                              isVerified,
-                              index,
                             );
                           }),
                         ],
                       ),
                     ),
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: 1,
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+          } else if (index == 2) {
+            Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+            Navigator.pushNamed(context, '/explore');
+          }
+        },
+      ),
     );
   }
 
@@ -494,235 +455,172 @@ class _LecturerCoursesScreenState extends State<LecturerCoursesScreen> {
     bool isDark,
     Map<String, dynamic> course,
     Map<String, dynamic> progress,
-    bool isVerified,
-    int index,
   ) {
     final courseImageUrl = _getImageUrl(course['course_image']);
     final enrolledStudents = progress['enrolled_students'] ?? 0;
     final progressPercentage = progress['progress_percentage'] ?? 0;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.navy800 : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Course Header
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (courseImageUrl != null)
-                  Container(
-                    width: 48,
-                    height: 48,
-                    margin: const EdgeInsets.only(right: 12),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      image: DecorationImage(
-                        image: NetworkImage(courseImageUrl),
-                        fit: BoxFit.cover,
+    return GestureDetector(
+      onTap: () {
+        Navigator.pushNamed(
+          context,
+          '/lecturer/course-detail',
+          arguments: {
+            'courseId': course['id'],
+            'courseData': course,
+            'progress': progress,
+          },
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.navy800 : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Course Header
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (courseImageUrl != null)
+                    Container(
+                      width: 56,
+                      height: 56,
+                      margin: const EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        image: DecorationImage(
+                          image: NetworkImage(courseImageUrl),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      width: 56,
+                      height: 56,
+                      margin: const EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary600.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.book,
+                        color: AppTheme.primary600,
+                        size: 28,
                       ),
                     ),
-                  ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        course['title'] ?? 'Course',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getLevelColor(course['level']).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          course['level'] ?? 'beginner',
-                          style: TextStyle(
-                            color: _getLevelColor(course['level']),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          course['title'] ?? 'Course',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  '\$${course['price'] ?? '0'}',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primary600,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // Course Info
-            Row(
-              children: [
-                Icon(Icons.people, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text('$enrolledStudents students'),
-                const SizedBox(width: 16),
-                Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text('${course['starting_date'] ?? ''} - ${course['ending_date'] ?? ''}'),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // Progress Bar
-            if (progressPercentage > 0) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Course Progress'),
-                  Text(
-                    '$progressPercentage%',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primary600,
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getLevelColor(course['level']).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            course['level'] ?? 'beginner',
+                            style: TextStyle(
+                              color: _getLevelColor(course['level']),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    color: Colors.grey.shade400,
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(
-                value: progressPercentage / 100,
-                backgroundColor: Colors.grey.shade200,
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                  AppTheme.primary600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Lectures: ${progress['completed_lectures'] ?? 0}/${progress['total_lectures'] ?? 0}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
-              ),
+
               const SizedBox(height: 16),
-            ],
 
-            // Action Buttons
-            if (isVerified) ...[
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+              // Course Info
+              Row(
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _selectedCourse = course;
-                        _showExamModal = true;
-                      });
-                    },
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Create Exam'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple,
-                      foregroundColor: Colors.white,
-                    ),
+                  Icon(Icons.people, size: 16, color: Colors.grey.shade500),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$enrolledStudents students',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                   ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _selectedCourse = course;
-                        _gradesForm = [{'student_id': '', 'score': ''}];
-                        _showGradesModal = true;
-                      });
-                    },
-                    icon: const Icon(Icons.edit, size: 18),
-                    label: const Text('Submit Grades'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _selectedCourse = course;
-                        _attendanceForm = null;
-                        _courseStudents = [];
-                        _selectedLectureForAttendance = null;
-                        _showAttendanceModal = true;
-                      });
-                    },
-                    icon: const Icon(Icons.checklist, size: 18),
-                    label: const Text('Mark Attendance'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _selectedCourse = course;
-                        _viewLectureNumber = null;
-                        _lectureAttendance = null;
-                        _showViewAttendanceModal = true;
-                      });
-                    },
-                    icon: const Icon(Icons.visibility, size: 18),
-                    label: const Text('View Attendance'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal,
-                      foregroundColor: Colors.white,
+                  const SizedBox(width: 16),
+                  Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade500),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      '${course['starting_date'] ?? ''} - ${course['ending_date'] ?? ''}',
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
-            ] else ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
+
+              // Progress Bar
+              if (progressPercentage > 0) ...[
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.warning, color: Colors.amber, size: 20),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Account verification required to manage exams and attendance',
-                        style: TextStyle(fontSize: 12),
+                    Text(
+                      'Progress',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                    Text(
+                      '$progressPercentage%',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppTheme.primary600,
                       ),
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progressPercentage / 100,
+                    backgroundColor: Colors.grey.shade200,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppTheme.primary600,
+                    ),
+                    minHeight: 6,
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -740,8 +638,4 @@ class _LecturerCoursesScreenState extends State<LecturerCoursesScreen> {
         return Colors.grey;
     }
   }
-
-  // Modal builders would go here - keeping it simple for now
-  // The full implementation would include all the modals from React
 }
-

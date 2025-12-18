@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:animations/animations.dart';
 import '../config/theme.dart';
 import '../providers/auth_provider.dart';
@@ -9,12 +8,14 @@ import '../widgets/profile_button.dart';
 import '../widgets/category_card.dart';
 import '../services/explore_service.dart';
 import '../services/api_service.dart';
+import '../services/profile_service.dart';
 import '../utils/page_animations.dart';
 import 'explore/courses_filtered_view.dart';
 import 'explore/students_filtered_view.dart';
 import 'explore/lecturers_filtered_view.dart';
 import 'explore/jobs_filtered_view.dart';
 import 'explore/institutions_filtered_view.dart';
+import 'institution_profile_screen.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -25,11 +26,14 @@ class ExploreScreen extends StatefulWidget {
 
 class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   Timer? _debounceTimer;
   
   bool _isLoading = false;
   String? _error;
   String? _selectedFilter; // null = 'all', or 'courses', 'students', etc.
+  bool _isFilterExpanded = false; // For collapsible filter panel
+  List<Map<String, dynamic>> _searchResults = []; // Store search results
 
   @override
   bool get wantKeepAlive => true;
@@ -45,6 +49,7 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
   void dispose() {
     _debounceTimer?.cancel();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -89,30 +94,61 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
         },
       );
 
-      final results = data['success'] == true && data['results'] != null
-          ? data['results']
-          : (data['results'] ?? data);
-
-      if (data['success'] == true || (results is Map)) {
-        // For "All" view, combine all results
-        if (filter == null) {
-          final mixed = <dynamic>[];
-          if (results['students'] is List) {
-            mixed.addAll((results['students'] as List).map((s) => {...s, 'itemType': 'student'}));
+      if (data['success'] == true) {
+        final mixed = <Map<String, dynamic>>[];
+        
+        // Helper to add itemType to each result
+        void addResults(List? items, String itemType) {
+          if (items == null) return;
+          for (final item in items) {
+            if (item is Map) {
+              final map = Map<String, dynamic>.from(item);
+              map['itemType'] = itemType;
+              mixed.add(map);
+            }
           }
-          if (results['lecturers'] is List) {
-            mixed.addAll((results['lecturers'] as List).map((l) => {...l, 'itemType': 'lecturer'}));
-          }
-          if (results['jobs'] is List) {
-            mixed.addAll((results['jobs'] as List).map((j) => {...j, 'itemType': 'job'}));
-          }
-          if (results['courses'] is List) {
-            mixed.addAll((results['courses'] as List).map((c) => {...c, 'itemType': 'course'}));
-          }
-          // Results stored for "All" view if needed in future
-        } else {
-          // For filtered views, we navigate to dedicated screens
         }
+        
+        // When no filter: results are in data['results']
+        // When filter applied: results are directly in data (e.g., data['courses'])
+        if (filter == null) {
+          // No filter - get from results object
+          final results = data['results'];
+          if (results is Map) {
+            addResults(results['students'] as List?, 'student');
+            addResults(results['lecturers'] as List?, 'lecturer');
+            addResults(results['jobs'] as List?, 'job');
+            addResults(results['courses'] as List?, 'course');
+            addResults(results['institutions'] as List?, 'institution');
+          }
+        } else {
+          // Filter applied - results are directly in data[filter]
+          String itemType;
+          switch (filter) {
+            case 'students':
+              itemType = 'student';
+              break;
+            case 'lecturers':
+              itemType = 'lecturer';
+              break;
+            case 'courses':
+              itemType = 'course';
+              break;
+            case 'jobs':
+              itemType = 'job';
+              break;
+            case 'institutions':
+              itemType = 'institution';
+              break;
+            default:
+              itemType = 'unknown';
+          }
+          addResults(data[filter] as List?, itemType);
+        }
+        
+        setState(() {
+          _searchResults = mixed;
+        });
       }
     } catch (e) {
       setState(() {
@@ -157,18 +193,37 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? AppTheme.navy900 : const Color(0xFFF9FAFB),
-      appBar: AppBar(
+    return PopScope(
+      canPop: _searchController.text.isEmpty && !_searchFocusNode.hasFocus,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          // Clear search and unfocus instead of popping
+          if (_searchController.text.isNotEmpty) {
+            _searchController.clear();
+            _selectedFilter = null;
+            _performSearch();
+          }
+          _searchFocusNode.unfocus();
+        }
+      },
+      child: GestureDetector(
+        onTap: () {
+          // Unfocus search field when tapping outside
+          _searchFocusNode.unfocus();
+        },
+        child: Scaffold(
+        backgroundColor: isDark ? AppTheme.navy900 : const Color(0xFFF9FAFB),
+        appBar: AppBar(
         elevation: 0,
         backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
         automaticallyImplyLeading: false,
-        leading: const Padding(
-          padding: EdgeInsets.only(left: 8.0),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
           child: ProfileButton(),
         ),
         title: TextField(
           controller: _searchController,
+          focusNode: _searchFocusNode,
           onChanged: (_) => setState(() {}), // Rebuild to show/hide filter chips
           decoration: InputDecoration(
             hintText: 'Search...',
@@ -193,29 +248,9 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
       ),
       body: Column(
         children: [
-          // Filter chips - only show when search has text
+          // Collapsible Filter Tab - only show when search has text
           if (_searchController.text.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildFilterChip('All', null),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('Courses', 'courses'),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('Students', 'students'),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('Lecturers', 'lecturers'),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('Jobs', 'jobs'),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('Institutions', 'institutions'),
-                  ],
-                ),
-              ),
-            ),
+            _buildFilterTab(isDark),
           // Main content
           Expanded(
             child: _isLoading
@@ -236,57 +271,738 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
                           ],
                         ),
                       )
-                    : _selectedFilter != null
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.touch_app, size: 64, color: Colors.grey.shade400),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Tap a category card to explore',
-                                  style: TextStyle(color: Colors.grey.shade600),
-                                ),
-                              ],
-                            ),
-                          )
+                    // When searching, show search results
+                    : _searchController.text.isNotEmpty
+                        ? _buildSearchResults(isDark)
+                        // When not searching, show category grid
                         : _buildCategoryGrid(),
+          ),
+        ],
+      ),
+      ),
+      ),
+    );
+  }
+
+  Widget _buildFilterTab(bool isDark) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.navy800 : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Filter header (tap to expand/collapse)
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isFilterExpanded = !_isFilterExpanded;
+              });
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.filter_list,
+                    color: AppTheme.primary600,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Filters',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  if (_selectedFilter != null) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary600,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _getFilterLabel(_selectedFilter),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  AnimatedRotation(
+                    turns: _isFilterExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.keyboard_arrow_down,
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Expanded filter options
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildFilterChip('All', null, isDark),
+                  _buildFilterChip('Courses', 'courses', isDark),
+                  _buildFilterChip('Students', 'students', isDark),
+                  _buildFilterChip('Lecturers', 'lecturers', isDark),
+                  _buildFilterChip('Jobs', 'jobs', isDark),
+                  _buildFilterChip('Institutions', 'institutions', isDark),
+                ],
+              ),
+            ),
+            crossFadeState: _isFilterExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 200),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFilterChip(String label, String? filter) {
+  String _getFilterLabel(String? filter) {
+    switch (filter) {
+      case 'courses':
+        return 'Courses';
+      case 'students':
+        return 'Students';
+      case 'lecturers':
+        return 'Lecturers';
+      case 'jobs':
+        return 'Jobs';
+      case 'institutions':
+        return 'Institutions';
+      default:
+        return 'All';
+    }
+  }
+
+  Widget _buildFilterChip(String label, String? filter, bool isDark) {
     final isSelected = _selectedFilter == filter;
+
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (selected) {
+        _onFilterChanged(selected ? filter : null);
+        // Collapse filter panel after selection
+        setState(() {
+          _isFilterExpanded = false;
+        });
+      },
+      backgroundColor: isDark ? AppTheme.navy700 : Colors.grey.shade200,
+      selectedColor: AppTheme.primary600,
+      checkmarkColor: Colors.white,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black87),
+        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+  }
+
+  Widget _buildSearchResults(bool isDark) {
+    if (_searchResults.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 64, color: isDark ? Colors.white54 : Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'No results found',
+              style: TextStyle(
+                color: isDark ? Colors.white70 : Colors.grey.shade600,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Try a different search term or filter',
+              style: TextStyle(
+                color: isDark ? Colors.white54 : Colors.grey.shade500,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userType = authProvider.instituteData['userType'];
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _searchResults.length,
+      itemBuilder: (context, index) {
+        final item = _searchResults[index];
+        final itemType = item['itemType'] as String?;
+
+        // Use existing card widgets based on item type
+        switch (itemType) {
+          case 'student':
+            return StudentCard(
+              student: item,
+              onTap: () => _handleResultTap(item, itemType),
+            );
+          case 'lecturer':
+            return LecturerCard(
+              lecturer: item,
+              isMarked: false,
+              onTap: () => _handleResultTap(item, itemType),
+              onMark: () {}, // Not used in search results
+            );
+          case 'course':
+            return CourseCard(
+              course: item,
+              onTap: () {
+                final courseId = item['id'];
+                if (courseId != null) {
+                  if (userType == 'student') {
+                    Navigator.pushNamed(context, '/student/enroll', arguments: courseId);
+                  } else {
+                    Navigator.pushNamed(context, '/course', arguments: courseId);
+                  }
+                }
+              },
+            );
+          case 'job':
+            return JobCard(
+              job: item,
+              onTap: () => _handleResultTap(item, itemType),
+            );
+          case 'institution':
+            return _buildInstitutionCard(item, isDark);
+          default:
+            return const SizedBox.shrink();
+        }
+      },
+    );
+  }
+
+  Widget _buildInstitutionCard(Map<String, dynamic> institution, bool isDark) {
+    String? imageUrl;
+    final img = institution['profile_image'];
+    if (img != null && img.toString().isNotEmpty) {
+      final path = img.toString();
+      if (path.startsWith('http')) {
+        imageUrl = path;
+      } else {
+        imageUrl = '${ApiService.baseUrl}${path.startsWith('/') ? '' : '/'}$path';
+      }
+    }
+
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 12),
+      color: isDark ? AppTheme.navy800 : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () {
+          final username = institution['username'];
+          if (username != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => InstitutionProfileScreen(username: username),
+              ),
+            );
+          }
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: AppTheme.primary600.withOpacity(0.1),
+                backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
+                child: imageUrl == null
+                    ? Icon(Icons.business, color: AppTheme.primary600)
+                    : null,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      institution['name'] ?? institution['username'] ?? 'Institution',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (institution['city'] != null) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.location_on, size: 14, color: Colors.grey.shade500),
+                          const SizedBox(width: 4),
+                          Text(
+                            institution['city'].toString(),
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary600.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Institution',
+                  style: TextStyle(
+                    color: AppTheme.primary600,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleResultTap(Map<String, dynamic> item, String? itemType) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userType = authProvider.instituteData['userType'];
+
+    switch (itemType) {
+      case 'course':
+        final courseId = item['id'];
+        if (courseId != null) {
+          if (userType == 'student') {
+            Navigator.pushNamed(context, '/student/enroll', arguments: courseId);
+          } else {
+            Navigator.pushNamed(context, '/course', arguments: courseId);
+          }
+        }
+        break;
+      case 'institution':
+        final username = item['username'];
+        if (username != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => InstitutionProfileScreen(username: username),
+            ),
+          );
+        }
+        break;
+      case 'student':
+        _showStudentModal(item);
+        break;
+      case 'lecturer':
+        _showLecturerModal(item);
+        break;
+      case 'job':
+        _showJobModal(item);
+        break;
+      default:
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Viewing ${_getFilterLabel(itemType)} details'),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+    }
+  }
+
+  void _showStudentModal(Map<String, dynamic> student) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final imageUrl = _getImageUrl(student['profile_image']);
+    final firstName = student['first_name'] ?? '';
+    final lastName = student['last_name'] ?? '';
+    final fullName = '$firstName $lastName'.trim();
+    final displayName = fullName.isEmpty ? (student['username'] ?? 'Student') : fullName;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
-      child: FilterChip(
-        label: Text(label),
-        selected: isSelected,
-        onSelected: (selected) {
-          _onFilterChanged(selected ? filter : null);
-        },
-        backgroundColor: isDark ? AppTheme.navy700 : Colors.grey.shade200,
-        selectedColor: AppTheme.primary600,
-        labelStyle: TextStyle(
-          color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black87),
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.7,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.navy800 : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white24 : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.blue.withOpacity(0.1),
+                    backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
+                    child: imageUrl == null
+                        ? Text(
+                            displayName[0].toUpperCase(),
+                            style: const TextStyle(fontSize: 36, color: Colors.blue),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    displayName,
+                    style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  if (student['email'] != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      student['email'],
+                      style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade600),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  if (student['studying_level'] != null)
+                    _buildInfoTile(Icons.school, 'Level', student['studying_level'], isDark),
+                  if (student['city'] != null)
+                    _buildInfoTile(Icons.location_on, 'City', student['city'], isDark),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-    )
-        .animate(target: isSelected ? 1 : 0)
-        .scale(
-          begin: const Offset(1.0, 1.0),
-          end: const Offset(1.05, 1.05),
-          duration: 200.ms,
-        );
+    );
+  }
+
+  void _showLecturerModal(Map<String, dynamic> lecturer) async {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    // Try to get more details from API
+    final username = lecturer['username'];
+    Map<String, dynamic> profileData = lecturer;
+    
+    if (username != null) {
+      try {
+        final response = await ProfileService.getLecturerPublicProfile(username);
+        if (response['data'] != null) {
+          profileData = Map<String, dynamic>.from(response['data']);
+        }
+      } catch (e) {
+        // Use existing data
+      }
+    }
+
+    final imageUrl = _getImageUrl(profileData['profile_image']);
+    final firstName = profileData['first_name'] ?? '';
+    final lastName = profileData['last_name'] ?? '';
+    final fullName = '$firstName $lastName'.trim();
+    final displayName = fullName.isEmpty ? (profileData['username'] ?? 'Lecturer') : fullName;
+
+    if (!mounted) return;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.navy800 : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundColor: Colors.purple.withOpacity(0.1),
+                      backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
+                      child: imageUrl == null
+                          ? Text(
+                              displayName[0].toUpperCase(),
+                              style: const TextStyle(fontSize: 36, color: Colors.purple),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      displayName,
+                      style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    if (profileData['academic_achievement'] != null) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          profileData['academic_achievement'],
+                          style: const TextStyle(color: Colors.purple, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    if (profileData['specialty'] != null)
+                      _buildInfoTile(Icons.work, 'Specialty', profileData['specialty'], isDark),
+                    if (profileData['experience'] != null)
+                      _buildInfoTile(Icons.timeline, 'Experience', '${profileData['experience']} years', isDark),
+                    if (profileData['city'] != null)
+                      _buildInfoTile(Icons.location_on, 'City', profileData['city'], isDark),
+                    if (profileData['free_time'] != null)
+                      _buildInfoTile(Icons.access_time, 'Available', profileData['free_time'], isDark),
+                    if (profileData['institutions'] != null && (profileData['institutions'] as List).isNotEmpty)
+                      _buildInfoTile(Icons.business, 'Institutions', (profileData['institutions'] as List).join(', '), isDark),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showJobModal(Map<String, dynamic> job) async {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    // Try to get more details from API
+    final jobId = job['id'];
+    Map<String, dynamic> jobData = job;
+    
+    if (jobId != null) {
+      try {
+        final response = await ExploreService.getJobDetails(jobId);
+        if (response['data'] != null) {
+          jobData = Map<String, dynamic>.from(response['data']);
+        }
+      } catch (e) {
+        // Use existing data
+      }
+    }
+
+    if (!mounted) return;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.navy800 : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with gradient
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.orange.shade600, Colors.orange.shade400],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const Icon(Icons.work, color: Colors.white, size: 48),
+                    const SizedBox(height: 12),
+                    Text(
+                      jobData['title'] ?? 'Job',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    if (jobData['institution'] != null || jobData['institution_username'] != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        jobData['institution'] ?? '@${jobData['institution_username']}',
+                        style: TextStyle(color: Colors.white.withOpacity(0.9)),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (jobData['description'] != null) ...[
+                      Text(
+                        'Description',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        jobData['description'],
+                        style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade700),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                    if (jobData['specialty'] != null)
+                      _buildInfoTile(Icons.category, 'Specialty', jobData['specialty'], isDark),
+                    if (jobData['experience_required'] != null)
+                      _buildInfoTile(Icons.timeline, 'Experience Required', '${jobData['experience_required']} years', isDark),
+                    if (jobData['skills_required'] != null)
+                      _buildInfoTile(Icons.psychology, 'Skills', jobData['skills_required'], isDark),
+                    if (jobData['salary_offer'] != null)
+                      _buildInfoTile(Icons.attach_money, 'Salary', '${jobData['salary_offer']} IQD', isDark),
+                    if (jobData['created_at'] != null)
+                      _buildInfoTile(Icons.calendar_today, 'Posted', _formatDate(jobData['created_at']), isDark),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoTile(IconData icon, String label, String value, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: AppTheme.primary600),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white54 : Colors.grey.shade500,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(String? dateString) {
+    if (dateString == null) return 'N/A';
+    try {
+      final date = DateTime.parse(dateString);
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  String? _getImageUrl(dynamic imagePath) {
+    if (imagePath == null || imagePath.toString().isEmpty) return null;
+    final path = imagePath.toString();
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    final baseUrl = ApiService.baseUrl;
+    final cleanPath = path.startsWith('/') ? path : '/$path';
+    return '$baseUrl$cleanPath';
   }
 
   Widget _buildCategoryGrid() {
@@ -563,7 +1279,7 @@ class JobCard extends StatelessWidget {
   }
 }
 
-class CourseCard extends StatelessWidget {
+class CourseCard extends StatefulWidget {
   final Map<String, dynamic> course;
   final VoidCallback onTap;
 
@@ -574,100 +1290,369 @@ class CourseCard extends StatelessWidget {
   });
 
   @override
+  State<CourseCard> createState() => _CourseCardState();
+}
+
+class _CourseCardState extends State<CourseCard> {
+  String? _courseImageUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCourseImage();
+  }
+
+  Future<void> _fetchCourseImage() async {
+    // If course already has image, use it
+    if (widget.course['course_image'] != null) {
+      setState(() {
+        _courseImageUrl = _getImageUrl(widget.course['course_image']);
+      });
+      return;
+    }
+
+    // Fetch course image in background
+    final courseId = widget.course['id'];
+    if (courseId == null) return;
+
+    try {
+      final response = await ExploreService.getCourseDetails(courseId);
+      final data = response['data'] is Map<String, dynamic> 
+          ? response['data'] 
+          : response;
+      final courseImage = data['course_image'];
+      
+      if (mounted && courseImage != null) {
+        setState(() {
+          _courseImageUrl = _getImageUrl(courseImage);
+        });
+      }
+    } catch (e) {
+      // Silently fail, just show placeholder
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final courseImageUrl = _getImageUrl(course['course_image']);
+    final courseImageUrl = _courseImageUrl;
+
+    // Get level color
+    MaterialColor levelColor = Colors.grey;
+    switch (widget.course['level']?.toString().toLowerCase()) {
+      case 'beginner':
+        levelColor = Colors.green;
+        break;
+      case 'intermediate':
+        levelColor = Colors.blue;
+        break;
+      case 'advanced':
+        levelColor = Colors.purple;
+        break;
+    }
 
     return Card(
-      elevation: 2,
+      elevation: 4,
+      margin: const EdgeInsets.only(bottom: 12),
       color: isDark ? AppTheme.navy800 : Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: AppTheme.primary100,
-                ),
-                child: courseImageUrl != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          courseImageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Center(
-                            child: Text(
-                              (course['title'] ?? 'C')[0].toString().toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primary600,
-                              ),
+        onTap: widget.onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Course Image Header
+            Stack(
+              children: [
+                Container(
+                  height: 180,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    gradient: LinearGradient(
+                      colors: [levelColor.shade600, levelColor.shade400],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: courseImageUrl != null
+                      ? ClipRRect(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                          child: Image.network(
+                            courseImageUrl,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  value: loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                                  color: Colors.white,
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return Center(
+                                child: Text(
+                                  (widget.course['title'] ?? 'C')[0].toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 64,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            (widget.course['title'] ?? 'C')[0].toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 64,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
                           ),
                         ),
-                      )
-                    : Center(
-                        child: Text(
-                          (course['title'] ?? 'C')[0].toString().toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primary600,
-                          ),
-                        ),
-                      ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      course['title'] ?? 'Course',
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    if (course['level'] != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        course['level'],
-                        style: theme.textTheme.bodySmall?.copyWith(color: AppTheme.primary600),
-                      ),
-                    ],
-                    if (course['price'] != null) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary50,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '${course['price']}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primary700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
                 ),
+                // Level Badge
+                if (widget.course['level'] != null)
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        (widget.course['level'] as String).toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: levelColor,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            // Course Content
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title
+                  Text(
+                    widget.course['title'] ?? 'Course',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 12),
+                  // About/Description
+                  if (widget.course['about'] != null)
+                    Text(
+                      widget.course['about'],
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey.shade600,
+                        height: 1.5,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  const SizedBox(height: 16),
+                  // Details Row
+                  Row(
+                    children: [
+                      // Start Date
+                      if (widget.course['starting_date'] != null)
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppTheme.navy700 : Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.event,
+                                  size: 16,
+                                  color: Colors.blue.shade700,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Start',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _formatDate(widget.course['starting_date']),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.blue.shade700,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (widget.course['starting_date'] != null && widget.course['ending_date'] != null)
+                        const SizedBox(width: 12),
+                      // End Date
+                      if (widget.course['ending_date'] != null)
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppTheme.navy700 : Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.event,
+                                  size: 16,
+                                  color: Colors.red.shade700,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'End',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _formatDate(widget.course['ending_date']),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.red.shade700,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Price and Institution Row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Institution
+                      if (widget.course['institution_name'] != null || widget.course['institution_username'] != null || widget.course['institution'] != null)
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.school,
+                                size: 16,
+                                color: Colors.grey.shade600,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  widget.course['institution_name'] ?? widget.course['institution_username'] ?? widget.course['institution'] ?? '',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey.shade600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      // Price
+                      if (widget.course['price'] != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [AppTheme.primary600, AppTheme.teal500],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primary600.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            '\$${(double.tryParse(widget.course['price']?.toString() ?? '0') ?? 0).toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  String _formatDate(String? dateString) {
+    if (dateString == null || dateString.isEmpty) return 'N/A';
+    try {
+      final date = DateTime.parse(dateString);
+      return '${date.month}/${date.day}/${date.year}';
+    } catch (e) {
+      return dateString;
+    }
   }
 
   String? _getImageUrl(dynamic imagePath) {

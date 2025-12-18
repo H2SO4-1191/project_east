@@ -97,8 +97,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
-        leading: const Padding(
-          padding: EdgeInsets.only(left: 8.0),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
           child: ProfileButton(),
         ),
         title: const Text(

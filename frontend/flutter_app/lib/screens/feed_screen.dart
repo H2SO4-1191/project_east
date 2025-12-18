@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/theme.dart';
@@ -98,10 +97,6 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
-            // Hero Section
-            SliverToBoxAdapter(
-              child: _buildHeroSection(context, isDark, isAuthenticated, instituteData),
-            ),
             // Feed Content
             if (_isLoading)
               SliverFillRemaining(
@@ -201,8 +196,8 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
       elevation: 0,
       backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
       automaticallyImplyLeading: false,
-      leading: const Padding(
-        padding: EdgeInsets.only(left: 8.0),
+      leading: Padding(
+        padding: const EdgeInsets.only(left: 8.0),
         child: ProfileButton(),
       ),
       title: const Text(
@@ -215,154 +210,6 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
     );
   }
 
-
-  Widget _buildHeroSection(
-    BuildContext context,
-    bool isDark,
-    bool isAuthenticated,
-    Map<String, dynamic> instituteData,
-  ) {
-    final firstName = instituteData['firstName'] ?? 
-        instituteData['name'] ?? 
-        instituteData['username'] ?? 
-        'User';
-
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppTheme.primary600, AppTheme.teal500],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-      child: Stack(
-        children: [
-          // Animated icons behind the text
-          _buildAnimatedIcons(),
-          // Text content
-          Column(
-            children: [
-              Text(
-                isAuthenticated 
-                    ? 'Welcome Back, $firstName!'
-                    : 'Discover Excellence',
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Animated icons behind the subtitle
-                  _buildAnimatedSubtitleIcons(),
-                  // Subtitle text
-                  Text(
-                    isAuthenticated
-                        ? 'Explore institutions, courses, and opportunities'
-                        : 'Explore institutions, courses, and opportunities',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.white70,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnimatedIcons() {
-    return Positioned.fill(
-      child: Stack(
-        children: [
-          const _AnimatedBackgroundIcon(
-            icon: Icons.business,
-            delay: 0,
-            startX: 0.1,
-            startY: 0.2,
-          ),
-          const _AnimatedBackgroundIcon(
-            icon: Icons.school,
-            delay: 500,
-            startX: 0.8,
-            startY: 0.3,
-          ),
-          const _AnimatedBackgroundIcon(
-            icon: Icons.book,
-            delay: 1000,
-            startX: 0.2,
-            startY: 0.6,
-          ),
-          const _AnimatedBackgroundIcon(
-            icon: Icons.work,
-            delay: 1500,
-            startX: 0.7,
-            startY: 0.7,
-          ),
-          const _AnimatedBackgroundIcon(
-            icon: Icons.edit,
-            delay: 2000,
-            startX: 0.5,
-            startY: 0.5,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnimatedSubtitleIcons() {
-    return Positioned.fill(
-      child: Stack(
-        children: [
-          const _AnimatedBackgroundIcon(
-            icon: Icons.business,
-            delay: 0,
-            startX: 0.15,
-            startY: 0.5,
-            size: 20,
-          ),
-          const _AnimatedBackgroundIcon(
-            icon: Icons.book,
-            delay: 800,
-            startX: 0.4,
-            startY: 0.5,
-            size: 20,
-          ),
-          const _AnimatedBackgroundIcon(
-            icon: Icons.work,
-            delay: 1600,
-            startX: 0.65,
-            startY: 0.5,
-            size: 20,
-          ),
-          const _AnimatedBackgroundIcon(
-            icon: Icons.school,
-            delay: 400,
-            startX: 0.3,
-            startY: 0.5,
-            size: 20,
-          ),
-          const _AnimatedBackgroundIcon(
-            icon: Icons.edit,
-            delay: 1200,
-            startX: 0.55,
-            startY: 0.5,
-            size: 20,
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildFeedItem(BuildContext context, FeedItem item, bool isDark) {
     if (item.type == 'course') {
@@ -385,14 +232,16 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
                 GestureDetector(
                   onTap: publisherUsername == null
                       ? null
@@ -473,200 +322,451 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
             _buildImageGrid(item.images!, item),
         ],
       ),
+          // Type Label
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 5,
+              ),
+              decoration: BoxDecoration(
+                color: AppTheme.teal500,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Text(
+                'POST',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildCourseCard(BuildContext context, FeedItem item, bool isDark) {
     final theme = Theme.of(context);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final isStudent = authProvider.instituteData['userType'] == 'student';
-    final courseImageUrl = item.getImageUrl(item.courseImage);
+    final userType = authProvider.instituteData['userType'];
+    final isInstitution = userType == 'institution';
+    final isStudent = userType == 'student';
+    
+    // Get course image URL with better handling
+    String courseImageUrl = '';
+    if (item.courseImage != null && item.courseImage!.isNotEmpty) {
+      courseImageUrl = item.getImageUrl(item.courseImage);
+    }
     
     return GestureDetector(
-      onTap: () => _showCourseModalFromFeed(item),
+      onTap: () {
+        if (item.id == null) return;
+        // Students go directly to enroll page, others go to course details
+        if (isStudent) {
+          Navigator.pushNamed(context, '/student/enroll', arguments: item.id);
+        } else {
+          Navigator.pushNamed(context, '/course', arguments: item.id);
+        }
+      },
       child: Card(
-      elevation: 2,
-      color: isDark ? AppTheme.navy800 : Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Course Image
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: AppTheme.primary100,
-                  ),
-                  child: courseImageUrl.isNotEmpty
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(
+        elevation: 4,
+        margin: EdgeInsets.zero,
+        color: isDark ? AppTheme.navy800 : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Course Image Header
+              Stack(
+                children: [
+                  Container(
+                    height: 200,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppTheme.primary600, AppTheme.teal500],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: courseImageUrl.isNotEmpty
+                        ? Image.network(
                             courseImageUrl,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Center(
-                                child: Text(
-                                  (item.title ?? 'C')[0].toUpperCase(),
-                                  style: TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.primary600,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Container(
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [AppTheme.primary600, AppTheme.teal500],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    value: loadingProgress.expectedTotalBytes != null
+                                        ? loadingProgress.cumulativeBytesLoaded /
+                                            loadingProgress.expectedTotalBytes!
+                                        : null,
+                                    color: Colors.white,
                                   ),
                                 ),
                               );
                             },
-                          ),
-                        )
-                      : Center(
-                          child: Text(
-                            (item.title ?? 'C')[0].toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primary600,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [AppTheme.primary600, AppTheme.teal500],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    (item.title ?? 'C')[0].toUpperCase(),
+                                    style: const TextStyle(
+                                      fontSize: 64,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                        : Container(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [AppTheme.primary600, AppTheme.teal500],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
                             ),
-                          ),
-                        ),
-                ),
-                const SizedBox(width: 16),
-                // Course Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.title ?? 'Course',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (item.level != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4.0),
-                          child: Text(
-                            item.level!,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: AppTheme.primary600,
-                            ),
-                          ),
-                        ),
-                      if (item.price != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primary50,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              '${item.price} ${item.currency ?? '\$'}',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primary700,
+                            child: Center(
+                              child: Text(
+                                (item.title ?? 'C')[0].toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 64,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                    ],
                   ),
-                ),
-              ],
-            ),
-            if (item.description != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12.0),
-                child: Text(
-                  item.description!,
-                  style: theme.textTheme.bodyMedium,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                  // Gradient overlay for better text readability
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.3),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Type Label
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary600,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Text(
+                        'COURSE',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Level badge
+                  if (item.level != null)
+                    Positioned(
+                      top: 16,
+                      right: 16,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          item.level!.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primary700,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            // Course Details
-            if (item.startingDate != null || item.city != null)
+              // Course Content
               Padding(
-                padding: const EdgeInsets.only(top: 12.0),
-                child: Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (item.startingDate != null)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.calendar_today,
-                            size: 16,
-                            color: AppTheme.primary500,
+                    // Title and Price Row
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.title ?? 'Course',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 22,
+                              height: 1.2,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            item.startingDate!,
-                            style: theme.textTheme.bodySmall,
+                        ),
+                        if (item.price != null) ...[
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [AppTheme.primary600, AppTheme.teal500],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primary600.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              '${item.price} ${item.currency ?? '\$'}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
                         ],
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Description
+                    if (item.description != null)
+                      Text(
+                        item.description!,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey.shade600,
+                          height: 1.5,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    if (item.city != null)
+                    const SizedBox(height: 16),
+                    // Course Details Row
+                    if (item.startingDate != null || item.city != null)
                       Row(
-                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.location_on,
-                            size: 16,
-                            color: AppTheme.primary500,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            item.city!,
-                            style: theme.textTheme.bodySmall,
-                          ),
+                          if (item.startingDate != null) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? AppTheme.navy700
+                                    : AppTheme.primary50,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today,
+                                    size: 14,
+                                    color: AppTheme.primary600,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    item.startingDate!,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                      color: AppTheme.primary700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (item.city != null) const SizedBox(width: 8),
+                          ],
+                          if (item.city != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? AppTheme.navy700
+                                    : Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.location_on,
+                                    size: 14,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    item.city!,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                         ],
                       ),
+                    // Enroll Button - only show for non-institution users
+                    if (!isInstitution) ...[
+                      if (item.isEnrolled == true) ...[
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey.shade400,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.check_circle, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Enrolled',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ] else if (item.id != null) ...[
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pushNamed(
+                                context,
+                                '/student/enroll',
+                                arguments: item.id,
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primary600,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 4,
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.school, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Enroll Now',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ],
                 ),
               ),
-            // Enroll Button
-            if (isStudent)
-              Padding(
-                padding: const EdgeInsets.only(top: 16.0),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: item.isEnrolled == true
-                        ? null
-                        : () {
-                            // TODO: Implement enrollment
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Enrollment feature coming soon')),
-                            );
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: item.isEnrolled == true
-                          ? Colors.grey
-                          : AppTheme.primary600,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: Text(
-                      item.isEnrolled == true ? 'Enrolled' : 'Enroll',
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
+            ],
+          ),
         ),
       ),
     );
@@ -680,222 +780,332 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
     return GestureDetector(
       onTap: () => _showJobModalFromFeed(item),
       child: Card(
-      elevation: 2,
-      color: isDark ? AppTheme.navy800 : Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: publisherUsername == null
-                      ? null
-                      : () => _openProfileByUsername(publisherUsername),
-                  child: CircleAvatar(
-                  radius: 28,
-                  backgroundColor: AppTheme.primary600,
-                  backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
-                  child: imageUrl.isEmpty
-                      ? Text(
-                          (item.publisherUsername ?? 'J')[0].toUpperCase(),
-                          style: const TextStyle(color: Colors.white),
-                        )
-                      : null,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.title ?? 'Job',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+        elevation: 4,
+        margin: EdgeInsets.zero,
+        color: isDark ? AppTheme.navy800 : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header Section with Gradient
+                  Container(
+                    padding: const EdgeInsets.all(20.0),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppTheme.primary600, AppTheme.teal500],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      if (item.publisherUsername != null)
+                    ),
+                    child: Row(
+                      children: [
+                        // Institution Avatar
                         GestureDetector(
-                          onTap: () => Navigator.pushNamed(
-                                context,
-                                '/institution-profile',
-                                arguments: item.publisherUsername,
+                          onTap: publisherUsername == null
+                              ? null
+                              : () => _openProfileByUsername(publisherUsername),
+                          child: Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                                width: 2,
                               ),
-                          child: Text(
-                          '@${item.publisherUsername}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                              color: AppTheme.primary600,
-                              fontWeight: FontWeight.w500,
                             ),
+                            child: imageUrl.isNotEmpty
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.network(
+                                      imageUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Center(
+                                          child: Text(
+                                            (item.publisherUsername ?? 'J')[0].toUpperCase(),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  )
+                                : Center(
+                                    child: Text(
+                                      (item.publisherUsername ?? 'J')[0].toUpperCase(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                           ),
                         ),
-                      if (item.timestamp != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4.0),
-                          child: Row(
+                        const SizedBox(width: 16),
+                        // Title and Institution Info
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
-                                Icons.access_time,
-                                size: 14,
-                                color: Colors.grey.shade500,
-                              ),
-                              const SizedBox(width: 4),
                               Text(
-                                item.timestamp!,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: Colors.grey.shade600,
+                                item.title ?? 'Job',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  height: 1.2,
                                 ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
+                              if (item.publisherUsername != null) ...[
+                                const SizedBox(height: 6),
+                                GestureDetector(
+                                  onTap: () => Navigator.pushNamed(
+                                    context,
+                                    '/institution-profile',
+                                    arguments: item.publisherUsername,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.business,
+                                        size: 14,
+                                        color: Colors.white.withOpacity(0.9),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '@${item.publisherUsername}',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.white.withOpacity(0.9),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
+                      ],
+                    ),
+                  ),
+                  // Content Section
+                  Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Description
+                        if (item.description != null)
+                          Text(
+                            item.description!,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: Colors.grey.shade600,
+                              height: 1.5,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        const SizedBox(height: 16),
+                        // Meta Info Row
+                        if (item.institution != null || item.city != null || item.timestamp != null)
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              if (item.institution != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? AppTheme.navy700
+                                        : AppTheme.primary50,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.school,
+                                        size: 16,
+                                        color: AppTheme.primary600,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          item.institution!,
+                                          style: theme.textTheme.bodySmall?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                            color: AppTheme.primary700,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              if (item.city != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? AppTheme.navy700
+                                        : Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.location_on,
+                                        size: 16,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        item.city!,
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.grey.shade700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              if (item.timestamp != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? AppTheme.navy700
+                                        : Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.access_time,
+                                        size: 16,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        item.timestamp!,
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Apply Button (for lecturers only)
+                  if (item.id != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+                      child: Consumer<AuthProvider>(
+                        builder: (context, authProvider, _) {
+                          final isLecturer = authProvider.instituteData['userType'] == 'lecturer';
+                          final isVerified = authProvider.isVerified;
+                          
+                          if (!isLecturer || !isVerified) {
+                            return const SizedBox.shrink();
+                          }
+                          
+                          return SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () => _showApplyJobModal(context, item.id!),
+                              icon: const Icon(Icons.send, size: 20),
+                              label: const Text(
+                                'Apply',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primary600,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 4,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              // Type Label
+              Positioned(
+                top: 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary600,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            if (item.description != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12.0),
-                child: Text(
-                  item.description!,
-                  style: theme.textTheme.bodyMedium,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+                  child: const Text(
+                    'JOB',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
                 ),
               ),
-            // Meta info
-            if (item.institution != null || item.city != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12.0),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if (item.institution != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary50,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.school,
-                              size: 14,
-                              color: AppTheme.primary700,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              item.institution!,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primary700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    if (item.city != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.location_on,
-                              size: 14,
-                              color: Colors.grey.shade700,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              item.city!,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: Colors.grey.shade700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-          ],
-        ),
+            ],
+          ),
         ),
       ),
-    );
-  }
-
-  Future<void> _showCourseModalFromFeed(FeedItem item) async {
-    if (item.id == null) return;
-
-    // Fetch course details
-    Map<String, dynamic>? courseData;
-    try {
-      courseData = await ExploreService.getCourseDetails(item.id!);
-      courseData = courseData['data'] is Map<String, dynamic>
-          ? courseData['data'] as Map<String, dynamic>
-          : courseData;
-    } catch (e) {
-      // If fetch fails, use item data
-      courseData = {
-        'id': item.id,
-        'title': item.title,
-        'about': item.description,
-        'course_image': item.courseImage,
-        'starting_date': item.startingDate,
-        'ending_date': item.endingDate,
-        'level': item.level,
-        'price': item.price,
-      };
-    }
-
-    // Fetch course progress
-    Map<String, dynamic>? progress;
-    try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final accessToken = authProvider.instituteData['accessToken'];
-      final refreshToken = authProvider.instituteData['refreshToken'];
-
-      progress = await ExploreService.getCourseProgress(
-        courseId: item.id!,
-        accessToken: accessToken,
-        refreshToken: refreshToken,
-        onTokenRefreshed: (tokens) {
-          authProvider.onTokenRefreshed(tokens);
-        },
-        onSessionExpired: () {
-          authProvider.onSessionExpired();
-        },
-      );
-    } catch (e) {
-      // Progress fetch failed, continue without it
-    }
-
-    if (!mounted) return;
-
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) => _buildCourseModal(context, courseData!, progress),
     );
   }
 
@@ -925,262 +1135,6 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
       context: context,
       barrierDismissible: true,
       builder: (context) => _buildJobModal(context, jobData!, item.publisherUsername),
-    );
-  }
-
-  Widget _buildCourseModal(BuildContext context, Map<String, dynamic> course, Map<String, dynamic>? progressData) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    dynamic courseImageUrlData = course['course_image'];
-    String? courseImageUrl;
-    if (courseImageUrlData != null) {
-      courseImageUrl = courseImageUrlData.toString();
-      if (!courseImageUrl.startsWith('http')) {
-        courseImageUrl = '${ApiService.baseUrl}${courseImageUrl.startsWith('/') ? courseImageUrl : '/$courseImageUrl'}';
-      }
-    }
-    final progress = progressData?['progress'];
-
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.all(16),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 500),
-        decoration: BoxDecoration(
-          color: isDark ? AppTheme.navy800 : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header with image
-            Stack(
-              children: [
-                if (courseImageUrl != null)
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                    child: Image.network(
-                      courseImageUrl,
-                      height: 200,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          height: 200,
-                          color: AppTheme.primary600,
-                          child: Center(
-                            child: Text(
-                              (course['title'] ?? 'C')[0].toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 64,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  )
-                else
-                  Container(
-                    height: 200,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary600,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                    ),
-                    child: Center(
-                      child: Text(
-                        (course['title'] ?? 'C')[0].toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 64,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                // Close button
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: IconButton(
-                    icon: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.close, color: Colors.white, size: 20),
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ),
-              ],
-            ),
-            // Content
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Title
-                    Text(
-                      course['title'] ?? 'Course',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Course Details Grid
-                    Row(
-                      children: [
-                        if (course['level'] != null)
-                          Expanded(
-                            child: _buildDetailChip(
-                              Icons.school,
-                              course['level'].toString().toUpperCase(),
-                              isDark,
-                            ),
-                          ),
-                        if (course['price'] != null) ...[
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildDetailChip(
-                              Icons.attach_money,
-                              '\$${course['price']}',
-                              isDark,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    // Dates
-                    if (course['starting_date'] != null || course['ending_date'] != null)
-                      Row(
-                        children: [
-                          if (course['starting_date'] != null)
-                            Expanded(
-                              child: _buildDateInfo(
-                                Icons.calendar_today,
-                                'Start',
-                                course['starting_date'],
-                                isDark,
-                              ),
-                            ),
-                          if (course['ending_date'] != null) ...[
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildDateInfo(
-                                Icons.event,
-                                'End',
-                                course['ending_date'],
-                                isDark,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    const SizedBox(height: 16),
-                    // About
-                    if (course['about'] != null) ...[
-                      const Text(
-                        'About',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        course['about'],
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
-                          height: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-                    // Progress Section
-                    if (progress != null) ...[
-                      const Divider(),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Course Progress',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: isDark ? AppTheme.navy700 : Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Progress',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                                Text(
-                                  '${(progress['progress_percentage'] ?? 0).toStringAsFixed(1)}%',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.primary600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            LinearProgressIndicator(
-                              value: ((progress['progress_percentage'] ?? 0) as num) / 100,
-                              backgroundColor: Colors.grey.shade300,
-                              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary600),
-                              minHeight: 8,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                _buildProgressStat(
-                                  'Total Lectures',
-                                  '${progress['total_lectures'] ?? 0}',
-                                  isDark,
-                                ),
-                                if (progress['completed_lectures'] != null)
-                                  _buildProgressStat(
-                                    'Completed',
-                                    '${progress['completed_lectures']}',
-                                    isDark,
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -1395,6 +1349,47 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
                         ],
                       ),
                     ],
+                    // Apply Button (for lecturers only)
+                    if (job['id'] != null) ...[
+                      const SizedBox(height: 24),
+                      Consumer<AuthProvider>(
+                        builder: (context, authProvider, _) {
+                          final isLecturer = authProvider.instituteData['userType'] == 'lecturer';
+                          final isVerified = authProvider.isVerified;
+                          
+                          if (!isLecturer || !isVerified) {
+                            return const SizedBox.shrink();
+                          }
+                          
+                          return SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context); // Close job modal first
+                                _showApplyJobModal(context, job['id'] as int);
+                              },
+                              icon: const Icon(Icons.send, size: 20),
+                              label: const Text(
+                                'Apply',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primary600,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 4,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1405,91 +1400,151 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
     );
   }
 
-  Widget _buildDetailChip(IconData icon, String label, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.navy700 : AppTheme.primary50,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: AppTheme.primary600),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.primary600,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  void _showApplyJobModal(BuildContext context, int jobId) {
+    final messageController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isSubmitting = false;
 
-  Widget _buildDateInfo(IconData icon, String label, String date, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.navy700 : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: AppTheme.primary600),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Row(
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _formatDate(date),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                Icon(Icons.work, color: AppTheme.primary600),
+                SizedBox(width: 12),
+                Text('Apply for Job'),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Message (Optional)',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: messageController,
+                      maxLines: 5,
+                      decoration: InputDecoration(
+                        hintText: 'Add a message to your application...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () {
+                        Navigator.pop(context);
+                      },
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
 
-  Widget _buildProgressStat(String label, String value, bool isDark) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade600,
-          ),
-        ),
-      ],
+                        setState(() {
+                          isSubmitting = true;
+                        });
+
+                        try {
+                          final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                          final accessToken = authProvider.instituteData['accessToken'];
+                          final refreshToken = authProvider.instituteData['refreshToken'];
+
+                          final response = await ExploreService.applyToJob(
+                            jobId: jobId,
+                            accessToken: accessToken!,
+                            message: messageController.text.trim(),
+                            refreshToken: refreshToken,
+                            onTokenRefreshed: (tokens) {
+                              authProvider.onTokenRefreshed(tokens);
+                            },
+                            onSessionExpired: () {
+                              authProvider.onSessionExpired();
+                            },
+                          );
+
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle, color: Colors.white),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      response['message'] ?? 'Application submitted successfully!',
+                                    ),
+                                  ],
+                                ),
+                                backgroundColor: Colors.green,
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            setState(() {
+                              isSubmitting = false;
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  e is ApiException
+                                      ? e.message
+                                      : 'Failed to submit application. Please try again.',
+                                ),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary600,
+                  foregroundColor: Colors.white,
+                ),
+                child: isSubmitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text('Submit Application'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -1529,15 +1584,6 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
         ],
       ),
     );
-  }
-
-  String _formatDate(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      return '${date.month}/${date.day}/${date.year}';
-    } catch (e) {
-      return dateString;
-    }
   }
 
   String _formatPostDate(String dateString) {
@@ -1755,131 +1801,4 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
     );
   }
 
-}
-
-class _AnimatedBackgroundIcon extends StatefulWidget {
-  final IconData icon;
-  final int delay;
-  final double startX;
-  final double startY;
-  final double size;
-
-  const _AnimatedBackgroundIcon({
-    required this.icon,
-    required this.delay,
-    required this.startX,
-    required this.startY,
-    this.size = 32,
-  });
-
-  @override
-  State<_AnimatedBackgroundIcon> createState() => _AnimatedBackgroundIconState();
-}
-
-class _AnimatedBackgroundIconState extends State<_AnimatedBackgroundIcon>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _xAnimation;
-  late Animation<double> _yAnimation;
-  late Animation<double> _opacityAnimation;
-  
-  // Random values for independent movement
-  late double _randomXRange;
-  late double _randomYRange;
-  late double _randomXOffset;
-  late double _randomYOffset;
-  late double _randomDuration;
-  late double _randomOpacityMin;
-  late double _randomOpacityMax;
-
-  @override
-  void initState() {
-    super.initState();
-    
-    // Generate random values for each icon to move independently
-    final random = math.Random();
-    _randomXRange = 15 + random.nextDouble() * 25; // 15-40px range
-    _randomYRange = 10 + random.nextDouble() * 20; // 10-30px range
-    _randomXOffset = random.nextDouble() * 40 - 20; // -20 to 20
-    _randomYOffset = random.nextDouble() * 30 - 15; // -15 to 15
-    _randomDuration = 6 + random.nextDouble() * 6; // 6-12 seconds
-    _randomOpacityMin = 0.1 + random.nextDouble() * 0.1; // 0.1-0.2
-    _randomOpacityMax = 0.25 + random.nextDouble() * 0.15; // 0.25-0.4
-    
-    _controller = AnimationController(
-      duration: Duration(milliseconds: (_randomDuration * 1000).round()),
-      vsync: this,
-    );
-
-    // Independent movement with random ranges
-    _xAnimation = Tween<double>(
-      begin: _randomXOffset - _randomXRange,
-      end: _randomXOffset + _randomXRange,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    ));
-
-    _yAnimation = Tween<double>(
-      begin: _randomYOffset - _randomYRange,
-      end: _randomYOffset + _randomYRange,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    ));
-
-    // Independent opacity animation
-    _opacityAnimation = Tween<double>(
-      begin: _randomOpacityMin,
-      end: _randomOpacityMax,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    ));
-
-    // Start animation after delay with random initial position
-    Future.delayed(Duration(milliseconds: widget.delay), () {
-      if (mounted) {
-        _controller.value = random.nextDouble(); // Start at random position
-        _controller.repeat();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Positioned(
-          left: constraints.maxWidth * widget.startX,
-          top: constraints.maxHeight * widget.startY,
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(
-                  _xAnimation.value,
-                  _yAnimation.value,
-                ),
-                child: Opacity(
-                  opacity: _opacityAnimation.value,
-                  child: Icon(
-                    widget.icon,
-                    size: widget.size,
-                    color: Colors.white,
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
 }

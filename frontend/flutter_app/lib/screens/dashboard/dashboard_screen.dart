@@ -13,6 +13,7 @@ import 'lecturers_page.dart';
 import 'staff_page.dart';
 import 'schedule_page.dart';
 import 'settings_page.dart';
+import 'applications_page.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -103,7 +104,70 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
     }
   }
 
-  void _navigateToPage(DashboardPageType pageType) {
+  Future<void> _navigateToPage(DashboardPageType pageType) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final instituteData = authProvider.instituteData;
+    final accessToken = instituteData['accessToken'];
+    final refreshToken = instituteData['refreshToken'];
+    final email = instituteData['email'];
+
+    // Settings page is always accessible
+    if (pageType == DashboardPageType.settings) {
+      Navigator.push(
+        context,
+        PageAnimations.sharedAxis(const SettingsPage(), SharedAxisTransitionType.horizontal),
+      );
+      return;
+    }
+
+    // Check verification for other pages
+    if (accessToken != null && email != null) {
+      try {
+        final verificationStatus = await ApiService.checkVerificationStatus(
+          email,
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          onTokenRefreshed: (tokens) {
+            authProvider.onTokenRefreshed(tokens);
+          },
+          onSessionExpired: () {
+            authProvider.onSessionExpired();
+          },
+        );
+
+        final isVerified = verificationStatus['is_verified'] == true;
+        
+        // Update auth provider
+        if (verificationStatus['is_verified'] != instituteData['isVerified']) {
+          authProvider.updateInstituteData({
+            'isVerified': isVerified,
+          });
+        }
+
+        if (!isVerified) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please verify your account to access this page. Go to Settings to verify.'),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+          return;
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to verify account status. Please try again.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+    }
+
     Widget page;
     switch (pageType) {
       case DashboardPageType.students:
@@ -121,12 +185,17 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
       case DashboardPageType.settings:
         page = const SettingsPage();
         break;
+      case DashboardPageType.applications:
+        page = const ApplicationsPage();
+        break;
     }
 
-    Navigator.push(
-      context,
-      PageAnimations.sharedAxis(page, SharedAxisTransitionType.horizontal),
-    );
+    if (mounted) {
+      Navigator.push(
+        context,
+        PageAnimations.sharedAxis(page, SharedAxisTransitionType.horizontal),
+      );
+    }
   }
 
   int _safeNumber(dynamic value, int fallback) {
@@ -151,8 +220,8 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
     return Scaffold(
       backgroundColor: isDark ? AppTheme.navy900 : const Color(0xFFF9FAFB),
       appBar: AppBar(
-        leading: const Padding(
-          padding: EdgeInsets.only(left: 8.0),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
           child: ProfileButton(),
         ),
         title: const Text('Dashboard'),
@@ -302,8 +371,13 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
                                   onTap: () => _navigateToPage(DashboardPageType.schedule),
                                 ),
                                 DashboardPageCard(
-                                  pageType: DashboardPageType.settings,
+                                  pageType: DashboardPageType.applications,
                                   index: 4,
+                                  onTap: () => _navigateToPage(DashboardPageType.applications),
+                                ),
+                                DashboardPageCard(
+                                  pageType: DashboardPageType.settings,
+                                  index: 5,
                                   onTap: () => _navigateToPage(DashboardPageType.settings),
                                 ),
                               ],

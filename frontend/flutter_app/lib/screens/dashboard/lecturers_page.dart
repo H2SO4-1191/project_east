@@ -19,6 +19,8 @@ class _LecturersPageState extends State<LecturersPage> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounceTimer;
   bool _isLoading = false;
+  bool _isCheckingVerification = true;
+  bool _isVerified = false;
   String? _error;
   List<dynamic> _lecturers = [];
   Map<String, dynamic> _pagination = {
@@ -38,7 +40,60 @@ class _LecturersPageState extends State<LecturersPage> {
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
-    _fetchLecturers();
+    _checkVerification();
+  }
+
+  Future<void> _checkVerification() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final instituteData = authProvider.instituteData;
+    final accessToken = instituteData['accessToken'];
+    final refreshToken = instituteData['refreshToken'];
+    final email = instituteData['email'];
+
+    if (accessToken == null || email == null) {
+      setState(() {
+        _isCheckingVerification = false;
+        _isVerified = false;
+      });
+      return;
+    }
+
+    try {
+      final verificationStatus = await ApiService.checkVerificationStatus(
+        email,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        onTokenRefreshed: (tokens) {
+          authProvider.onTokenRefreshed(tokens);
+        },
+        onSessionExpired: () {
+          authProvider.onSessionExpired();
+        },
+      );
+
+      final isVerified = verificationStatus['is_verified'] == true;
+      
+      // Update auth provider
+      if (verificationStatus['is_verified'] != instituteData['isVerified']) {
+        authProvider.updateInstituteData({
+          'isVerified': isVerified,
+        });
+      }
+
+      setState(() {
+        _isCheckingVerification = false;
+        _isVerified = isVerified;
+      });
+
+      if (isVerified) {
+        _fetchLecturers();
+      }
+    } catch (e) {
+      setState(() {
+        _isCheckingVerification = false;
+        _isVerified = false;
+      });
+    }
   }
 
   @override
@@ -232,18 +287,34 @@ class _LecturersPageState extends State<LecturersPage> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final instituteData = authProvider.instituteData;
-
-    // BLOCK ACCESS if not verified
-    if (instituteData['isVerified'] != true) {
-      return const VerificationLock();
-    }
-
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    // Check verification status
+    if (_isCheckingVerification) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Lecturers'),
+          elevation: 0,
+          backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
+          foregroundColor: isDark ? Colors.white : Colors.black,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // BLOCK ACCESS if not verified
+    if (!_isVerified) {
+      return const VerificationLock();
+    }
+
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Lecturers'),
+        elevation: 0,
+        backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
+        foregroundColor: isDark ? Colors.white : Colors.black,
+      ),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 1, // Dashboard index for institutions
         onTap: (index) {

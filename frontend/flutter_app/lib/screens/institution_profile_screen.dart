@@ -448,7 +448,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                 _loadTabData(index);
               },
               tabs: const [
-                Tab(icon: Icon(Icons.grid_on), text: 'Posts'),
+                Tab(icon: Icon(Icons.article), text: 'Posts'),
                 Tab(icon: Icon(Icons.book), text: 'Courses'),
                 Tab(icon: Icon(Icons.work), text: 'Jobs'),
               ],
@@ -1156,6 +1156,46 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                       const SizedBox(height: 16),
                       const Center(child: CircularProgressIndicator()),
                     ],
+                    // Enroll Button
+                    if (course['id'] != null) ...[
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context); // Close modal first
+                            Navigator.pushNamed(
+                              context,
+                              '/student/enroll',
+                              arguments: course['id'],
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary600,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 4,
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.school, size: 20),
+                              SizedBox(width: 8),
+                              Text(
+                                'Enroll Now',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1499,12 +1539,201 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                         ],
                       ),
                     ],
+                    // Apply Button (for lecturers only)
+                    if (job['id'] != null) ...[
+                      const SizedBox(height: 24),
+                      Consumer<AuthProvider>(
+                        builder: (context, authProvider, _) {
+                          final isLecturer = authProvider.instituteData['userType'] == 'lecturer';
+                          final isVerified = authProvider.isVerified;
+                          
+                          if (!isLecturer || !isVerified) {
+                            return const SizedBox.shrink();
+                          }
+                          
+                          return SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context); // Close job modal first
+                                _showApplyJobModal(context, job['id'] as int);
+                              },
+                              icon: const Icon(Icons.send, size: 20),
+                              label: const Text(
+                                'Apply',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primary600,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 4,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showApplyJobModal(BuildContext context, int jobId) {
+    final messageController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.work, color: AppTheme.primary600),
+                SizedBox(width: 12),
+                Text('Apply for Job'),
+              ],
+            ),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Message (Optional)',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: messageController,
+                      maxLines: 5,
+                      decoration: InputDecoration(
+                        hintText: 'Add a message to your application...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () {
+                        Navigator.pop(context);
+                      },
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+
+                        setState(() {
+                          isSubmitting = true;
+                        });
+
+                        try {
+                          final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                          final accessToken = authProvider.instituteData['accessToken'];
+                          final refreshToken = authProvider.instituteData['refreshToken'];
+
+                          final response = await ExploreService.applyToJob(
+                            jobId: jobId,
+                            accessToken: accessToken!,
+                            message: messageController.text.trim(),
+                            refreshToken: refreshToken,
+                            onTokenRefreshed: (tokens) {
+                              authProvider.onTokenRefreshed(tokens);
+                            },
+                            onSessionExpired: () {
+                              authProvider.onSessionExpired();
+                            },
+                          );
+
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle, color: Colors.white),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      response['message'] ?? 'Application submitted successfully!',
+                                    ),
+                                  ],
+                                ),
+                                backgroundColor: Colors.green,
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            setState(() {
+                              isSubmitting = false;
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  e is ApiException
+                                      ? e.message
+                                      : 'Failed to submit application. Please try again.',
+                                ),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary600,
+                  foregroundColor: Colors.white,
+                ),
+                child: isSubmitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text('Submit Application'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

@@ -274,7 +274,7 @@ class ApiService {
   }
 
   /// Get schedule data
-  static Future<List<dynamic>> getSchedule({
+  static Future<Map<String, dynamic>> getSchedule({
     required String accessToken,
     String? refreshToken,
     Function(Map<String, dynamic>)? onTokenRefreshed,
@@ -295,7 +295,7 @@ class ApiService {
       );
     }
 
-    return data['schedule'] as List<dynamic>;
+    return data['schedule'] as Map<String, dynamic>;
   }
 
   /// Check verification status
@@ -829,7 +829,7 @@ class ApiService {
     Function()? onSessionExpired,
   }) async {
     return getProtected(
-      endpoint: '/lecturer/profile/self/',
+      endpoint: '/lecturer/my-profile/',
       accessToken: accessToken,
       refreshToken: refreshToken,
       onTokenRefreshed: onTokenRefreshed,
@@ -845,7 +845,7 @@ class ApiService {
     Function()? onSessionExpired,
   }) async {
     return getProtected(
-      endpoint: '/student/profile/self/',
+      endpoint: '/student/my-profile/',
       accessToken: accessToken,
       refreshToken: refreshToken,
       onTokenRefreshed: onTokenRefreshed,
@@ -1799,6 +1799,143 @@ class ApiService {
       onTokenRefreshed: onTokenRefreshed,
       onSessionExpired: onSessionExpired,
     );
+  }
+
+  /// Get marked lecturers
+  static Future<Map<String, dynamic>> getMarkedLecturers({
+    required String accessToken,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    return getProtected(
+      endpoint: '/institution/marked-lecturers/',
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      onTokenRefreshed: onTokenRefreshed,
+      onSessionExpired: onSessionExpired,
+    );
+  }
+
+  /// Check if lecturer is free
+  static Future<Map<String, dynamic>> checkLecturerAvailability({
+    required String accessToken,
+    required int lecturerId,
+    required List<String> days,
+    required String startTime,
+    required String endTime,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      final request = http.Request(
+        'POST',
+        Uri.parse('$baseUrl/institution/is-lecturer-free/$lecturerId/'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $accessToken';
+      request.headers['Content-Type'] = 'application/json';
+
+      // Convert days to capitalized format (Monday, Wednesday, etc.)
+      final capitalizedDays = days.map((day) {
+        return day.substring(0, 1).toUpperCase() + day.substring(1).toLowerCase();
+      }).toList();
+
+      // Convert 12-hour time to 24-hour format if needed
+      String startTime24 = startTime;
+      String endTime24 = endTime;
+      
+      if (startTime.contains('AM') || startTime.contains('PM')) {
+        startTime24 = _convert12To24Hour(startTime);
+      }
+      if (endTime.contains('AM') || endTime.contains('PM')) {
+        endTime24 = _convert12To24Hour(endTime);
+      }
+
+      request.body = jsonEncode({
+        'days': capitalizedDays,
+        'start_time': startTime24,
+        'end_time': endTime24,
+      });
+
+      var response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      final data = _parseResponse(responseBody);
+
+      // Handle token refresh on 401
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+
+          // Retry request with new token
+          final retryRequest = http.Request(
+            'POST',
+            Uri.parse('$baseUrl/institution/is-lecturer-free/$lecturerId/'),
+          );
+          retryRequest.headers['Authorization'] = 'Bearer ${refreshed['access']}';
+          retryRequest.headers['Content-Type'] = 'application/json';
+          retryRequest.body = request.body;
+
+          response = await retryRequest.send();
+          final retryBody = await response.stream.bytesToString();
+          final retryData = _parseResponse(retryBody);
+
+          if (response.statusCode != 200) {
+            throw _buildError(response.statusCode, retryData);
+          }
+
+          return retryData;
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      if (response.statusCode != 200) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  /// Helper to convert 12-hour time to 24-hour format
+  static String _convert12To24Hour(String time12) {
+    try {
+      final parts = time12.split(' ');
+      if (parts.length != 2) return time12; // Already 24-hour or invalid
+      
+      final timePart = parts[0];
+      final period = parts[1].toUpperCase();
+      final timeComponents = timePart.split(':');
+      
+      if (timeComponents.length != 2) return time12;
+      
+      int hour = int.parse(timeComponents[0]);
+      final minute = timeComponents[1];
+      
+      if (period == 'PM' && hour != 12) {
+        hour += 12;
+      } else if (period == 'AM' && hour == 12) {
+        hour = 0;
+      }
+      
+      return '${hour.toString().padLeft(2, '0')}:$minute';
+    } catch (e) {
+      return time12; // Return original if conversion fails
+    }
   }
 }
 

@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
+  // Helper method for text colors that adapts to dark mode
+  // Use this instead of Colors.grey.shade600 for text
+  static Color subtitleColor(bool isDark) => isDark ? Colors.white70 : Colors.grey.shade600;
+  static Color hintColor(bool isDark) => isDark ? Colors.white54 : Colors.grey.shade500;
+  static Color captionColor(bool isDark) => isDark ? Colors.white60 : Colors.grey.shade700;
   // Primary Colors
   static const Color primary50 = Color(0xFFEFF6FF);
   static const Color primary100 = Color(0xFFDBEAFE);

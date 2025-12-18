@@ -141,6 +141,12 @@ class _SettingsPageState extends State<SettingsPage> {
     final isVerified = authProvider.isVerified;
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Settings'),
+        elevation: 0,
+        backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
+        foregroundColor: isDark ? Colors.white : Colors.black,
+      ),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 1, // Dashboard index for institutions
         onTap: (index) {

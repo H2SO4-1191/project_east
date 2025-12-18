@@ -8,6 +8,7 @@ enum DashboardPageType {
   staff,
   schedule,
   settings,
+  applications,
 }
 
 class DashboardPageCard extends StatefulWidget {
@@ -53,6 +54,11 @@ class _DashboardPageCardState extends State<DashboardPageCard>
     if (widget.pageType != DashboardPageType.schedule) {
       _iconController.repeat(reverse: _shouldReverseIconAnimation());
     }
+    
+    // Applications icon animation - gentle pulse
+    if (widget.pageType == DashboardPageType.applications) {
+      _iconController.repeat(reverse: true);
+    }
 
     // Gradient color shift animation
     _gradientAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -82,6 +88,8 @@ class _DashboardPageCardState extends State<DashboardPageCard>
         return const Duration(seconds: 2);
       case DashboardPageType.settings:
         return const Duration(seconds: 3);
+      case DashboardPageType.applications:
+        return const Duration(seconds: 2);
     }
   }
 
@@ -93,6 +101,7 @@ class _DashboardPageCardState extends State<DashboardPageCard>
         return true;
       case DashboardPageType.lecturers:
       case DashboardPageType.settings:
+      case DashboardPageType.applications:
         return true;
     }
   }
@@ -109,6 +118,8 @@ class _DashboardPageCardState extends State<DashboardPageCard>
         return Icons.calendar_today;
       case DashboardPageType.settings:
         return Icons.settings;
+      case DashboardPageType.applications:
+        return Icons.assignment;
     }
   }
 
@@ -124,6 +135,8 @@ class _DashboardPageCardState extends State<DashboardPageCard>
         return 'Schedule';
       case DashboardPageType.settings:
         return 'Settings';
+      case DashboardPageType.applications:
+        return 'Applications';
     }
   }
 
@@ -139,6 +152,8 @@ class _DashboardPageCardState extends State<DashboardPageCard>
         return [AppTheme.teal400, AppTheme.primary500];
       case DashboardPageType.settings:
         return [AppTheme.primary600, AppTheme.teal600];
+      case DashboardPageType.applications:
+        return [Colors.indigo.shade600, Colors.indigo.shade700];
     }
   }
 
@@ -196,6 +211,18 @@ class _DashboardPageCardState extends State<DashboardPageCard>
           builder: (context, child) {
             return Transform.rotate(
               angle: _iconController.value * 2 * 3.14159,
+              child: child!,
+            );
+          },
+          child: icon,
+        );
+      case DashboardPageType.applications:
+        // Gentle pulse
+        return AnimatedBuilder(
+          animation: _iconController,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: 1.0 + (_iconController.value * 0.1),
               child: child!,
             );
           },

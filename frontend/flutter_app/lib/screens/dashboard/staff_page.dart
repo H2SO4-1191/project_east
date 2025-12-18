@@ -28,6 +28,8 @@ class _StaffPageState extends State<StaffPage> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounceTimer;
   bool _isLoading = false;
+  bool _isCheckingVerification = true;
+  bool _isVerified = false;
   String? _error;
   List<dynamic> _staff = [];
   Map<String, dynamic> _pagination = {
@@ -91,7 +93,60 @@ class _StaffPageState extends State<StaffPage> {
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
-    _fetchStaff();
+    _checkVerification();
+  }
+
+  Future<void> _checkVerification() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final instituteData = authProvider.instituteData;
+    final accessToken = instituteData['accessToken'];
+    final refreshToken = instituteData['refreshToken'];
+    final email = instituteData['email'];
+
+    if (accessToken == null || email == null) {
+      setState(() {
+        _isCheckingVerification = false;
+        _isVerified = false;
+      });
+      return;
+    }
+
+    try {
+      final verificationStatus = await ApiService.checkVerificationStatus(
+        email,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        onTokenRefreshed: (tokens) {
+          authProvider.onTokenRefreshed(tokens);
+        },
+        onSessionExpired: () {
+          authProvider.onSessionExpired();
+        },
+      );
+
+      final isVerified = verificationStatus['is_verified'] == true;
+      
+      // Update auth provider
+      if (verificationStatus['is_verified'] != instituteData['isVerified']) {
+        authProvider.updateInstituteData({
+          'isVerified': isVerified,
+        });
+      }
+
+      setState(() {
+        _isCheckingVerification = false;
+        _isVerified = isVerified;
+      });
+
+      if (isVerified) {
+        _fetchStaff();
+      }
+    } catch (e) {
+      setState(() {
+        _isCheckingVerification = false;
+        _isVerified = false;
+      });
+    }
   }
 
   @override
@@ -138,10 +193,8 @@ class _StaffPageState extends State<StaffPage> {
     }).toList();
   }
 
-  bool _checkVerification(String operation) {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final instituteData = authProvider.instituteData;
-    if (instituteData['isVerified'] != true) {
+  bool _checkVerificationForAction(String operation) {
+    if (!_isVerified) {
       setState(() {
         _showVerificationWarning = true;
       });
@@ -342,7 +395,7 @@ class _StaffPageState extends State<StaffPage> {
   }
 
   Future<void> _createStaff() async {
-    if (!_checkVerification('create')) return;
+    if (!_checkVerificationForAction('create')) return;
 
     // Validate required fields
     if (_createFormControllers['first_name']!.text.trim().isEmpty ||
@@ -558,7 +611,7 @@ class _StaffPageState extends State<StaffPage> {
   }
 
   Future<void> _viewStaff(int staffId) async {
-    if (!_checkVerification('view')) return;
+    if (!_checkVerificationForAction('view')) return;
     setState(() {
       _showViewModal = true;
     });
@@ -566,7 +619,7 @@ class _StaffPageState extends State<StaffPage> {
   }
 
   Future<void> _editStaff(int staffId) async {
-    if (!_checkVerification('edit')) return;
+    if (!_checkVerificationForAction('edit')) return;
     await _loadStaffDetails(staffId);
     if (_selectedStaff != null) {
       _editFormControllers['first_name']!.text = _selectedStaff!['first_name'] ?? '';
@@ -689,7 +742,7 @@ class _StaffPageState extends State<StaffPage> {
   }
 
   Future<void> _deleteStaff(int staffId) async {
-    if (!_checkVerification('delete')) return;
+    if (!_checkVerificationForAction('delete')) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -772,18 +825,34 @@ class _StaffPageState extends State<StaffPage> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final instituteData = authProvider.instituteData;
-
-    // BLOCK ACCESS if not verified
-    if (instituteData['isVerified'] != true) {
-      return const VerificationLock();
-    }
-
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    // Check verification status
+    if (_isCheckingVerification) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Staff'),
+          elevation: 0,
+          backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
+          foregroundColor: isDark ? Colors.white : Colors.black,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // BLOCK ACCESS if not verified
+    if (!_isVerified) {
+      return const VerificationLock();
+    }
+
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Staff'),
+        elevation: 0,
+        backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
+        foregroundColor: isDark ? Colors.white : Colors.black,
+      ),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 1, // Dashboard index for institutions
         onTap: (index) {
@@ -825,8 +894,11 @@ class _StaffPageState extends State<StaffPage> {
                       ),
                     ),
                     ElevatedButton.icon(
-                      onPressed: () {
-                        if (!_checkVerification('create')) return;
+                      onPressed: !_isVerified ? () {
+                        setState(() {
+                          _showVerificationWarning = true;
+                        });
+                      } : () {
                         setState(() {
                           _showCreateModal = true;
                         });

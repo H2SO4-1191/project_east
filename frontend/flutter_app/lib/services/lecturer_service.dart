@@ -425,18 +425,16 @@ class LecturerService {
     }
   }
 
-  // View lecture attendance
-  static Future<Map<String, dynamic>> viewLectureAttendance({
+  // Get lecturer exams list
+  static Future<Map<String, dynamic>> getLecturerExams({
     required String accessToken,
-    required int courseId,
-    required int lectureNumber,
     String? refreshToken,
     Function(Map<String, dynamic>)? onTokenRefreshed,
     VoidCallback? onSessionExpired,
   }) async {
     try {
       var response = await http.get(
-        Uri.parse('$baseUrl/lecturer/course/$courseId/attendance/$lectureNumber/'),
+        Uri.parse('$baseUrl/institution-lecturer/exams/'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $accessToken',
@@ -448,7 +446,62 @@ class LecturerService {
           final refreshed = await ApiService.refreshAccessToken(refreshToken);
           onTokenRefreshed(refreshed);
           response = await http.get(
-            Uri.parse('$baseUrl/lecturer/course/$courseId/attendance/$lectureNumber/'),
+            Uri.parse('$baseUrl/institution-lecturer/exams/'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${refreshed['access']}',
+            },
+          );
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      final data = _parseResponse(response.body);
+
+      if (response.statusCode != 200) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  // View lecture attendance
+  static Future<Map<String, dynamic>> viewLectureAttendance({
+    required String accessToken,
+    required int courseId,
+    required int lectureNumber,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    VoidCallback? onSessionExpired,
+  }) async {
+    try {
+      var response = await http.get(
+        Uri.parse('$baseUrl/institution-lecturer/course/$courseId/attendance/$lectureNumber/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+      );
+
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await ApiService.refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+          response = await http.get(
+            Uri.parse('$baseUrl/institution-lecturer/course/$courseId/attendance/$lectureNumber/'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer ${refreshed['access']}',

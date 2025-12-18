@@ -16,6 +16,8 @@ class SchedulePage extends StatefulWidget {
 
 class _SchedulePageState extends State<SchedulePage> {
   bool _isLoading = false;
+  bool _isCheckingVerification = true;
+  bool _isVerified = false;
   String? _error;
   Map<String, dynamic> _schedule = {};
   int _currentWeek = 0;
@@ -33,7 +35,60 @@ class _SchedulePageState extends State<SchedulePage> {
   @override
   void initState() {
     super.initState();
-    _loadSchedule();
+    _checkVerification();
+  }
+
+  Future<void> _checkVerification() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final instituteData = authProvider.instituteData;
+    final accessToken = instituteData['accessToken'];
+    final refreshToken = instituteData['refreshToken'];
+    final email = instituteData['email'];
+
+    if (accessToken == null || email == null) {
+      setState(() {
+        _isCheckingVerification = false;
+        _isVerified = false;
+      });
+      return;
+    }
+
+    try {
+      final verificationStatus = await ApiService.checkVerificationStatus(
+        email,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        onTokenRefreshed: (tokens) {
+          authProvider.onTokenRefreshed(tokens);
+        },
+        onSessionExpired: () {
+          authProvider.onSessionExpired();
+        },
+      );
+
+      final isVerified = verificationStatus['is_verified'] == true;
+      
+      // Update auth provider
+      if (verificationStatus['is_verified'] != instituteData['isVerified']) {
+        authProvider.updateInstituteData({
+          'isVerified': isVerified,
+        });
+      }
+
+      setState(() {
+        _isCheckingVerification = false;
+        _isVerified = isVerified;
+      });
+
+      if (isVerified) {
+        _loadSchedule();
+      }
+    } catch (e) {
+      setState(() {
+        _isCheckingVerification = false;
+        _isVerified = false;
+      });
+    }
   }
 
   Future<void> _loadSchedule() async {
@@ -56,7 +111,7 @@ class _SchedulePageState extends State<SchedulePage> {
     });
 
     try {
-      final scheduleList = await ApiService.getSchedule(
+      final scheduleMap = await ApiService.getSchedule(
         accessToken: accessToken,
         refreshToken: refreshToken,
         onTokenRefreshed: (tokens) {
@@ -67,25 +122,20 @@ class _SchedulePageState extends State<SchedulePage> {
         },
       );
 
-      // Convert list to map grouped by day
-      final Map<String, List<dynamic>> scheduleMap = {};
+      // Ensure all days are present in the map (even if empty)
+      final Map<String, List<dynamic>> processedSchedule = {};
       for (final day in _days) {
-        scheduleMap[day['key']!] = [];
-      }
-
-      if (scheduleList is List) {
-        for (final item in scheduleList) {
-          if (item is Map<String, dynamic>) {
-            final dayKey = (item['day'] ?? '').toString().toLowerCase();
-            if (scheduleMap.containsKey(dayKey)) {
-              scheduleMap[dayKey]!.add(item);
-            }
-          }
+        final dayKey = day['key']!;
+        // The API returns schedule as a map with day keys (monday, tuesday, etc.)
+        if (scheduleMap[dayKey] is List) {
+          processedSchedule[dayKey] = scheduleMap[dayKey] as List<dynamic>;
+        } else {
+          processedSchedule[dayKey] = [];
         }
       }
 
       setState(() {
-        _schedule = scheduleMap;
+        _schedule = processedSchedule;
       });
     } catch (err) {
       setState(() {
@@ -120,18 +170,34 @@ class _SchedulePageState extends State<SchedulePage> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final instituteData = authProvider.instituteData;
-
-    // BLOCK ACCESS if not verified
-    if (instituteData['isVerified'] != true) {
-      return const VerificationLock();
-    }
-
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    // Check verification status
+    if (_isCheckingVerification) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Schedule'),
+          elevation: 0,
+          backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
+          foregroundColor: isDark ? Colors.white : Colors.black,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // BLOCK ACCESS if not verified
+    if (!_isVerified) {
+      return const VerificationLock();
+    }
+
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Schedule'),
+        elevation: 0,
+        backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
+        foregroundColor: isDark ? Colors.white : Colors.black,
+      ),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 1, // Dashboard index for institutions
         onTap: (index) {

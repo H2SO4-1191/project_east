@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/theme_provider.dart';
 import '../widgets/animated_background.dart';
 import '../widgets/enhanced_button.dart';
 import '../widgets/glass_card.dart';
 import '../config/theme.dart';
 import '../utils/page_transitions.dart';
 import '../services/api_service.dart';
+import '../providers/auth_provider.dart';
 import 'otp_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -31,6 +31,13 @@ class _LoginScreenState extends State<LoginScreen> {
     if (widget.initialEmail != null) {
       _emailController.text = widget.initialEmail!;
     }
+    // Redirect if already authenticated
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if (authProvider.isAuthenticated) {
+        Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+      }
+    });
   }
 
   @override
@@ -108,42 +115,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       body: AnimatedBackground(
         child: SafeArea(
-          child: Stack(
-            children: [
-              // Theme Toggle Button
-              Positioned(
-                top: 24,
-                right: 24,
-                child: Material(
-                  color: isDark
-                      ? AppTheme.navy800.withOpacity(0.8)
-                      : Colors.white.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(50),
-                  elevation: 4,
-                  child: InkWell(
-                    onTap: () => themeProvider.toggleTheme(),
-                    borderRadius: BorderRadius.circular(50),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Icon(
-                        isDark ? Icons.wb_sunny : Icons.nightlight_round,
-                        color: isDark ? AppTheme.gold500 : AppTheme.navy700,
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Main Content
-              Center(
+          child: Center(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: ConstrainedBox(
@@ -388,8 +366,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-            ],
-          ),
         ),
       ),
     );

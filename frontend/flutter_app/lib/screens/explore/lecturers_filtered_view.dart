@@ -18,6 +18,7 @@ class LecturersFilteredView extends StatefulWidget {
 
 class _LecturersFilteredViewState extends State<LecturersFilteredView> {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   Timer? _debounceTimer;
   
   bool _isLoading = false;
@@ -40,6 +41,7 @@ class _LecturersFilteredViewState extends State<LecturersFilteredView> {
   void dispose() {
     _debounceTimer?.cancel();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -163,8 +165,8 @@ class _LecturersFilteredViewState extends State<LecturersFilteredView> {
       final response = await ProfileService.getLecturerPublicProfile(username);
 
       final profileData = response['data'] is Map<String, dynamic>
-          ? response['data'] as Map<String, dynamic>
-          : (response as Map<String, dynamic>);
+          ? response['data']
+          : response;
 
       setState(() {
         _selectedProfile = profileData;
@@ -269,78 +271,273 @@ class _LecturersFilteredViewState extends State<LecturersFilteredView> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final imageUrl = _getImageUrl(profile['profile_image']);
+    final firstName = profile['first_name'] ?? '';
+    final lastName = profile['last_name'] ?? '';
+    final fullName = '$firstName $lastName'.trim();
+    final displayName = fullName.isEmpty ? (profile['username'] ?? 'User') : fullName;
 
     return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.9,
+      ),
       decoration: BoxDecoration(
         color: isDark ? AppTheme.navy800 : Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      padding: const EdgeInsets.all(24),
       child: _isLoadingProfile
-          ? const Center(child: CircularProgressIndicator())
+          ? const Padding(
+              padding: EdgeInsets.all(48.0),
+              child: Center(child: CircularProgressIndicator()),
+            )
           : Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: AppTheme.primary600,
-                      backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
-                      child: imageUrl == null
-                          ? Text(
-                              (profile['first_name'] ?? profile['username'] ?? 'U')[0].toString().toUpperCase(),
-                              style: const TextStyle(color: Colors.white, fontSize: 24),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${profile['first_name'] ?? ''} ${profile['last_name'] ?? ''}'.trim().isEmpty
-                                ? profile['username'] ?? 'User'
-                                : '${profile['first_name'] ?? ''} ${profile['last_name'] ?? ''}'.trim(),
-                            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          if (profile['specialty'] != null)
-                            Text(
-                              profile['specialty'],
-                              style: theme.textTheme.bodyMedium?.copyWith(color: AppTheme.primary600),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                if (profile['about'] != null) ...[
-                  const SizedBox(height: 16),
-                  Text('About', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Text(profile['about'], style: theme.textTheme.bodyMedium),
-                ],
-                if (profile['skills'] != null) ...[
-                  const SizedBox(height: 16),
-                  Text('Skills', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Text(profile['skills'], style: theme.textTheme.bodyMedium),
-                ],
-                if (profile['city'] != null) ...[
-                  const SizedBox(height: 16),
-                  Row(
+                // Header with close button
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(Icons.location_on, size: 16, color: AppTheme.primary500),
-                      const SizedBox(width: 4),
-                      Text(profile['city'], style: theme.textTheme.bodyMedium),
+                      Text(
+                        'Lecturer Profile',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
                     ],
                   ),
-                ],
-                const SizedBox(height: 24),
+                ),
+                // Profile Header
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppTheme.primary600, AppTheme.teal500],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.white.withOpacity(0.2),
+                        backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
+                        child: imageUrl == null
+                            ? Text(
+                                displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (profile['specialty'] != null) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  profile['specialty'],
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Content
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Academic Achievement
+                        if (profile['academic_achievement'] != null) ...[
+                          _buildInfoRow(
+                            Icons.school,
+                            'Academic Achievement',
+                            profile['academic_achievement'],
+                            isDark,
+                            theme,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        // Experience
+                        if (profile['experience'] != null) ...[
+                          _buildInfoRow(
+                            Icons.work_history,
+                            'Experience',
+                            '${profile['experience']} ${profile['experience'] == 1 ? 'year' : 'years'}',
+                            isDark,
+                            theme,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        // Free Time
+                        if (profile['free_time'] != null) ...[
+                          _buildInfoRow(
+                            Icons.access_time,
+                            'Available Time',
+                            profile['free_time'],
+                            isDark,
+                            theme,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        // City
+                        if (profile['city'] != null) ...[
+                          _buildInfoRow(
+                            Icons.location_on,
+                            'City',
+                            profile['city'],
+                            isDark,
+                            theme,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        // Institutions
+                        if (profile['institutions'] != null && 
+                            profile['institutions'] is List &&
+                            (profile['institutions'] as List).isNotEmpty) ...[
+                          Text(
+                            'Institutions',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: (profile['institutions'] as List).map<Widget>((institution) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? AppTheme.navy700
+                                      : AppTheme.primary50,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.business,
+                                      size: 16,
+                                      color: AppTheme.primary600,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      institution.toString(),
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        fontWeight: FontWeight.w500,
+                                        color: AppTheme.primary700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
+    );
+  }
+
+  Widget _buildInfoRow(
+    IconData icon,
+    String label,
+    String value,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.navy700 : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppTheme.primary600.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: AppTheme.primary600,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -360,18 +557,24 @@ class _LecturersFilteredViewState extends State<LecturersFilteredView> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? AppTheme.navy900 : const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: TextField(
-          controller: _searchController,
-          decoration: InputDecoration(
+    return GestureDetector(
+      onTap: () {
+        // Unfocus search field when tapping outside
+        _searchFocusNode.unfocus();
+      },
+      child: Scaffold(
+        backgroundColor: isDark ? AppTheme.navy900 : const Color(0xFFF9FAFB),
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: TextField(
+            controller: _searchController,
+            focusNode: _searchFocusNode,
+            decoration: InputDecoration(
             hintText: 'Search lecturers...',
             prefixIcon: const Icon(Icons.search),
             suffixIcon: _searchController.text.isNotEmpty
@@ -452,6 +655,7 @@ class _LecturersFilteredViewState extends State<LecturersFilteredView> {
                         },
                       ),
                     ),
+      ),
     );
   }
 }

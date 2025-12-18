@@ -18,7 +18,6 @@ class _CreateCoursePageState extends State<CreateCoursePage> {
   final _priceController = TextEditingController();
   final _aboutController = TextEditingController();
   final _capacityController = TextEditingController();
-  final _lecturerUsernameController = TextEditingController();
   final _startingDateController = TextEditingController();
   final _endingDateController = TextEditingController();
   final _startTimeController = TextEditingController();
@@ -26,9 +25,13 @@ class _CreateCoursePageState extends State<CreateCoursePage> {
 
   String _level = 'beginner';
   List<String> _selectedDays = [];
-  String? _selectedLecturerId;
+  Map<String, dynamic>? _selectedLecturer;
   File? _courseImage;
   bool _isSubmitting = false;
+  bool _isLoadingLecturers = false;
+  bool _isCheckingAvailability = false;
+  List<dynamic> _markedLecturers = [];
+  Map<String, dynamic>? _lecturerConflict;
   final ImagePicker _picker = ImagePicker();
 
   final List<String> _days = [
@@ -42,12 +45,17 @@ class _CreateCoursePageState extends State<CreateCoursePage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _fetchMarkedLecturers();
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _priceController.dispose();
     _aboutController.dispose();
     _capacityController.dispose();
-    _lecturerUsernameController.dispose();
     _startingDateController.dispose();
     _endingDateController.dispose();
     _startTimeController.dispose();
@@ -72,6 +80,136 @@ class _CreateCoursePageState extends State<CreateCoursePage> {
     }
   }
 
+  Future<void> _fetchMarkedLecturers() async {
+    setState(() {
+      _isLoadingLecturers = true;
+    });
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final accessToken = authProvider.accessToken;
+      final refreshToken = authProvider.refreshToken;
+
+      if (accessToken == null) {
+        throw Exception('Not authenticated');
+      }
+
+      final data = await ApiService.getMarkedLecturers(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        onTokenRefreshed: (tokens) {
+          authProvider.onTokenRefreshed(tokens);
+        },
+        onSessionExpired: () {
+          authProvider.logout();
+        },
+      );
+
+      if (data['success'] == true && data['lecturers'] != null) {
+        setState(() {
+          _markedLecturers = data['lecturers'] is List ? data['lecturers'] : [];
+        });
+      } else {
+        setState(() {
+          _markedLecturers = [];
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading lecturers: ${e.toString()}')),
+        );
+      }
+      setState(() {
+        _markedLecturers = [];
+      });
+    } finally {
+      setState(() {
+        _isLoadingLecturers = false;
+      });
+    }
+  }
+
+  Future<void> _checkLecturerAvailability() async {
+    if (_selectedLecturer == null ||
+        _selectedDays.isEmpty ||
+        _startTimeController.text.trim().isEmpty ||
+        _endTimeController.text.trim().isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _isCheckingAvailability = true;
+      _lecturerConflict = null;
+    });
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final accessToken = authProvider.accessToken;
+      final refreshToken = authProvider.refreshToken;
+
+      if (accessToken == null) {
+        throw Exception('Not authenticated');
+      }
+
+      final lecturerId = _selectedLecturer!['id'] as int;
+      final data = await ApiService.checkLecturerAvailability(
+        accessToken: accessToken,
+        lecturerId: lecturerId,
+        days: _selectedDays,
+        startTime: _startTimeController.text.trim(),
+        endTime: _endTimeController.text.trim(),
+        refreshToken: refreshToken,
+        onTokenRefreshed: (tokens) {
+          authProvider.onTokenRefreshed(tokens);
+        },
+        onSessionExpired: () {
+          authProvider.logout();
+        },
+      );
+
+      if (data['success'] == true) {
+        if (data['contradiction'] == null) {
+          // Lecturer is free
+          setState(() {
+            _lecturerConflict = null;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Lecturer is available for the selected schedule'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } else {
+          // Lecturer has conflicts
+          setState(() {
+            _lecturerConflict = data['contradiction'];
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Lecturer has scheduling conflicts'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error checking availability: ${e.toString()}')),
+        );
+      }
+    } finally {
+      setState(() {
+        _isCheckingAvailability = false;
+      });
+    }
+  }
+
   String _convertTo12Hour(String time24) {
     try {
       final parts = time24.split(':');
@@ -83,6 +221,39 @@ class _CreateCoursePageState extends State<CreateCoursePage> {
     } catch (e) {
       return time24;
     }
+  }
+
+  String _convertTo24Hour(String time12) {
+    try {
+      final parts = time12.split(' ');
+      if (parts.length != 2) return time12; // Already 24-hour or invalid
+      
+      final timePart = parts[0];
+      final period = parts[1].toUpperCase();
+      final timeComponents = timePart.split(':');
+      
+      if (timeComponents.length != 2) return time12;
+      
+      int hour = int.parse(timeComponents[0]);
+      final minute = timeComponents[1];
+      
+      if (period == 'PM' && hour != 12) {
+        hour += 12;
+      } else if (period == 'AM' && hour == 12) {
+        hour = 0;
+      }
+      
+      return '${hour.toString().padLeft(2, '0')}:$minute';
+    } catch (e) {
+      return time12; // Return original if conversion fails
+    }
+  }
+
+  void _unselectLecturer() {
+    setState(() {
+      _selectedLecturer = null;
+      _lecturerConflict = null;
+    });
   }
 
   Future<void> _selectDate(BuildContext context, bool isStartDate) async {
@@ -115,6 +286,11 @@ class _CreateCoursePageState extends State<CreateCoursePage> {
       } else {
         _endTimeController.text = time12;
       }
+      
+      // Check availability when time is selected
+      if (_selectedLecturer != null && _selectedDays.isNotEmpty) {
+        _checkLecturerAvailability();
+      }
     }
   }
 
@@ -130,9 +306,20 @@ class _CreateCoursePageState extends State<CreateCoursePage> {
       return;
     }
 
-    if (_selectedLecturerId == null) {
+    if (_selectedLecturer == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a lecturer')),
+      );
+      return;
+    }
+
+    // Check if lecturer has conflicts
+    if (_lecturerConflict != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot create course: Lecturer has scheduling conflicts'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -150,15 +337,19 @@ class _CreateCoursePageState extends State<CreateCoursePage> {
         throw Exception('Not authenticated');
       }
 
+      // Convert 12-hour time to 24-hour format for backend
+      final startTime24 = _convertTo24Hour(_startTimeController.text.trim());
+      final endTime24 = _convertTo24Hour(_endTimeController.text.trim());
+
       final payload = <String, dynamic>{
         'title': _titleController.text.trim(),
         'price': _priceController.text.trim(),
         'starting_date': _startingDateController.text.trim(),
         'ending_date': _endingDateController.text.trim(),
         'level': _level,
-        'lecturer': _selectedLecturerId,
-        'start_time': _startTimeController.text.trim(),
-        'end_time': _endTimeController.text.trim(),
+        'lecturer': _selectedLecturer!['id'],
+        'start_time': startTime24,
+        'end_time': endTime24,
         'days': _selectedDays,
         'about': _aboutController.text.trim(),
       };
@@ -401,37 +592,186 @@ class _CreateCoursePageState extends State<CreateCoursePage> {
               ),
               const SizedBox(height: 16),
 
-              // Lecturer Username (simplified - in real app, would need lecturer search API)
-              TextFormField(
-                controller: _lecturerUsernameController,
-                decoration: InputDecoration(
-                  labelText: 'Lecturer ID *',
-                  hintText: 'Enter lecturer ID',
-                  border: OutlineInputBorder(
+              // Lecturer Selection
+              Text(
+                'Lecturer *',
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'The list of lecturers you have',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.grey,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (_isLoadingLecturers)
+                const Center(child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(),
+                ))
+              else if (_markedLecturers.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  filled: true,
-                  fillColor: isDark ? Colors.grey[900] : Colors.white,
+                  child: const Text('No marked lecturers available'),
+                )
+              else
+                Container(
+                  height: 200,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ListView.builder(
+                    itemCount: _markedLecturers.length,
+                    itemBuilder: (context, index) {
+                      final lecturer = _markedLecturers[index];
+                      final isSelected = _selectedLecturer?['id'] == lecturer['id'];
+                      final fullName = lecturer['full_name'] ?? 'Unknown';
+                      final profileImage = lecturer['profile_image'];
+                      
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: profileImage != null
+                              ? NetworkImage(profileImage.toString().startsWith('http')
+                                  ? profileImage.toString()
+                                  : 'https://projecteastapi.ddns.net$profileImage')
+                              : null,
+                          child: profileImage == null
+                              ? Text(fullName.isNotEmpty ? fullName[0].toUpperCase() : '?')
+                              : null,
+                        ),
+                        title: Text(fullName),
+                        subtitle: Text(lecturer['username'] ?? ''),
+                        selected: isSelected,
+                        selectedTileColor: isDark ? Colors.grey[800] : Colors.blue[50],
+                        onTap: () {
+                          setState(() {
+                            _selectedLecturer = lecturer;
+                            _lecturerConflict = null;
+                          });
+                          
+                          // Check availability if days and times are already selected
+                          if (_selectedDays.isNotEmpty &&
+                              _startTimeController.text.trim().isNotEmpty &&
+                              _endTimeController.text.trim().isNotEmpty) {
+                            _checkLecturerAvailability();
+                          }
+                        },
+                      );
+                    },
+                  ),
                 ),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedLecturerId = value.trim().isEmpty ? null : value.trim();
-                  });
-                },
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a lecturer ID';
-                  }
-                  return null;
-                },
-              ),
+              if (_selectedLecturer != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'You chose:',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.grey,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey[800] : Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _lecturerConflict != null ? Colors.red : Colors.blue,
+                      width: 2,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundImage: _selectedLecturer!['profile_image'] != null
+                            ? NetworkImage(
+                                _selectedLecturer!['profile_image'].toString().startsWith('http')
+                                    ? _selectedLecturer!['profile_image'].toString()
+                                    : 'https://projecteastapi.ddns.net${_selectedLecturer!['profile_image']}')
+                            : null,
+                        child: _selectedLecturer!['profile_image'] == null
+                            ? Text(
+                                (_selectedLecturer!['full_name'] ?? 'Unknown')[0].toUpperCase())
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _selectedLecturer!['full_name'] ?? 'Unknown',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            if (_lecturerConflict != null)
+                              Text(
+                                '⚠️ Has scheduling conflicts',
+                                style: TextStyle(color: Colors.red, fontSize: 12),
+                              )
+                            else if (_isCheckingAvailability)
+                              const Text(
+                                'Checking availability...',
+                                style: TextStyle(fontSize: 12),
+                              )
+                            else if (_selectedDays.isNotEmpty &&
+                                _startTimeController.text.trim().isNotEmpty &&
+                                _endTimeController.text.trim().isNotEmpty)
+                              const Text(
+                                '✓ Available',
+                                style: TextStyle(color: Colors.green, fontSize: 12),
+                              ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        color: Colors.grey,
+                        tooltip: 'Unselect lecturer',
+                        onPressed: _unselectLecturer,
+                      ),
+                    ],
+                  ),
+                ),
+                if (_lecturerConflict != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Scheduling Conflict:',
+                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                        ),
+                        const SizedBox(height: 4),
+                        Text('Course: ${_lecturerConflict!['course_title'] ?? 'N/A'}'),
+                        Text('Institution: ${_lecturerConflict!['institution'] ?? 'N/A'}'),
+                        Text('Day: ${_lecturerConflict!['day'] ?? 'N/A'}'),
+                        Text('Time: ${_lecturerConflict!['time'] ?? 'N/A'}'),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
               const SizedBox(height: 16),
 
               // Capacity
               TextFormField(
                 controller: _capacityController,
                 decoration: InputDecoration(
-                  labelText: 'Capacity (Optional)',
+                  labelText: 'Capacity',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -458,17 +798,24 @@ class _CreateCoursePageState extends State<CreateCoursePage> {
                     selected: isSelected,
                     onSelected: (selected) {
                       setState(() {
-                        if (selected) {
-                          _selectedDays.add(day);
-                        } else {
-                          _selectedDays.remove(day);
-                        }
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
+                    if (selected) {
+                      _selectedDays.add(day);
+                    } else {
+                      _selectedDays.remove(day);
+                    }
+                  });
+                  
+                  // Check availability when days change
+                  if (_selectedLecturer != null && 
+                      _startTimeController.text.trim().isNotEmpty &&
+                      _endTimeController.text.trim().isNotEmpty) {
+                    _checkLecturerAvailability();
+                  }
+                },
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 16),
 
               // About
               TextFormField(

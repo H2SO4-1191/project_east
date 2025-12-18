@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/animated_background.dart';
 import '../widgets/enhanced_button.dart';
@@ -12,7 +11,6 @@ import '../utils/page_transitions.dart';
 import '../services/api_service.dart';
 import '../models/auth_response.dart';
 import '../widgets/main_navigation_wrapper.dart';
-import 'dashboard/dashboard_screen.dart';
 
 class OTPScreen extends StatefulWidget {
   final String? email;
@@ -44,15 +42,20 @@ class _OTPScreenState extends State<OTPScreen> {
     _email = widget.email;
     _loadRecentSignup();
     
-    if (_email == null || _email!.isEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Redirect if already authenticated
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if (authProvider.isAuthenticated) {
+        Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+        return;
+      }
+      
+      if (_email == null || _email!.isEmpty) {
         Navigator.of(context).pushReplacementNamed('/login');
-      });
-    } else {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      } else {
         _focusNodes[0].requestFocus();
-      });
-    }
+      }
+    });
   }
 
   Future<void> _loadRecentSignup() async {
@@ -198,19 +201,11 @@ class _OTPScreenState extends State<OTPScreen> {
         await Future.delayed(const Duration(milliseconds: 500));
         
         if (mounted) {
-          // Navigate based on user type
-          // Only institutions should see the dashboard
-          // Students and lecturers should go to the main navigation (feed screen)
-          if (userType == 'institution') {
-            Navigator.of(context).pushReplacement(
-              ScaleSlideTransition(page: const DashboardScreen()),
-            );
-          } else {
-            // For students and lecturers, navigate to main navigation wrapper
-            Navigator.of(context).pushReplacement(
-              ScaleSlideTransition(page: const MainNavigationWrapper()),
-            );
-          }
+          // Navigate all users to main navigation (feed screen)
+          // Dashboard can be accessed via navigation menu if needed
+          Navigator.of(context).pushReplacement(
+            ScaleSlideTransition(page: const MainNavigationWrapper()),
+          );
         }
       }
     } catch (e) {
@@ -309,42 +304,13 @@ class _OTPScreenState extends State<OTPScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       body: AnimatedBackground(
         child: SafeArea(
-          child: Stack(
-            children: [
-              // Theme Toggle Button
-              Positioned(
-                top: 24,
-                right: 24,
-                child: Material(
-                  color: isDark
-                      ? AppTheme.navy800.withOpacity(0.8)
-                      : Colors.white.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(50),
-                  elevation: 4,
-                  child: InkWell(
-                    onTap: () => themeProvider.toggleTheme(),
-                    borderRadius: BorderRadius.circular(50),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Icon(
-                        isDark ? Icons.wb_sunny : Icons.nightlight_round,
-                        color: isDark ? AppTheme.gold500 : AppTheme.navy700,
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Main Content
-              Center(
+          child: Center(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: ConstrainedBox(
@@ -676,8 +642,6 @@ class _OTPScreenState extends State<OTPScreen> {
                   ),
                 ),
               ),
-            ],
-          ),
         ),
       ),
     );

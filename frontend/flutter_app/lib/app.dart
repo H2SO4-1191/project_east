@@ -16,13 +16,15 @@ import 'screens/explore_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'widgets/main_navigation_wrapper.dart';
 import 'screens/lecturer/lecturer_courses_screen.dart';
+import 'screens/lecturer/lecturer_course_detail_screen.dart';
 import 'screens/lecturer/lecturer_schedule_screen.dart';
 import 'screens/student/student_courses_screen.dart';
 import 'screens/student/student_schedule_screen.dart';
+import 'screens/student/course_details_screen.dart';
+import 'screens/student/enroll_course_screen.dart';
+import 'screens/course_details_screen.dart';
 import 'screens/institution_profile_screen.dart';
 import 'screens/profile_screen.dart';
-import 'screens/dashboard/my_profile_screen.dart';
-import 'screens/dashboard/edit_profile_page.dart';
 import 'screens/lecturer/my_profile_screen.dart';
 import 'screens/lecturer/edit_profile_page.dart';
 import 'screens/student/my_profile_screen.dart';
@@ -101,9 +103,58 @@ class MyApp extends StatelessWidget {
               child: DashboardScreen(),
             ),
             '/lecturer/courses': (context) => const LecturerCoursesScreen(),
+            '/lecturer/course-detail': (context) => const LecturerCourseDetailScreen(),
             '/lecturer/schedule': (context) => const LecturerScheduleScreen(),
             '/student/courses': (context) => const StudentCoursesScreen(),
             '/student/schedule': (context) => const StudentScheduleScreen(),
+            '/student/course': (context) {
+              final args = ModalRoute.of(context)!.settings.arguments;
+              final courseId = args is int
+                  ? args
+                  : (args is String
+                      ? int.tryParse(args)
+                      : (args is Map<String, dynamic>
+                          ? args['courseId'] as int?
+                          : null));
+              if (courseId == null) {
+                return const Scaffold(
+                  body: Center(child: Text('Invalid course ID')),
+                );
+              }
+              return CourseDetailsScreen(courseId: courseId);
+            },
+            '/student/enroll': (context) {
+              final args = ModalRoute.of(context)!.settings.arguments;
+              final courseId = args is int
+                  ? args
+                  : (args is String
+                      ? int.tryParse(args)
+                      : (args is Map<String, dynamic>
+                          ? args['courseId'] as int?
+                          : null));
+              if (courseId == null) {
+                return const Scaffold(
+                  body: Center(child: Text('Invalid course ID')),
+                );
+              }
+              return EnrollCourseScreen(courseId: courseId);
+            },
+            '/course': (context) {
+              final args = ModalRoute.of(context)!.settings.arguments;
+              final courseId = args is int
+                  ? args
+                  : (args is String
+                      ? int.tryParse(args)
+                      : (args is Map<String, dynamic>
+                          ? args['courseId'] as int?
+                          : null));
+              if (courseId == null) {
+                return const Scaffold(
+                  body: Center(child: Text('Invalid course ID')),
+                );
+              }
+              return PublicCourseDetailsScreen(courseId: courseId);
+            },
             '/profile': (context) => const ProfileScreen(),
             '/lecturer/my-profile': (context) => const LecturerMyProfileScreen(),
             '/lecturer/edit-profile': (context) => const LecturerEditProfilePage(),
