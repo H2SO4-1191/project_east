@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../widgets/full_screen_image_viewer.dart';
 import 'edit_profile_page.dart';
 
 class StudentMyProfileScreen extends StatefulWidget {
@@ -403,18 +404,30 @@ class _StudentMyProfileScreenState extends State<StudentMyProfileScreen> {
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const StudentEditProfilePage(),
-                ),
-              ).then((_) => _loadProfile());
-            },
-            tooltip: 'Edit Profile',
-          ),
+          if (_profileData != null && _profileData!['is_verified'] == true)
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const StudentEditProfilePage(),
+                  ),
+                ).then((_) => _loadProfile());
+              },
+              tooltip: 'Edit Profile',
+            )
+          else if (_profileData != null && _profileData!['is_verified'] != true)
+            TextButton.icon(
+              onPressed: () {
+                Navigator.pushNamed(context, '/student/verify').then((_) => _loadProfile());
+              },
+              icon: const Icon(Icons.verified_user, size: 20),
+              label: const Text('Verify'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.orange,
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadProfile,
@@ -494,19 +507,33 @@ class _StudentMyProfileScreenState extends State<StudentMyProfileScreen> {
                                       ),
                                     ],
                                   ),
-                                  child: ClipOval(
-                                    child: _getImageUrl(_profileData!['profile_image']).isNotEmpty
-                                        ? Image.network(
-                                            _getImageUrl(_profileData!['profile_image']),
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) {
-                                              final name = _profileData!['first_name'] ?? _profileData!['username'] ?? 'S';
-                                              return _buildAvatarPlaceholder(name);
-                                            },
-                                          )
-                                        : _buildAvatarPlaceholder(
-                                            _profileData!['first_name'] ?? _profileData!['username'] ?? 'S',
-                                          ),
+                                  child: GestureDetector(
+                                    onTap: _getImageUrl(_profileData!['profile_image']).isNotEmpty
+                                        ? () {
+                                            Navigator.of(context).push(
+                                              MaterialPageRoute(
+                                                builder: (context) => FullScreenImageViewer(
+                                                  imageUrl: _getImageUrl(_profileData!['profile_image']),
+                                                ),
+                                                fullscreenDialog: true,
+                                              ),
+                                            );
+                                          }
+                                        : null,
+                                    child: ClipOval(
+                                      child: _getImageUrl(_profileData!['profile_image']).isNotEmpty
+                                          ? Image.network(
+                                              _getImageUrl(_profileData!['profile_image']),
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) {
+                                                final name = _profileData!['first_name'] ?? _profileData!['username'] ?? 'S';
+                                                return _buildAvatarPlaceholder(name);
+                                              },
+                                            )
+                                          : _buildAvatarPlaceholder(
+                                              _profileData!['first_name'] ?? _profileData!['username'] ?? 'S',
+                                            ),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 16),

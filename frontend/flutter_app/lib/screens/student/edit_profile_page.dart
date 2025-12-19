@@ -19,6 +19,9 @@ class _StudentEditProfilePageState extends State<StudentEditProfilePage> {
   final _lastNameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _aboutController = TextEditingController();
+  final _interestingKeywordsController = TextEditingController();
+  final _responsiblePhoneController = TextEditingController();
+  final _responsibleEmailController = TextEditingController();
 
   final ImagePicker _picker = ImagePicker();
   
@@ -62,6 +65,19 @@ class _StudentEditProfilePageState extends State<StudentEditProfilePage> {
     'phd',
   ];
 
+  String _formatStudyingLevel(String level) {
+    switch (level) {
+      case 'bachelors':
+        return 'Bachelor\'s Degree';
+      case 'masters':
+        return 'Master\'s Degree';
+      case 'phd':
+        return 'PhD / Doctorate';
+      default:
+        return level;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -76,6 +92,9 @@ class _StudentEditProfilePageState extends State<StudentEditProfilePage> {
     _lastNameController.text = data['lastName'] ?? '';
     _phoneController.text = data['phoneNumber'] ?? '';
     _aboutController.text = data['about'] ?? '';
+    _interestingKeywordsController.text = data['interesting_keywords'] ?? '';
+    _responsiblePhoneController.text = data['responsible_phone'] ?? '';
+    _responsibleEmailController.text = data['responsible_email'] ?? '';
     _selectedCity = data['city'];
     _selectedStudyingLevel = data['studying_level'];
   }
@@ -86,6 +105,9 @@ class _StudentEditProfilePageState extends State<StudentEditProfilePage> {
     _lastNameController.dispose();
     _phoneController.dispose();
     _aboutController.dispose();
+    _interestingKeywordsController.dispose();
+    _responsiblePhoneController.dispose();
+    _responsibleEmailController.dispose();
     super.dispose();
   }
 
@@ -164,8 +186,8 @@ class _StudentEditProfilePageState extends State<StudentEditProfilePage> {
       );
 
       if (mounted) {
-        final isValid = result['is_document'] == true;
-        final percentage = result['document_percentage'] ?? 0.0;
+        final percentage = (result['document_percentage'] ?? 0.0) as num;
+        final isValid = percentage >= 60;
 
         setState(() {
           _documentValidation[fieldName] = {
@@ -266,6 +288,15 @@ class _StudentEditProfilePageState extends State<StudentEditProfilePage> {
       if (_selectedStudyingLevel != null) {
         payload['studying_level'] = _selectedStudyingLevel!;
       }
+      if (_interestingKeywordsController.text.trim().isNotEmpty) {
+        payload['interesting_keywords'] = _interestingKeywordsController.text.trim();
+      }
+      if (_responsiblePhoneController.text.trim().isNotEmpty) {
+        payload['responsible_phone'] = _responsiblePhoneController.text.trim();
+      }
+      if (_responsibleEmailController.text.trim().isNotEmpty) {
+        payload['responsible_email'] = _responsibleEmailController.text.trim();
+      }
 
       // Add file fields only if they are provided
       if (_profileImage != null) payload['profile_image'] = _profileImage;
@@ -308,221 +339,282 @@ class _StudentEditProfilePageState extends State<StudentEditProfilePage> {
     }
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {int maxLines = 1}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-            ),
-            Text(
-              ' (Optional)',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          maxLines: maxLines,
-          decoration: InputDecoration(
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            filled: true,
-            fillColor: Theme.of(context).brightness == Brightness.dark
-                ? AppTheme.navy700
-                : Colors.grey.shade50,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    int maxLines = 1,
+    IconData? icon,
+    String? hint,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return TextFormField(
+      controller: controller,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: icon != null ? Icon(icon) : null,
+        filled: true,
+        fillColor: isDark ? AppTheme.navy700 : Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: isDark ? AppTheme.navy700 : Colors.grey.shade300,
           ),
         ),
-      ],
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: isDark ? AppTheme.navy700 : Colors.grey.shade300,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: isDark ? AppTheme.teal500 : AppTheme.primary600,
+            width: 2,
+          ),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
     );
   }
 
   Widget _buildCityDropdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Text(
-              'City',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-            ),
-            Text(
-              ' (Optional)',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: _selectedCity,
-          decoration: InputDecoration(
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            filled: true,
-            fillColor: Theme.of(context).brightness == Brightness.dark
-                ? AppTheme.navy700
-                : Colors.grey.shade50,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return DropdownButtonFormField<String>(
+      value: _selectedCity,
+      decoration: InputDecoration(
+        labelText: 'City',
+        prefixIcon: const Icon(Icons.location_city),
+        filled: true,
+        fillColor: isDark ? AppTheme.navy700 : Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: isDark ? AppTheme.navy700 : Colors.grey.shade300,
           ),
-          items: _cities.entries.map((entry) {
-            return DropdownMenuItem<String>(
-              value: entry.key,
-              child: Text(entry.value),
-            );
-          }).toList(),
-          onChanged: (value) => setState(() => _selectedCity = value),
         ),
-      ],
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: isDark ? AppTheme.navy700 : Colors.grey.shade300,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: isDark ? AppTheme.teal500 : AppTheme.primary600,
+            width: 2,
+          ),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+      items: _cities.entries.map((entry) {
+        return DropdownMenuItem<String>(
+          value: entry.key,
+          child: Text(entry.value),
+        );
+      }).toList(),
+      onChanged: (value) => setState(() => _selectedCity = value),
     );
   }
 
   Widget _buildDropdownField(String label, String? value, List<String> items, Function(String?) onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-            ),
-            Text(
-              ' (Optional)',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: value,
-          decoration: InputDecoration(
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            filled: true,
-            fillColor: Theme.of(context).brightness == Brightness.dark
-                ? AppTheme.navy700
-                : Colors.grey.shade50,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return DropdownButtonFormField<String>(
+      value: value,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: const Icon(Icons.school),
+        filled: true,
+        fillColor: isDark ? AppTheme.navy700 : Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: isDark ? AppTheme.navy700 : Colors.grey.shade300,
           ),
-          items: items.map((item) {
-            return DropdownMenuItem<String>(
-              value: item,
-              child: Text(item),
-            );
-          }).toList(),
-          onChanged: onChanged,
         ),
-      ],
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: isDark ? AppTheme.navy700 : Colors.grey.shade300,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: isDark ? AppTheme.teal500 : AppTheme.primary600,
+            width: 2,
+          ),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+      items: items.map((item) {
+        return DropdownMenuItem<String>(
+          value: item,
+          child: Text(_formatStudyingLevel(item)),
+        );
+      }).toList(),
+      onChanged: onChanged,
     );
   }
 
-  Widget _buildFilePicker(String label, File? file, String fieldName) {
-    final validation = _documentValidation[fieldName];
+  Widget _buildImagePicker(String field, File? file, String label, {bool isCircular = false}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final validation = _documentValidation[field];
+    final isChecking = validation?['loading'] == true;
     final isValid = validation?['isValid'];
-    final isLoading = validation?['loading'] == true;
-    final message = validation?['message'];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+    final needsValidation = field != 'profile_image';
+    
+    // Determine border color based on validation state
+    Color borderColor;
+    if (file == null) {
+      borderColor = isDark ? AppTheme.navy700 : Colors.grey.shade300;
+    } else if (needsValidation && isValid == false) {
+      borderColor = Colors.red;
+    } else if (needsValidation && isValid == true) {
+      borderColor = Colors.green;
+    } else {
+      borderColor = isDark ? AppTheme.teal500 : AppTheme.primary600;
+    }
+    
+    return GestureDetector(
+      onTap: () => _pickImage(field),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.white70 : Colors.grey.shade600,
             ),
-            Text(
-              ' (Optional)',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: () => _pickImage(fieldName),
-          child: Container(
-            padding: const EdgeInsets.all(12),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            height: isCircular ? 150 : 120,
+            width: isCircular ? 150 : null,
             decoration: BoxDecoration(
+              color: isDark ? AppTheme.navy700 : Colors.white,
+              borderRadius: BorderRadius.circular(isCircular ? 75 : 12),
               border: Border.all(
-                color: isValid == false
-                    ? Colors.red
-                    : isValid == true
-                        ? Colors.green
-                        : Colors.grey,
+                color: borderColor,
+                width: file != null ? 2 : 1,
               ),
-              borderRadius: BorderRadius.circular(8),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.upload_file,
-                  color: isValid == false
-                      ? Colors.red
-                      : isValid == true
-                          ? Colors.green
-                          : Colors.grey,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    file?.path.split('/').last ?? 'Choose file to update',
-                    style: TextStyle(
-                      color: file != null ? Colors.black87 : Colors.grey,
+            child: file != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(isCircular ? 75 : 12),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.file(file, fit: BoxFit.cover),
+                        // Validation indicator
+                        Positioned(
+                          bottom: 8,
+                          right: 8,
+                          child: isChecking
+                              ? Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.blue,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  ),
+                                )
+                              : needsValidation
+                                  ? Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: isValid == true
+                                            ? Colors.green
+                                            : (isValid == false
+                                                ? Colors.red
+                                                : Colors.green),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        isValid == true
+                                            ? Icons.check
+                                            : (isValid == false
+                                                ? Icons.close
+                                                : Icons.check),
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    )
+                                  : Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.green,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ),
+                        ),
+                      ],
                     ),
-                  ),
-                ),
-                if (isLoading)
-                  const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                else if (isValid == true)
-                  const Icon(Icons.check_circle, color: Colors.green, size: 20)
-                else if (isValid == false)
-                  const Icon(Icons.error, color: Colors.red, size: 20),
-              ],
-            ),
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 32,
+                        color: isDark ? AppTheme.navy400 : Colors.grey.shade400,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tap to upload',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? AppTheme.navy400 : Colors.grey.shade600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
           ),
-        ),
-        if (message != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              message,
-              style: TextStyle(
-                fontSize: 12,
-                color: isValid == true ? Colors.green : Colors.red,
+          if (needsValidation && validation?['message'] != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                validation!['message'],
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isValid == true ? Colors.green : Colors.red,
+                ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: isDark ? AppTheme.navy900 : const Color(0xFFF9FAFB),
       appBar: AppBar(
-        title: const Text('Edit Student Profile'),
+        title: const Text('Edit Profile'),
         elevation: 0,
+        backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -531,111 +623,253 @@ class _StudentEditProfilePageState extends State<StudentEditProfilePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Update your student information',
-                style: theme.textTheme.bodyMedium,
+              // Header Card
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppTheme.primary600, AppTheme.teal500],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.edit,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Edit Student Profile',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Update your information and documents',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 24),
-              
-              // Text Fields
-              Builder(
-                builder: (context) {
-                  final screenWidth = MediaQuery.of(context).size.width;
-                  final isSmallScreen = screenWidth < 600;
-                  final crossAxisCount = isSmallScreen ? 1 : 2;
-                  
-                  return GridView.count(
-                    crossAxisCount: crossAxisCount,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: isSmallScreen ? 2.5 : 1.3,
-                    children: [
-                      _buildTextField('First Name', _firstNameController),
-                      _buildTextField('Last Name', _lastNameController),
-                      _buildCityDropdown(),
-                      _buildTextField('Phone Number', _phoneController),
-                    ],
-                  );
-                },
+
+              // Personal Information Section
+              _buildSectionCard(
+                context,
+                'Personal Information',
+                Icons.person,
+                [
+                  _buildTextField('First Name', _firstNameController, icon: Icons.badge),
+                  const SizedBox(height: 16),
+                  _buildTextField('Last Name', _lastNameController, icon: Icons.badge),
+                  const SizedBox(height: 16),
+                  _buildCityDropdown(),
+                  const SizedBox(height: 16),
+                  _buildTextField('Phone Number', _phoneController, icon: Icons.phone),
+                  const SizedBox(height: 16),
+                  _buildTextField('About', _aboutController, maxLines: 3, icon: Icons.description),
+                ],
               ),
               const SizedBox(height: 16),
-              _buildTextField('About', _aboutController, maxLines: 3),
-              const SizedBox(height: 16),
-              
-              // Student Specific Fields
-              Text(
+
+              // Student Information Section
+              _buildSectionCard(
+                context,
                 'Student Information',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              _buildDropdownField(
-                'Studying Level',
-                _selectedStudyingLevel,
-                _studyingLevels,
-                (value) => setState(() => _selectedStudyingLevel = value),
-              ),
-              const SizedBox(height: 24),
-              
-              // File Upload Fields
-              Text(
-                'Update Documents',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Only upload files you want to update',
-                style: theme.textTheme.bodySmall,
+                Icons.school,
+                [
+                  _buildDropdownField(
+                    'Studying Level',
+                    _selectedStudyingLevel,
+                    _studyingLevels,
+                    (value) => setState(() => _selectedStudyingLevel = value),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    'Interesting Keywords',
+                    _interestingKeywordsController,
+                    icon: Icons.tag,
+                    hint: 'e.g., programming, mathematics, physics',
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
-              Builder(
-                builder: (context) {
-                  final screenWidth = MediaQuery.of(context).size.width;
-                  final isSmallScreen = screenWidth < 600;
-                  final crossAxisCount = isSmallScreen ? 1 : 2;
-                  
-                  return GridView.count(
-                    crossAxisCount: crossAxisCount,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: isSmallScreen ? 2.0 : 1.2,
+
+              // Guardian Information Section
+              _buildSectionCard(
+                context,
+                'Guardian Information',
+                Icons.family_restroom,
+                [
+                  _buildTextField(
+                    'Guardian Phone',
+                    _responsiblePhoneController,
+                    icon: Icons.phone_android,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    'Guardian Email',
+                    _responsibleEmailController,
+                    icon: Icons.email,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Documents Section
+              _buildSectionCard(
+                context,
+                'Update Documents',
+                Icons.folder,
+                [
+                  Text(
+                    'Only upload files you want to update',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: isDark ? Colors.white70 : Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Profile Image
+                  _buildImagePicker('profile_image', _profileImage, 'Profile Image', isCircular: true),
+                  const SizedBox(height: 16),
+                  // ID Card
+                  Row(
                     children: [
-                      _buildFilePicker('Profile Image', _profileImage, 'profile_image'),
-                      _buildFilePicker('ID Card Front', _idcardFront, 'idcard_front'),
-                      _buildFilePicker('ID Card Back', _idcardBack, 'idcard_back'),
-                      _buildFilePicker('Residence Front', _residenceFront, 'residence_front'),
-                      _buildFilePicker('Residence Back', _residenceBack, 'residence_back'),
+                      Expanded(
+                        child: _buildImagePicker('idcard_front', _idcardFront, 'ID Card Front'),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildImagePicker('idcard_back', _idcardBack, 'ID Card Back'),
+                      ),
                     ],
-                  );
-                },
+                  ),
+                  const SizedBox(height: 16),
+                  // Residence Card
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildImagePicker('residence_front', _residenceFront, 'Residence Front'),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildImagePicker('residence_back', _residenceBack, 'Residence Back'),
+                      ),
+                    ],
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
-              
+
               // Submit Button
               SizedBox(
                 width: double.infinity,
+                height: 56,
                 child: ElevatedButton(
                   onPressed: (_isSubmitting || _isValidating) ? null : _submitEdit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.teal500,
+                    backgroundColor: isDark ? AppTheme.teal500 : AppTheme.primary600,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
                   ),
                   child: _isSubmitting
                       ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
                         )
-                      : const Text('Update Profile'),
+                      : const Text(
+                          'Update Profile',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionCard(BuildContext context, String title, IconData icon, List<Widget> children) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.navy800 : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppTheme.navy700 : Colors.grey.shade200,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: (isDark ? AppTheme.teal500 : AppTheme.primary600).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: isDark ? AppTheme.teal400 : AppTheme.primary600,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : AppTheme.navy900,
                 ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 20),
+          ...children,
+        ],
       ),
     );
   }

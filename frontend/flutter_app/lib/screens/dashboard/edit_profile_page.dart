@@ -156,8 +156,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       );
 
       if (mounted) {
-        final isValid = result['is_document'] == true;
-        final percentage = result['document_percentage'] ?? 0.0;
+        final percentage = (result['document_percentage'] ?? 0.0) as num;
+        final isValid = percentage >= 60;
 
         setState(() {
           _documentValidation[fieldName] = {

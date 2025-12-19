@@ -397,7 +397,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                               : 'Tap to view details',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey.shade600,
+                            color: isDark ? Colors.white70 : Colors.grey.shade600,
                           ),
                         ),
                       ],
@@ -407,7 +407,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                     _isCourseInfoExpanded
                         ? Icons.expand_less
                         : Icons.expand_more,
-                    color: Colors.grey.shade600,
+                    color: isDark ? Colors.white70 : Colors.grey.shade600,
                   ),
                 ],
               ),
@@ -464,6 +464,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                     _courseDetails!['level']?.toString().toUpperCase() ?? 'N/A',
                     Icons.school,
                     _getLevelColor(_courseDetails!['level']),
+                    isDark,
                   ),
                   const SizedBox(height: 12),
                   _buildInfoRow(
@@ -471,6 +472,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                     '\$${_courseDetails!['price'] ?? '0.00'}',
                     Icons.attach_money,
                     AppTheme.primary600,
+                    isDark,
                   ),
                   const SizedBox(height: 12),
                   _buildInfoRow(
@@ -478,6 +480,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                     _formatDate(_courseDetails!['starting_date']),
                     Icons.calendar_today,
                     Colors.blue,
+                    isDark,
                   ),
                   const SizedBox(height: 12),
                   _buildInfoRow(
@@ -485,6 +488,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                     _formatDate(_courseDetails!['ending_date']),
                     Icons.event,
                     Colors.red,
+                    isDark,
                   ),
                   if (_courseDetails!['days'] != null &&
                       (_courseDetails!['days'] as List).isNotEmpty) ...[
@@ -496,6 +500,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                           .join(', '),
                       Icons.calendar_view_week,
                       Colors.purple,
+                      isDark,
                     ),
                   ],
                   if (_courseDetails!['start_time'] != null &&
@@ -506,6 +511,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                       '${_formatTime(_courseDetails!['start_time'])} - ${_formatTime(_courseDetails!['end_time'])}',
                       Icons.access_time,
                       Colors.orange,
+                      isDark,
                     ),
                   ],
                   if (_courseDetails!['lecturer_name'] != null) ...[
@@ -515,6 +521,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                       _courseDetails!['lecturer_name'],
                       Icons.person,
                       Colors.teal,
+                      isDark,
                     ),
                   ],
                   if (_courseDetails!['institution_name'] != null) ...[
@@ -524,6 +531,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                       _courseDetails!['institution_name'],
                       Icons.business,
                       AppTheme.primary600,
+                      isDark,
                     ),
                   ],
                 ],
@@ -540,6 +548,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
     String value,
     IconData icon,
     Color color,
+    bool isDark,
   ) {
     return Row(
       children: [
@@ -553,7 +562,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey.shade600,
+                  color: isDark ? Colors.white70 : Colors.grey.shade600,
                 ),
               ),
               const SizedBox(height: 2),
@@ -645,6 +654,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                                 child: _buildStatBox(
                                   'Total Lectures',
                                   '${_attendanceData!['total_lectures'] ?? 0}',
+                                  isDark,
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -652,6 +662,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                                 child: _buildStatBox(
                                   'Attendance Rate',
                                   '${((_attendanceData!['attendance_percentage'] ?? 0) as num).toStringAsFixed(1)}%',
+                                  isDark,
                                   color: _getAttendancePercentageColor(
                                     _attendanceData!['attendance_percentage'] ??
                                         0,
@@ -843,7 +854,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                           if (_gradesData!['grades'] != null &&
                               (_gradesData!['grades'] as List).isNotEmpty)
                             ...(_gradesData!['grades'] as List)
-                                .map((grade) => _buildGradeRecord(grade))
+                                .map((grade) => _buildGradeRecord(grade, isDark))
                                 .toList()
                           else
                             const Center(
@@ -934,6 +945,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                                 child: _buildStatBox(
                                   'Completed Lectures',
                                   '${_progressData!['completed_lectures'] ?? 0}',
+                                  isDark,
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -941,6 +953,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                                 child: _buildStatBox(
                                   'Total Lectures',
                                   '${_progressData!['total_lectures'] ?? 0}',
+                                  isDark,
                                 ),
                               ),
                             ],
@@ -985,11 +998,11 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
     );
   }
 
-  Widget _buildStatBox(String label, String value, {Color? color}) {
+  Widget _buildStatBox(String label, String value, bool isDark, {Color? color}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: isDark ? AppTheme.navy700 : Colors.grey.shade100,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -998,7 +1011,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
             label,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.grey.shade600,
+              color: isDark ? Colors.white70 : Colors.grey.shade600,
             ),
           ),
           const SizedBox(height: 4),
@@ -1103,7 +1116,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
     );
   }
 
-  Widget _buildGradeRecord(Map<String, dynamic> grade) {
+  Widget _buildGradeRecord(Map<String, dynamic> grade, bool isDark) {
     final score = grade['score'] as num? ?? 0;
     final maxScore = grade['max_score'] as num? ?? 100;
     final percentage = (score / maxScore) * 100;
@@ -1113,7 +1126,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: isDark ? AppTheme.navy700 : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -1133,7 +1146,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                     _formatDate(grade['exam_date']),
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.grey.shade600,
+                      color: isDark ? Colors.white70 : Colors.grey.shade600,
                     ),
                   ),
               ],
@@ -1154,7 +1167,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                 '${percentage.toStringAsFixed(1)}%',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey.shade600,
+                  color: isDark ? Colors.white70 : Colors.grey.shade600,
                 ),
               ),
             ],

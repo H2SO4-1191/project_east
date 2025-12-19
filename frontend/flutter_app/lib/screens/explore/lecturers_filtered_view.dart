@@ -632,6 +632,8 @@ class _LecturersFilteredViewState extends State<LecturersFilteredView> {
                         padding: const EdgeInsets.all(16),
                         itemCount: _lecturers.length,
                         itemBuilder: (context, index) {
+                          final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                          final userType = authProvider.instituteData['userType'];
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: LecturerCard(
@@ -639,6 +641,7 @@ class _LecturersFilteredViewState extends State<LecturersFilteredView> {
                               isMarked: _markedLecturers.contains(_lecturers[index]['id']),
                               onTap: () => _handleProfileTap(_lecturers[index]),
                               onMark: () => _handleMarkLecturer(_lecturers[index]),
+                              showMarkButton: userType == 'institution',
                             )
                                 .animate()
                                 .fadeIn(

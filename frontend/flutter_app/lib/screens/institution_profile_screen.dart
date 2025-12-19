@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../services/explore_service.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/language_switcher.dart';
+import '../widgets/full_screen_image_viewer.dart';
 
 class InstitutionProfileScreen extends StatefulWidget {
   final String username;
@@ -183,6 +184,18 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
     return '$baseUrl$cleanPath';
   }
   
+  bool _isAccountUnverified() {
+    if (_profile == null) return false;
+    
+    // Simple check: if endpoint doesn't return a "description" (about), account is not verified
+    final description = _profile!['about'] ?? _profile!['description'];
+    if (description == null || description.toString().trim().isEmpty) {
+      return true;
+    }
+    
+    return false;
+  }
+
   List<String> _getPostImages(dynamic post) {
     final List<String> images = [];
     
@@ -282,44 +295,83 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
+                  // Verification Status Label
+                  if (_isAccountUnverified())
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'This account is not verified yet. Limited information is available.',
+                              style: TextStyle(
+                                color: Colors.orange.shade700,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   // Profile Header (Instagram-like)
                   Row(
                     children: [
                       // Profile Image
-                      Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isDark ? AppTheme.navy700 : Colors.grey.shade300,
-                            width: 3,
+                      GestureDetector(
+                        onTap: profileImageUrl != null
+                            ? () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => FullScreenImageViewer(imageUrl: profileImageUrl),
+                                    fullscreenDialog: true,
+                                  ),
+                                );
+                              }
+                            : null,
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isDark ? AppTheme.navy700 : Colors.grey.shade300,
+                              width: 3,
+                            ),
+                            image: profileImageUrl != null
+                                ? DecorationImage(
+                                    image: NetworkImage(profileImageUrl),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
                           ),
-                          image: profileImageUrl != null
-                              ? DecorationImage(
-                                  image: NetworkImage(profileImageUrl),
-                                  fit: BoxFit.cover,
+                          child: profileImageUrl == null
+                              ? Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppTheme.primary600,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      name.isNotEmpty ? name[0].toUpperCase() : 'I',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 40,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                                 )
                               : null,
                         ),
-                        child: profileImageUrl == null
-                            ? Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: AppTheme.primary600,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    name[0].toUpperCase(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 40,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              )
-                            : null,
                       ),
                       const SizedBox(width: 20),
                       // Stats
@@ -946,7 +998,9 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                           color: AppTheme.primary600,
                           child: Center(
                             child: Text(
-                              (course['title'] ?? 'C')[0].toUpperCase(),
+                              ((course['title'] ?? 'C') as String).isNotEmpty 
+                                  ? (course['title'] ?? 'C')[0].toUpperCase() 
+                                  : 'C',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 64,
@@ -1810,29 +1864,39 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
             Stack(
               children: [
                 if (postImages.isNotEmpty)
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                    child: Image.network(
-                      postImages[0],
-                      height: 300,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          height: 300,
-                          color: AppTheme.primary600,
-                          child: Center(
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => FullScreenImageViewer(imageUrl: postImages[0]),
+                          fullscreenDialog: true,
+                        ),
+                      );
+                    },
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                      child: Image.network(
+                        postImages[0],
+                        height: 300,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 300,
+                            color: AppTheme.primary600,
+                            child: Center(
                             child: Text(
-                              title[0].toUpperCase(),
+                              title.isNotEmpty ? title[0].toUpperCase() : 'P',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 64,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ),
-                        );
-                      },
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   )
                 else
@@ -1843,14 +1907,14 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                     ),
                     child: Center(
-                      child: Text(
-                        title[0].toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 64,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                            child: Text(
+                              title.isNotEmpty ? title[0].toUpperCase() : 'P',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 64,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
                 // Image indicator if multiple images
@@ -1952,24 +2016,34 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                           itemCount: postImages.length - 1,
                           itemBuilder: (context, index) {
                             final imgIndex = index + 1;
-                            return Container(
-                              margin: const EdgeInsets.only(right: 8),
-                              width: 100,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey.shade300),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  postImages[imgIndex],
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Container(
-                                      color: Colors.grey.shade200,
-                                      child: const Icon(Icons.broken_image),
-                                    );
-                                  },
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => FullScreenImageViewer(imageUrl: postImages[imgIndex]),
+                                    fullscreenDialog: true,
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                margin: const EdgeInsets.only(right: 8),
+                                width: 100,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    postImages[imgIndex],
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: Colors.grey.shade200,
+                                        child: const Icon(Icons.broken_image),
+                                      );
+                                    },
+                                  ),
                                 ),
                               ),
                             );

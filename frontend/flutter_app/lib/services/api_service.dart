@@ -308,6 +308,12 @@ class ApiService {
     Function(Map<String, dynamic>)? onTokenRefreshed,
     Function()? onSessionExpired,
   }) async {
+    print('🔵 [API DEBUG] verifyInstitution: Starting request...');
+    print('   - URL: $baseUrl/institution/verify/');
+    print('   - Method: PUT');
+    print('   - Access token present: ${accessToken.isNotEmpty}');
+    print('   - Refresh token present: ${refreshToken != null && refreshToken.isNotEmpty}');
+    
     try {
       final request = http.MultipartRequest(
         'PUT',
@@ -315,43 +321,145 @@ class ApiService {
       );
 
       request.headers['Authorization'] = 'Bearer $accessToken';
+      print('   - Authorization header set');
 
       // Add text fields
-      if (payload['title'] != null) request.fields['title'] = payload['title'].toString();
-      if (payload['location'] != null) request.fields['location'] = payload['location'].toString();
-      if (payload['phone_number'] != null) request.fields['phone_number'] = payload['phone_number'].toString();
-      if (payload['about'] != null) request.fields['about'] = payload['about'].toString();
-      if (payload['up_time'] != null) request.fields['up_time'] = payload['up_time'].toString();
-      if (payload['up_days'] != null) request.fields['up_days'] = payload['up_days'].toString();
+      int fieldCount = 0;
+      if (payload['title'] != null) {
+        request.fields['title'] = payload['title'].toString();
+        fieldCount++;
+        print('   - Added field: title = ${payload['title']}');
+      }
+      if (payload['location'] != null) {
+        request.fields['location'] = payload['location'].toString();
+        fieldCount++;
+        print('   - Added field: location = ${payload['location']}');
+      }
+      if (payload['phone_number'] != null) {
+        request.fields['phone_number'] = payload['phone_number'].toString();
+        fieldCount++;
+        print('   - Added field: phone_number = ${payload['phone_number']}');
+      }
+      if (payload['about'] != null) {
+        request.fields['about'] = payload['about'].toString();
+        fieldCount++;
+        print('   - Added field: about = ${payload['about']}');
+      }
+      if (payload['up_time'] != null) {
+        request.fields['up_time'] = payload['up_time'].toString();
+        fieldCount++;
+        print('   - Added field: up_time = ${payload['up_time']}');
+      }
+      if (payload['up_days'] != null) {
+        request.fields['up_days'] = payload['up_days'].toString();
+        fieldCount++;
+        print('   - Added field: up_days = ${payload['up_days']}');
+      }
+      print('   - Total text fields: $fieldCount');
 
       // Add file fields
+      int fileCount = 0;
       if (payload['profile_image'] != null && payload['profile_image'] is File) {
-        request.files.add(await http.MultipartFile.fromPath('profile_image', (payload['profile_image'] as File).path));
+        final file = payload['profile_image'] as File;
+        final fileExists = await file.exists();
+        print('   - Profile image file exists: $fileExists, path: ${file.path}');
+        if (fileExists) {
+          request.files.add(await http.MultipartFile.fromPath('profile_image', file.path));
+          fileCount++;
+          print('   - Added file: profile_image');
+        } else {
+          print('   - ⚠️ WARNING: Profile image file does not exist!');
+        }
+      } else {
+        print('   - ⚠️ Profile image is null or not a File: ${payload['profile_image']?.runtimeType}');
       }
+      
       if (payload['idcard_front'] != null && payload['idcard_front'] is File) {
-        request.files.add(await http.MultipartFile.fromPath('idcard_front', (payload['idcard_front'] as File).path));
+        final file = payload['idcard_front'] as File;
+        final fileExists = await file.exists();
+        print('   - ID card front file exists: $fileExists, path: ${file.path}');
+        if (fileExists) {
+          request.files.add(await http.MultipartFile.fromPath('idcard_front', file.path));
+          fileCount++;
+          print('   - Added file: idcard_front');
+        } else {
+          print('   - ⚠️ WARNING: ID card front file does not exist!');
+        }
+      } else {
+        print('   - ⚠️ ID card front is null or not a File: ${payload['idcard_front']?.runtimeType}');
       }
+      
       if (payload['idcard_back'] != null && payload['idcard_back'] is File) {
-        request.files.add(await http.MultipartFile.fromPath('idcard_back', (payload['idcard_back'] as File).path));
+        final file = payload['idcard_back'] as File;
+        final fileExists = await file.exists();
+        print('   - ID card back file exists: $fileExists, path: ${file.path}');
+        if (fileExists) {
+          request.files.add(await http.MultipartFile.fromPath('idcard_back', file.path));
+          fileCount++;
+          print('   - Added file: idcard_back');
+        } else {
+          print('   - ⚠️ WARNING: ID card back file does not exist!');
+        }
+      } else {
+        print('   - ⚠️ ID card back is null or not a File: ${payload['idcard_back']?.runtimeType}');
       }
+      
       if (payload['residence_front'] != null && payload['residence_front'] is File) {
-        request.files.add(await http.MultipartFile.fromPath('residence_front', (payload['residence_front'] as File).path));
+        final file = payload['residence_front'] as File;
+        final fileExists = await file.exists();
+        print('   - Residence front file exists: $fileExists, path: ${file.path}');
+        if (fileExists) {
+          request.files.add(await http.MultipartFile.fromPath('residence_front', file.path));
+          fileCount++;
+          print('   - Added file: residence_front');
+        } else {
+          print('   - ⚠️ WARNING: Residence front file does not exist!');
+        }
+      } else {
+        print('   - ⚠️ Residence front is null or not a File: ${payload['residence_front']?.runtimeType}');
       }
+      
       if (payload['residence_back'] != null && payload['residence_back'] is File) {
-        request.files.add(await http.MultipartFile.fromPath('residence_back', (payload['residence_back'] as File).path));
+        final file = payload['residence_back'] as File;
+        final fileExists = await file.exists();
+        print('   - Residence back file exists: $fileExists, path: ${file.path}');
+        if (fileExists) {
+          request.files.add(await http.MultipartFile.fromPath('residence_back', file.path));
+          fileCount++;
+          print('   - Added file: residence_back');
+        } else {
+          print('   - ⚠️ WARNING: Residence back file does not exist!');
+        }
+      } else {
+        print('   - ⚠️ Residence back is null or not a File: ${payload['residence_back']?.runtimeType}');
       }
+      
+      print('   - Total files: $fileCount');
+      print('   - Total request fields: ${request.fields.length}');
+      print('   - Total request files: ${request.files.length}');
 
+      print('🔵 [API DEBUG] verifyInstitution: Sending request...');
       var response = await request.send();
+      print('   - Response status code: ${response.statusCode}');
+      print('   - Response headers: ${response.headers}');
+      
       final responseBody = await response.stream.bytesToString();
+      print('   - Response body length: ${responseBody.length}');
+      print('   - Response body: $responseBody');
+      
       final data = _parseResponse(responseBody);
+      print('   - Parsed response data: $data');
 
       // Handle token refresh on 401
       if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        print('🟡 [API DEBUG] verifyInstitution: Received 401, attempting token refresh...');
         try {
           final refreshed = await refreshAccessToken(refreshToken);
+          print('   - Token refresh successful');
           onTokenRefreshed(refreshed);
 
           // Retry request with new token
+          print('🔵 [API DEBUG] verifyInstitution: Retrying request with new token...');
           final retryRequest = http.MultipartRequest(
             'PUT',
             Uri.parse('$baseUrl/institution/verify/'),
@@ -361,15 +469,25 @@ class ApiService {
           retryRequest.files.addAll(request.files);
 
           response = await retryRequest.send();
+          print('   - Retry response status code: ${response.statusCode}');
+          
           final retryBody = await response.stream.bytesToString();
+          print('   - Retry response body: $retryBody');
+          
           final retryData = _parseResponse(retryBody);
+          print('   - Parsed retry response: $retryData');
 
           if (response.statusCode != 200) {
+            print('🔴 [API DEBUG] verifyInstitution: Retry failed with status ${response.statusCode}');
             throw _buildError(response.statusCode, retryData);
           }
 
+          print('✅ [API DEBUG] verifyInstitution: Retry successful');
           return retryData;
-        } catch (refreshError) {
+        } catch (refreshError, stackTrace) {
+          print('🔴 [API DEBUG] verifyInstitution: Token refresh failed');
+          print('   - Error: $refreshError');
+          print('   - Stack trace: $stackTrace');
           if (onSessionExpired != null) {
             onSessionExpired();
           }
@@ -381,14 +499,31 @@ class ApiService {
       }
 
       if (response.statusCode != 200) {
-        throw _buildError(response.statusCode, data);
+        print('🔴 [API DEBUG] verifyInstitution: Request failed with status ${response.statusCode}');
+        print('   - Error data: $data');
+        final error = _buildError(response.statusCode, data);
+        print('   - Built error message: ${error.message}');
+        throw error;
       }
 
+      print('✅ [API DEBUG] verifyInstitution: Request successful');
       return data;
-    } catch (e) {
-      if (e is ApiException) rethrow;
+    } catch (e, stackTrace) {
+      print('🔴 [API DEBUG] verifyInstitution: EXCEPTION OCCURRED');
+      print('   - Error type: ${e.runtimeType}');
+      print('   - Error message: ${e.toString()}');
+      print('   - Stack trace: $stackTrace');
+      
+      if (e is ApiException) {
+        print('   - API Exception status: ${e.status}');
+        print('   - API Exception message: ${e.message}');
+        print('   - API Exception data: ${e.data}');
+        rethrow;
+      }
+      
+      print('   - Throwing generic ApiException');
       throw ApiException(
-        message: 'Network error. Please check your connection and try again.',
+        message: 'Network error. Please check your connection and try again. Error: ${e.toString()}',
       );
     }
   }
@@ -586,6 +721,194 @@ class ApiService {
     }
   }
 
+  /// Verify student account
+  static Future<Map<String, dynamic>> verifyStudent({
+    required String accessToken,
+    String? refreshToken,
+    required Map<String, dynamic> payload,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'PUT',
+        Uri.parse('$baseUrl/student/verify/'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $accessToken';
+
+      // Add text fields
+      if (payload['phone_number'] != null) request.fields['phone_number'] = payload['phone_number'].toString();
+      if (payload['about'] != null) request.fields['about'] = payload['about'].toString();
+      if (payload['studying_level'] != null) request.fields['studying_level'] = payload['studying_level'].toString();
+
+      // Add file fields
+      if (payload['profile_image'] != null && payload['profile_image'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('profile_image', (payload['profile_image'] as File).path));
+      }
+      if (payload['idcard_front'] != null && payload['idcard_front'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('idcard_front', (payload['idcard_front'] as File).path));
+      }
+      if (payload['idcard_back'] != null && payload['idcard_back'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('idcard_back', (payload['idcard_back'] as File).path));
+      }
+      if (payload['residence_front'] != null && payload['residence_front'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('residence_front', (payload['residence_front'] as File).path));
+      }
+      if (payload['residence_back'] != null && payload['residence_back'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('residence_back', (payload['residence_back'] as File).path));
+      }
+
+      var response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      final data = _parseResponse(responseBody);
+
+      // Handle token refresh on 401
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+
+          // Retry request with new token
+          final retryRequest = http.MultipartRequest(
+            'PUT',
+            Uri.parse('$baseUrl/student/verify/'),
+          );
+          retryRequest.headers['Authorization'] = 'Bearer ${refreshed['access']}';
+          retryRequest.fields.addAll(request.fields);
+          for (final file in request.files) {
+            retryRequest.files.add(await http.MultipartFile.fromPath(file.field, file.filename ?? ''));
+          }
+
+          response = await retryRequest.send();
+          final retryBody = await response.stream.bytesToString();
+          final retryData = _parseResponse(retryBody);
+
+          if (response.statusCode != 200) {
+            throw _buildError(response.statusCode, retryData);
+          }
+
+          return retryData;
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      if (response.statusCode != 200) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
+  /// Verify lecturer account
+  static Future<Map<String, dynamic>> verifyLecturer({
+    required String accessToken,
+    String? refreshToken,
+    required Map<String, dynamic> payload,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'PUT',
+        Uri.parse('$baseUrl/lecturer/verify/'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $accessToken';
+
+      // Add text fields
+      if (payload['phone_number'] != null) request.fields['phone_number'] = payload['phone_number'].toString();
+      if (payload['about'] != null) request.fields['about'] = payload['about'].toString();
+      if (payload['academic_achievement'] != null) request.fields['academic_achievement'] = payload['academic_achievement'].toString();
+      if (payload['specialty'] != null) request.fields['specialty'] = payload['specialty'].toString();
+      if (payload['skills'] != null) request.fields['skills'] = payload['skills'].toString();
+      if (payload['experience'] != null) request.fields['experience'] = payload['experience'].toString();
+      if (payload['free_time'] != null) request.fields['free_time'] = payload['free_time'].toString();
+
+      // Add file fields
+      if (payload['profile_image'] != null && payload['profile_image'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('profile_image', (payload['profile_image'] as File).path));
+      }
+      if (payload['idcard_front'] != null && payload['idcard_front'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('idcard_front', (payload['idcard_front'] as File).path));
+      }
+      if (payload['idcard_back'] != null && payload['idcard_back'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('idcard_back', (payload['idcard_back'] as File).path));
+      }
+      if (payload['residence_front'] != null && payload['residence_front'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('residence_front', (payload['residence_front'] as File).path));
+      }
+      if (payload['residence_back'] != null && payload['residence_back'] is File) {
+        request.files.add(await http.MultipartFile.fromPath('residence_back', (payload['residence_back'] as File).path));
+      }
+
+      var response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      final data = _parseResponse(responseBody);
+
+      // Handle token refresh on 401
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+
+          // Retry request with new token
+          final retryRequest = http.MultipartRequest(
+            'PUT',
+            Uri.parse('$baseUrl/lecturer/verify/'),
+          );
+          retryRequest.headers['Authorization'] = 'Bearer ${refreshed['access']}';
+          retryRequest.fields.addAll(request.fields);
+          for (final file in request.files) {
+            retryRequest.files.add(await http.MultipartFile.fromPath(file.field, file.filename ?? ''));
+          }
+
+          response = await retryRequest.send();
+          final retryBody = await response.stream.bytesToString();
+          final retryData = _parseResponse(retryBody);
+
+          if (response.statusCode != 200) {
+            throw _buildError(response.statusCode, retryData);
+          }
+
+          return retryData;
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      if (response.statusCode != 200) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
   /// Edit student profile
   static Future<Map<String, dynamic>> editStudentProfile({
     required String accessToken,
@@ -609,6 +932,9 @@ class ApiService {
       if (payload['phone_number'] != null) request.fields['phone_number'] = payload['phone_number'].toString();
       if (payload['about'] != null) request.fields['about'] = payload['about'].toString();
       if (payload['studying_level'] != null) request.fields['studying_level'] = payload['studying_level'].toString();
+      if (payload['interesting_keywords'] != null) request.fields['interesting_keywords'] = payload['interesting_keywords'].toString();
+      if (payload['responsible_phone'] != null) request.fields['responsible_phone'] = payload['responsible_phone'].toString();
+      if (payload['responsible_email'] != null) request.fields['responsible_email'] = payload['responsible_email'].toString();
 
       // Add file fields (only if provided)
       if (payload['profile_image'] != null && payload['profile_image'] is File) {

@@ -13,6 +13,7 @@ import 'screens/signup_lecturer_screen.dart';
 import 'screens/account_type_selection_screen.dart';
 import 'screens/otp_screen.dart';
 import 'screens/explore_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'widgets/main_navigation_wrapper.dart';
 import 'screens/lecturer/lecturer_courses_screen.dart';
@@ -29,10 +30,15 @@ import 'screens/lecturer/my_profile_screen.dart';
 import 'screens/lecturer/edit_profile_page.dart';
 import 'screens/student/my_profile_screen.dart';
 import 'screens/student/edit_profile_page.dart';
+import 'screens/student/verify_screen.dart';
+import 'screens/lecturer/verify_screen.dart';
+import 'screens/institution/verify_screen.dart';
 import 'widgets/protected_route.dart';
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool showOnboarding;
+
+  const MyApp({super.key, this.showOnboarding = false});
 
   @override
   Widget build(BuildContext context) {
@@ -86,9 +92,10 @@ class MyApp extends StatelessWidget {
             ),
           ),
           themeMode: themeProvider.isDark ? ThemeMode.dark : ThemeMode.light,
-          initialRoute: '/',
+          initialRoute: showOnboarding ? '/onboarding' : '/',
           routes: {
             '/': (context) => const MainNavigationWrapper(),
+            '/onboarding': (context) => const OnboardingScreen(),
             '/home': (context) => const HomeScreen(),
             '/login': (context) => const LoginScreen(),
             '/signup': (context) => const SignupScreen(),
@@ -160,6 +167,9 @@ class MyApp extends StatelessWidget {
             '/lecturer/edit-profile': (context) => const LecturerEditProfilePage(),
             '/student/my-profile': (context) => const StudentMyProfileScreen(),
             '/student/edit-profile': (context) => const StudentEditProfilePage(),
+            '/student/verify': (context) => const StudentVerifyScreen(),
+            '/lecturer/verify': (context) => const LecturerVerifyScreen(),
+            '/institution/verify': (context) => const InstitutionVerifyScreen(),
             '/institution-profile': (context) {
               final args = ModalRoute.of(context)!.settings.arguments;
               return InstitutionProfileScreen(

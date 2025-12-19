@@ -217,10 +217,12 @@ class _OTPScreenState extends State<OTPScreen> {
               : 'Invalid verification code. Please try again.';
         });
         
+        final theme = Theme.of(context);
+        final isDarkMode = theme.brightness == Brightness.dark;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_error),
-            backgroundColor: Colors.red.shade600,
+            backgroundColor: isDarkMode ? AppTheme.navy800 : Colors.red.shade600,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -239,12 +241,14 @@ class _OTPScreenState extends State<OTPScreen> {
 
   void _handleResendCode() async {
     if (_email == null || _email!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Missing email. Please go back and request a new code.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+        final theme = Theme.of(context);
+        final isDarkMode = theme.brightness == Brightness.dark;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Missing email. Please go back and request a new code.'),
+            backgroundColor: isDarkMode ? AppTheme.navy800 : Colors.red.shade600,
+          ),
+        );
       Navigator.of(context).pushReplacementNamed('/login');
       return;
     }
@@ -282,10 +286,12 @@ class _OTPScreenState extends State<OTPScreen> {
             ? e.message 
             : 'Unable to resend the verification code. Please try again shortly.';
         
+        final theme = Theme.of(context);
+        final isDarkMode = theme.brightness == Brightness.dark;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
-            backgroundColor: Colors.red.shade600,
+            backgroundColor: isDarkMode ? AppTheme.navy800 : Colors.red.shade600,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -308,6 +314,7 @@ class _OTPScreenState extends State<OTPScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: isDark ? AppTheme.navy900 : const Color(0xFFF9FAFB),
       body: AnimatedBackground(
         child: SafeArea(
           child: Center(
@@ -419,19 +426,19 @@ class _OTPScreenState extends State<OTPScreen> {
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
                               color: isDark
-                                  ? const Color(0xFF243B53).withOpacity(0.8)
-                                  : Colors.white.withOpacity(0.8),
+                                  ? AppTheme.navy800.withOpacity(0.9)
+                                  : Colors.white.withOpacity(0.9),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: isDark
-                                    ? Colors.white.withOpacity(0.1)
+                                    ? AppTheme.navy700
                                     : Colors.white.withOpacity(0.3),
                                 width: 1.5,
                               ),
                               boxShadow: [
                                 BoxShadow(
                                   color: isDark
-                                      ? Colors.black.withOpacity(0.2)
+                                      ? Colors.black.withOpacity(0.3)
                                       : Colors.black.withOpacity(0.08),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),

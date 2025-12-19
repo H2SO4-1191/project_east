@@ -98,10 +98,12 @@ class _LoginScreenState extends State<LoginScreen> {
             }
           });
 
+          final theme = Theme.of(context);
+          final isDarkMode = theme.brightness == Brightness.dark;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Login failed. Please review the message below.'),
-              backgroundColor: Colors.red.shade600,
+              backgroundColor: isDarkMode ? AppTheme.navy800 : Colors.red.shade600,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -119,6 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: isDark ? AppTheme.navy900 : const Color(0xFFF9FAFB),
       body: AnimatedBackground(
         child: SafeArea(
           child: Center(
@@ -264,14 +267,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                     Container(
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
-                                        color: Colors.red.withOpacity(0.1),
-                                        border: Border.all(color: Colors.red.shade300),
+                                        color: isDark 
+                                            ? Colors.red.withOpacity(0.2)
+                                            : Colors.red.withOpacity(0.1),
+                                        border: Border.all(
+                                          color: isDark 
+                                              ? Colors.red.shade400
+                                              : Colors.red.shade300,
+                                        ),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
                                         _error,
                                         style: TextStyle(
-                                          color: Colors.red.shade700,
+                                          color: isDark 
+                                              ? Colors.red.shade300
+                                              : Colors.red.shade700,
                                           fontSize: 12,
                                         ),
                                       ),
@@ -283,8 +294,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                     Container(
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
-                                        color: Colors.amber.withOpacity(0.1),
-                                        border: Border.all(color: Colors.amber.shade300),
+                                        color: isDark 
+                                            ? AppTheme.gold500.withOpacity(0.2)
+                                            : Colors.amber.withOpacity(0.1),
+                                        border: Border.all(
+                                          color: isDark 
+                                              ? AppTheme.gold500.withOpacity(0.5)
+                                              : Colors.amber.shade300,
+                                        ),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Column(
@@ -293,7 +310,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                           Text(
                                             'Need an account? Start your institution signup.',
                                             style: TextStyle(
-                                              color: Colors.amber.shade800,
+                                              color: isDark 
+                                                  ? AppTheme.gold400
+                                                  : Colors.amber.shade800,
                                               fontSize: 12,
                                             ),
                                           ),
@@ -303,7 +322,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                               Navigator.pushNamed(context, '/signup');
                                             },
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.amber.shade600,
+                                              backgroundColor: isDark 
+                                                  ? AppTheme.gold500
+                                                  : Colors.amber.shade600,
                                               foregroundColor: Colors.white,
                                               padding: const EdgeInsets.symmetric(vertical: 8),
                                             ),

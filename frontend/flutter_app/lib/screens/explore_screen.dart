@@ -6,6 +6,7 @@ import '../config/theme.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/profile_button.dart';
 import '../widgets/category_card.dart';
+import '../widgets/full_screen_image_viewer.dart';
 import '../services/explore_service.dart';
 import '../services/api_service.dart';
 import '../services/profile_service.dart';
@@ -477,6 +478,7 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
               isMarked: false,
               onTap: () => _handleResultTap(item, itemType),
               onMark: () {}, // Not used in search results
+              showMarkButton: userType == 'institution',
             );
           case 'course':
             return CourseCard(
@@ -572,7 +574,7 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
                           Text(
                             institution['city'].toString(),
                             style: TextStyle(
-                              color: Colors.grey.shade600,
+                              color: isDark ? Colors.white70 : Colors.grey.shade600,
                               fontSize: 14,
                             ),
                           ),
@@ -687,16 +689,28 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.blue.withOpacity(0.1),
-                    backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
-                    child: imageUrl == null
-                        ? Text(
-                            displayName[0].toUpperCase(),
-                            style: const TextStyle(fontSize: 36, color: Colors.blue),
-                          )
+                  GestureDetector(
+                    onTap: imageUrl != null
+                        ? () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => FullScreenImageViewer(imageUrl: imageUrl),
+                                fullscreenDialog: true,
+                              ),
+                            );
+                          }
                         : null,
+                    child: CircleAvatar(
+                      radius: 50,
+                      backgroundColor: Colors.blue.withOpacity(0.1),
+                      backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
+                      child: imageUrl == null
+                          ? Text(
+                              displayName[0].toUpperCase(),
+                              style: const TextStyle(fontSize: 36, color: Colors.blue),
+                            )
+                          : null,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -781,16 +795,28 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: Colors.purple.withOpacity(0.1),
-                      backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
-                      child: imageUrl == null
-                          ? Text(
-                              displayName[0].toUpperCase(),
-                              style: const TextStyle(fontSize: 36, color: Colors.purple),
-                            )
+                    GestureDetector(
+                      onTap: imageUrl != null
+                          ? () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => FullScreenImageViewer(imageUrl: imageUrl),
+                                  fullscreenDialog: true,
+                                ),
+                              );
+                            }
                           : null,
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.purple.withOpacity(0.1),
+                        backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
+                        child: imageUrl == null
+                            ? Text(
+                                displayName[0].toUpperCase(),
+                                style: const TextStyle(fontSize: 36, color: Colors.purple),
+                              )
+                            : null,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -1071,16 +1097,28 @@ class StudentCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: AppTheme.primary600,
-                backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
-                child: imageUrl == null
-                    ? Text(
-                        (student['first_name'] ?? student['username'] ?? 'S')[0].toString().toUpperCase(),
-                        style: const TextStyle(color: Colors.white, fontSize: 20),
-                      )
+              GestureDetector(
+                onTap: imageUrl != null
+                    ? () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => FullScreenImageViewer(imageUrl: imageUrl),
+                            fullscreenDialog: true,
+                          ),
+                        );
+                      }
                     : null,
+                child: CircleAvatar(
+                  radius: 30,
+                  backgroundColor: AppTheme.primary600,
+                  backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
+                  child: imageUrl == null
+                      ? Text(
+                          (student['first_name'] ?? student['username'] ?? 'S')[0].toString().toUpperCase(),
+                          style: const TextStyle(color: Colors.white, fontSize: 20),
+                        )
+                      : null,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -1127,6 +1165,7 @@ class LecturerCard extends StatelessWidget {
   final bool isMarked;
   final VoidCallback onTap;
   final VoidCallback onMark;
+  final bool showMarkButton;
 
   const LecturerCard({
     super.key,
@@ -1134,6 +1173,7 @@ class LecturerCard extends StatelessWidget {
     required this.isMarked,
     required this.onTap,
     required this.onMark,
+    this.showMarkButton = false,
   });
 
   @override
@@ -1153,16 +1193,28 @@ class LecturerCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: AppTheme.primary600,
-                backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
-                child: imageUrl == null
-                    ? Text(
-                        (lecturer['first_name'] ?? lecturer['username'] ?? 'L')[0].toString().toUpperCase(),
-                        style: const TextStyle(color: Colors.white, fontSize: 20),
-                      )
+              GestureDetector(
+                onTap: imageUrl != null
+                    ? () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => FullScreenImageViewer(imageUrl: imageUrl),
+                            fullscreenDialog: true,
+                          ),
+                        );
+                      }
                     : null,
+                child: CircleAvatar(
+                  radius: 30,
+                  backgroundColor: AppTheme.primary600,
+                  backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
+                  child: imageUrl == null
+                      ? Text(
+                          (lecturer['first_name'] ?? lecturer['username'] ?? 'L')[0].toString().toUpperCase(),
+                          style: const TextStyle(color: Colors.white, fontSize: 20),
+                        )
+                      : null,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -1185,13 +1237,14 @@ class LecturerCard extends StatelessWidget {
                   ],
                 ),
               ),
-              IconButton(
-                icon: Icon(
-                  isMarked ? Icons.bookmark : Icons.bookmark_border,
-                  color: isMarked ? AppTheme.gold500 : Colors.grey,
+              if (showMarkButton)
+                IconButton(
+                  icon: Icon(
+                    isMarked ? Icons.bookmark : Icons.bookmark_border,
+                    color: isMarked ? AppTheme.gold500 : Colors.grey,
+                  ),
+                  onPressed: onMark,
                 ),
-                onPressed: onMark,
-              ),
             ],
           ),
         ),
@@ -1246,7 +1299,7 @@ class JobCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '@${job['institution_username']}',
-                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                  style: theme.textTheme.bodySmall?.copyWith(color: isDark ? Colors.white70 : Colors.grey.shade600),
                 ),
               ],
               if (job['description'] != null) ...[
@@ -1473,7 +1526,7 @@ class _CourseCardState extends State<CourseCard> {
                     Text(
                       widget.course['about'],
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey.shade600,
+                        color: isDark ? Colors.white70 : Colors.grey.shade600,
                         height: 1.5,
                       ),
                       maxLines: 2,
@@ -1508,7 +1561,7 @@ class _CourseCardState extends State<CourseCard> {
                                         'Start',
                                         style: TextStyle(
                                           fontSize: 10,
-                                          color: Colors.grey.shade600,
+                                          color: isDark ? Colors.white70 : Colors.grey.shade600,
                                         ),
                                       ),
                                       const SizedBox(height: 2),
@@ -1556,7 +1609,7 @@ class _CourseCardState extends State<CourseCard> {
                                         'End',
                                         style: TextStyle(
                                           fontSize: 10,
-                                          color: Colors.grey.shade600,
+                                          color: isDark ? Colors.white70 : Colors.grey.shade600,
                                         ),
                                       ),
                                       const SizedBox(height: 2),
@@ -1592,14 +1645,14 @@ class _CourseCardState extends State<CourseCard> {
                               Icon(
                                 Icons.school,
                                 size: 16,
-                                color: Colors.grey.shade600,
+                                color: isDark ? Colors.white70 : Colors.grey.shade600,
                               ),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
                                   widget.course['institution_name'] ?? widget.course['institution_username'] ?? widget.course['institution'] ?? '',
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: Colors.grey.shade600,
+                                    color: isDark ? Colors.white70 : Colors.grey.shade600,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,

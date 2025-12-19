@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/profile_button.dart';
+import '../widgets/full_screen_image_viewer.dart';
 import '../services/api_service.dart';
 import '../models/feed_item.dart';
 import '../services/profile_service.dart';
@@ -158,7 +159,7 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
                       Text(
                         'No feed items available',
                         style: theme.textTheme.bodyLarge?.copyWith(
-                          color: Colors.grey.shade600,
+                          color: isDark ? Colors.white70 : Colors.grey.shade600,
                         ),
                       ),
                     ],
@@ -289,7 +290,7 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
                         Text(
                           item.timestamp!,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.grey.shade600,
+                            color: isDark ? Colors.white70 : Colors.grey.shade600,
                           ),
                         ),
                     ],
@@ -613,7 +614,7 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
                       Text(
                         item.description!,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey.shade600,
+                          color: isDark ? Colors.white70 : Colors.grey.shade600,
                           height: 1.5,
                         ),
                         maxLines: 2,
@@ -915,7 +916,7 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
                           Text(
                             item.description!,
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey.shade600,
+                              color: isDark ? Colors.white70 : Colors.grey.shade600,
                               height: 1.5,
                             ),
                             maxLines: 2,
@@ -1012,13 +1013,13 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
                                       Icon(
                                         Icons.access_time,
                                         size: 16,
-                                        color: Colors.grey.shade600,
+                                        color: isDark ? Colors.white70 : Colors.grey.shade600,
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
                                         item.timestamp!,
                                         style: theme.textTheme.bodySmall?.copyWith(
-                                          color: Colors.grey.shade600,
+                                          color: isDark ? Colors.white70 : Colors.grey.shade600,
                                         ),
                                       ),
                                     ],
@@ -1261,7 +1262,7 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
                                     'Salary Offer',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey.shade600,
+                                      color: isDark ? Colors.white70 : Colors.grey.shade600,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
@@ -1295,7 +1296,7 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
                         job['description'],
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey.shade600,
+                          color: isDark ? Colors.white70 : Colors.grey.shade600,
                           height: 1.5,
                         ),
                       ),
@@ -1337,13 +1338,13 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
+                          Icon(Icons.calendar_today, size: 16, color: isDark ? Colors.white70 : Colors.grey.shade600),
                           const SizedBox(width: 8),
                           Text(
                             'Posted: ${_formatPostDate(job['created_at'])}',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade600,
+                              color: isDark ? Colors.white70 : Colors.grey.shade600,
                             ),
                           ),
                         ],
@@ -1567,7 +1568,7 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
                   label,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey.shade600,
+                    color: isDark ? Colors.white70 : Colors.grey.shade600,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -1697,7 +1698,7 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
                       if (profile['city'] != null)
                         Text(
                           profile['city'],
-                          style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                          style: theme.textTheme.bodySmall?.copyWith(color: isDark ? Colors.white70 : Colors.grey.shade600),
                         ),
                       Text(
                         type.toUpperCase(),
@@ -1737,22 +1738,25 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
       
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.network(
-            imageUrl,
-            width: double.infinity,
-            height: 300,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                height: 300,
-                color: Colors.grey.shade200,
-                child: const Center(
-                  child: Icon(Icons.broken_image, size: 48),
-                ),
-              );
-            },
+        child: GestureDetector(
+          onTap: () => _showFullScreenImage(context, imageUrl),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.network(
+              imageUrl,
+              width: double.infinity,
+              height: 300,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  height: 300,
+                  color: Colors.grey.shade200,
+                  child: const Center(
+                    child: Icon(Icons.broken_image, size: 48),
+                  ),
+                );
+              },
+            ),
           ),
         ),
       );
@@ -1781,22 +1785,34 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
             );
           }
           
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              imageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey.shade200,
-                  child: const Center(
-                    child: Icon(Icons.broken_image),
-                  ),
-                );
-              },
+          return GestureDetector(
+            onTap: () => _showFullScreenImage(context, imageUrl),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey.shade200,
+                    child: const Center(
+                      child: Icon(Icons.broken_image),
+                    ),
+                  );
+                },
+              ),
             ),
           );
         },
+      ),
+    );
+  }
+
+  void _showFullScreenImage(BuildContext context, String imageUrl) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => FullScreenImageViewer(imageUrl: imageUrl),
+        fullscreenDialog: true,
       ),
     );
   }

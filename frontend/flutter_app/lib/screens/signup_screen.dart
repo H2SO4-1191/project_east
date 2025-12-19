@@ -295,6 +295,11 @@ class _SignupScreenState extends State<SignupScreen> {
                   controller: _usernameController,
                   decoration: InputDecoration(
                     labelText: 'Username',
+                    helperText: '⚠️ Username cannot be changed later',
+                    helperStyle: TextStyle(
+                      color: Colors.orange.shade700,
+                      fontSize: 12,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),

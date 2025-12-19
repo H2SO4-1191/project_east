@@ -721,6 +721,7 @@ class _EnrollCourseScreenState extends State<EnrollCourseScreen> {
                   .join(', '),
               Icons.calendar_view_week,
               Colors.purple,
+              isDark,
             ),
             const SizedBox(height: 12),
           ],
@@ -731,6 +732,7 @@ class _EnrollCourseScreenState extends State<EnrollCourseScreen> {
               '${_formatTime(_courseDetails!['start_time'])} - ${_formatTime(_courseDetails!['end_time'])}',
               Icons.access_time,
               Colors.orange,
+              isDark,
             ),
         ],
       ),
@@ -786,6 +788,7 @@ class _EnrollCourseScreenState extends State<EnrollCourseScreen> {
               _courseDetails!['lecturer_name'],
               Icons.person_outline,
               Colors.teal,
+              isDark,
             ),
             const SizedBox(height: 12),
           ],
@@ -795,6 +798,7 @@ class _EnrollCourseScreenState extends State<EnrollCourseScreen> {
               _courseDetails!['institution_name'],
               Icons.business,
               AppTheme.primary600,
+              isDark,
             ),
         ],
       ),
@@ -850,6 +854,7 @@ class _EnrollCourseScreenState extends State<EnrollCourseScreen> {
               _formatDate(_courseDetails!['starting_date']),
               Icons.calendar_today,
               Colors.blue,
+              isDark,
             ),
           if (_courseDetails!['starting_date'] != null &&
               _courseDetails!['ending_date'] != null)
@@ -860,6 +865,7 @@ class _EnrollCourseScreenState extends State<EnrollCourseScreen> {
               _formatDate(_courseDetails!['ending_date']),
               Icons.event,
               Colors.red,
+              isDark,
             ),
         ],
       ),
@@ -871,6 +877,7 @@ class _EnrollCourseScreenState extends State<EnrollCourseScreen> {
     String value,
     IconData icon,
     Color color,
+    bool isDark,
   ) {
     return Row(
       children: [
@@ -884,7 +891,7 @@ class _EnrollCourseScreenState extends State<EnrollCourseScreen> {
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey.shade600,
+                  color: isDark ? Colors.white70 : Colors.grey.shade600,
                 ),
               ),
               const SizedBox(height: 2),

@@ -8,7 +8,6 @@ import '../../widgets/card_widget.dart';
 import '../../services/api_service.dart';
 import '../../widgets/modern_bottom_nav.dart';
 import '../../utils/navigation_helper.dart';
-import 'verification_page.dart';
 import 'edit_profile_page.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -203,12 +202,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const VerificationPage(),
-                        ),
-                      ).then((_) {
+                      Navigator.pushNamed(context, '/institution/verify').then((_) {
                         // Refresh the page after verification
                         setState(() {});
                       });

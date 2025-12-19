@@ -465,7 +465,7 @@ class _ProfileButtonState extends State<ProfileButton> {
             ),
           ),
         ] else ...[
-          // For authenticated users: Show View Profile and Edit Profile
+          // For authenticated users: Show View Profile and Edit Profile/Verify
           PopupMenuItem<String>(
             value: 'profile',
             child: Row(
@@ -479,19 +479,38 @@ class _ProfileButtonState extends State<ProfileButton> {
               ],
             ),
           ),
-          PopupMenuItem<String>(
-            value: 'edit_profile',
-            child: Row(
-              children: [
-                const Icon(Icons.edit_outlined, size: 20),
-                const SizedBox(width: 12),
-                Text(
-                  'Edit Profile',
-                  style: theme.textTheme.bodyMedium,
-                ),
-              ],
+          // Show Verify for unverified users, Edit Profile for verified users
+          if ((instituteData['userType'] == 'student' || instituteData['userType'] == 'lecturer' || instituteData['userType'] == 'institution') && instituteData['isVerified'] != true)
+            PopupMenuItem<String>(
+              value: 'verify',
+              child: Row(
+                children: [
+                  Icon(Icons.verified_user_outlined, size: 20, color: Colors.orange),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Verify Account',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            PopupMenuItem<String>(
+              value: 'edit_profile',
+              child: Row(
+                children: [
+                  const Icon(Icons.edit_outlined, size: 20),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Edit Profile',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
         const PopupMenuDivider(),
         // Theme Toggle
@@ -602,6 +621,15 @@ class _ProfileButtonState extends State<ProfileButton> {
             Navigator.pushNamed(context, '/lecturer/edit-profile');
           } else if (userType == 'student') {
             Navigator.pushNamed(context, '/student/edit-profile');
+          }
+        } else if (value == 'verify') {
+          final userType = instituteData['userType'] ?? '';
+          if (userType == 'student') {
+            Navigator.pushNamed(context, '/student/verify');
+          } else if (userType == 'lecturer') {
+            Navigator.pushNamed(context, '/lecturer/verify');
+          } else if (userType == 'institution') {
+            Navigator.pushNamed(context, '/institution/verify');
           }
         } else if (value == 'theme') {
           themeProvider.toggleTheme();

@@ -402,6 +402,7 @@ class _PublicCourseDetailsScreenState extends State<PublicCourseDetailsScreen> {
                   .join(', '),
               Icons.calendar_view_week,
               Colors.purple,
+              isDark,
             ),
             const SizedBox(height: 12),
           ],
@@ -412,6 +413,7 @@ class _PublicCourseDetailsScreenState extends State<PublicCourseDetailsScreen> {
               '${_formatTime(_courseDetails!['start_time'])} - ${_formatTime(_courseDetails!['end_time'])}',
               Icons.access_time,
               Colors.orange,
+              isDark,
             ),
         ],
       ),
@@ -467,6 +469,7 @@ class _PublicCourseDetailsScreenState extends State<PublicCourseDetailsScreen> {
               _courseDetails!['lecturer_name'],
               Icons.person_outline,
               Colors.teal,
+              isDark,
             ),
             const SizedBox(height: 12),
           ],
@@ -476,6 +479,7 @@ class _PublicCourseDetailsScreenState extends State<PublicCourseDetailsScreen> {
               _courseDetails!['institution_name'],
               Icons.business,
               AppTheme.primary600,
+              isDark,
             ),
         ],
       ),
@@ -531,6 +535,7 @@ class _PublicCourseDetailsScreenState extends State<PublicCourseDetailsScreen> {
               _formatDate(_courseDetails!['starting_date']),
               Icons.calendar_today,
               Colors.blue,
+              isDark,
             ),
           if (_courseDetails!['starting_date'] != null &&
               _courseDetails!['ending_date'] != null)
@@ -541,6 +546,7 @@ class _PublicCourseDetailsScreenState extends State<PublicCourseDetailsScreen> {
               _formatDate(_courseDetails!['ending_date']),
               Icons.event,
               Colors.red,
+              isDark,
             ),
         ],
       ),
@@ -552,6 +558,7 @@ class _PublicCourseDetailsScreenState extends State<PublicCourseDetailsScreen> {
     String value,
     IconData icon,
     Color color,
+    bool isDark,
   ) {
     return Row(
       children: [
@@ -565,7 +572,7 @@ class _PublicCourseDetailsScreenState extends State<PublicCourseDetailsScreen> {
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey.shade600,
+                  color: isDark ? Colors.white70 : Colors.grey.shade600,
                 ),
               ),
               const SizedBox(height: 2),
