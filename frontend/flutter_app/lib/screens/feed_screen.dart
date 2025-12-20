@@ -930,38 +930,49 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
                             runSpacing: 8,
                             children: [
                               if (item.institution != null)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isDark
-                                        ? AppTheme.navy700
-                                        : AppTheme.primary50,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.school,
-                                        size: 16,
-                                        color: AppTheme.primary600,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Flexible(
-                                        child: Text(
-                                          item.institution!,
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                            color: AppTheme.primary700,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
+                                GestureDetector(
+                                  onTap: item.publisherUsername != null
+                                      ? () => Navigator.pushNamed(
+                                            context,
+                                            '/institution-profile',
+                                            arguments: item.publisherUsername,
+                                          )
+                                      : null,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? AppTheme.navy700
+                                          : AppTheme.primary50,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.school,
+                                          size: 16,
+                                          color: AppTheme.primary600,
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(
+                                            item.institution!,
+                                            style: theme.textTheme.bodySmall?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                              color: item.publisherUsername != null
+                                                  ? AppTheme.primary600
+                                                  : AppTheme.primary700,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               if (item.city != null)

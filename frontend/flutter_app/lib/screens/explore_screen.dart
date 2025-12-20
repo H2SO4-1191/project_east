@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../widgets/profile_button.dart';
 import '../widgets/category_card.dart';
 import '../widgets/full_screen_image_viewer.dart';
+import '../widgets/animated_background.dart';
 import '../services/explore_service.dart';
 import '../services/api_service.dart';
 import '../services/profile_service.dart';
@@ -247,7 +248,8 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
           ),
         ),
       ),
-      body: Column(
+      body: AnimatedBackground(
+        child: Column(
         children: [
           // Collapsible Filter Tab - only show when search has text
           if (_searchController.text.isNotEmpty)
@@ -280,6 +282,7 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
           ),
         ],
       ),
+        ),
       ),
       ),
     );
@@ -1640,25 +1643,44 @@ class _CourseCardState extends State<CourseCard> {
                       // Institution
                       if (widget.course['institution_name'] != null || widget.course['institution_username'] != null || widget.course['institution'] != null)
                         Expanded(
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.school,
-                                size: 16,
-                                color: isDark ? Colors.white70 : Colors.grey.shade600,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  widget.course['institution_name'] ?? widget.course['institution_username'] ?? widget.course['institution'] ?? '',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: isDark ? Colors.white70 : Colors.grey.shade600,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                          child: GestureDetector(
+                            onTap: widget.course['institution_username'] != null
+                                ? () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => InstitutionProfileScreen(
+                                          username: widget.course['institution_username'],
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                : null,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.school,
+                                  size: 16,
+                                  color: isDark ? Colors.white70 : Colors.grey.shade600,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    widget.course['institution_name'] ?? widget.course['institution_username'] ?? widget.course['institution'] ?? '',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: widget.course['institution_username'] != null
+                                          ? (isDark ? AppTheme.teal400 : AppTheme.primary600)
+                                          : (isDark ? Colors.white70 : Colors.grey.shade600),
+                                      fontWeight: widget.course['institution_username'] != null
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       // Price

@@ -235,13 +235,41 @@ class _LoginScreenState extends State<LoginScreen> {
                                     'Email Address',
                                     style: theme.textTheme.bodyMedium?.copyWith(
                                       fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.white : const Color(0xFF111827),
                                     ),
                                   ),
                                   const SizedBox(height: 8),
                                   TextFormField(
                                     controller: _emailController,
-                                    decoration: const InputDecoration(
+                                    style: TextStyle(
+                                      color: isDark ? Colors.white : const Color(0xFF111827),
+                                    ),
+                                    decoration: InputDecoration(
                                       hintText: 'Enter your email',
+                                      hintStyle: TextStyle(
+                                        color: isDark ? Colors.white54 : Colors.grey.shade500,
+                                      ),
+                                      fillColor: isDark ? AppTheme.navy700 : Colors.white,
+                                      filled: true,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(
+                                          color: isDark ? AppTheme.navy600 : Colors.grey.shade300,
+                                        ),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(
+                                          color: isDark ? AppTheme.navy600 : Colors.grey.shade300,
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(
+                                          color: isDark ? AppTheme.teal500 : AppTheme.primary600,
+                                          width: 2,
+                                        ),
+                                      ),
                                     ),
                                     keyboardType: TextInputType.emailAddress,
                                     onChanged: (value) {

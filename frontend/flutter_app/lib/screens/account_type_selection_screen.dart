@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
+import '../widgets/animated_background.dart';
 
 class AccountTypeSelectionScreen extends StatelessWidget {
   const AccountTypeSelectionScreen({super.key});
@@ -20,8 +21,9 @@ class AccountTypeSelectionScreen extends StatelessWidget {
         ),
         title: const Text('Choose Account Type'),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
+      body: AnimatedBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -80,6 +82,7 @@ class AccountTypeSelectionScreen extends StatelessWidget {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

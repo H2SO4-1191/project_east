@@ -48,23 +48,11 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
 
     return Stack(
       children: [
-        // Background color
+        // Background color - solid to match feed screen
         Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isDark
-                  ? [
-                      const Color(0xFF102A43), // navy900
-                      const Color(0xFF1E3A8A), // primary900
-                    ]
-                  : [
-                      const Color(0xFFF9FAFB), // gray50
-                      const Color(0xFFEFF6FF), // primary50
-                    ],
-            ),
-          ),
+          color: isDark
+              ? const Color(0xFF102A43) // navy900 - solid, no gradient
+              : const Color(0xFFF9FAFB), // gray50
         ),
         // Animated circles
         ...List.generate(5, (index) {
@@ -110,11 +98,11 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
   Color _getColor(int index, bool isDark) {
     final colors = isDark
         ? [
-            const Color(0xFF2563EB), // primary600
             const Color(0xFF14B8A6), // teal500
-            const Color(0xFF3B82F6), // primary500
             const Color(0xFF2DD4BF), // teal400
-            const Color(0xFF1D4ED8), // primary700
+            const Color(0xFF0D9488), // teal600
+            const Color(0xFF5EEAD4), // teal300
+            const Color(0xFF0F766E), // teal700
           ]
         : [
             const Color(0xFF3B82F6), // primary500

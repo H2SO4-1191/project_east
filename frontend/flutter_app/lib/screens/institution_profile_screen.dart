@@ -8,6 +8,7 @@ import '../services/explore_service.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/language_switcher.dart';
 import '../widgets/full_screen_image_viewer.dart';
+import '../widgets/animated_background.dart';
 
 class InstitutionProfileScreen extends StatefulWidget {
   final String username;
@@ -255,27 +256,29 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
           ),
         ],
       ),
-      body: _isLoadingProfile
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text(_error!),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadProfile,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
-              : _profile == null
-                  ? const Center(child: Text('Profile not found'))
-                  : _buildProfileContent(context, isDark),
+      body: AnimatedBackground(
+        child: _isLoadingProfile
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text(_error!),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadProfile,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                : _profile == null
+                    ? const Center(child: Text('Profile not found'))
+                    : _buildProfileContent(context, isDark),
+      ),
     );
   }
 
@@ -648,6 +651,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                               _expandedCourses[idx] = expanded;
                             });
                           },
+                          isDark,
                         ),
                       ],
                       if (post['created_at'] != null) ...[
@@ -656,7 +660,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                           _formatPostDate(post['created_at']),
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey.shade600,
+                            color: isDark ? Colors.white70 : Colors.grey.shade600,
                           ),
                         ),
                       ],
@@ -754,6 +758,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                               _expandedCourses[idx] = expanded;
                             });
                           },
+                          isDark,
                         ),
                       ],
                       if (course['price'] != null) ...[
@@ -860,6 +865,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                                 _expandedJobs[idx] = expanded;
                               });
                             },
+                            isDark,
                           ),
                         ],
                         if (job['salary_offer'] != null) ...[
@@ -890,6 +896,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
     int index,
     Map<int, bool> expandedMap,
     Function(int, bool) onToggle,
+    bool isDark,
   ) {
     final isExpanded = expandedMap[index] ?? false;
     final shouldShowExpand = text.length > 100;
@@ -901,7 +908,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
           isExpanded ? text : (shouldShowExpand ? '${text.substring(0, 100)}...' : text),
           style: TextStyle(
             fontSize: 14,
-            color: Colors.grey.shade600,
+            color: isDark ? Colors.white70 : Colors.grey.shade600,
           ),
         ),
         if (shouldShowExpand)
@@ -985,31 +992,41 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
             Stack(
               children: [
                 if (courseImageUrl != null)
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                    child: Image.network(
-                      courseImageUrl,
-                      height: 200,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          height: 200,
-                          color: AppTheme.primary600,
-                          child: Center(
-                            child: Text(
-                              ((course['title'] ?? 'C') as String).isNotEmpty 
-                                  ? (course['title'] ?? 'C')[0].toUpperCase() 
-                                  : 'C',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 64,
-                                fontWeight: FontWeight.bold,
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => FullScreenImageViewer(imageUrl: courseImageUrl),
+                          fullscreenDialog: true,
+                        ),
+                      );
+                    },
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                      child: Image.network(
+                        courseImageUrl,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 200,
+                            color: AppTheme.primary600,
+                            child: Center(
+                              child: Text(
+                                ((course['title'] ?? 'C') as String).isNotEmpty 
+                                    ? (course['title'] ?? 'C')[0].toUpperCase() 
+                                    : 'C',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 64,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   )
                 else
@@ -1131,7 +1148,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                         course['about'],
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey.shade600,
+                          color: isDark ? Colors.white70 : Colors.grey.shade600,
                           height: 1.5,
                         ),
                       ),
@@ -1164,7 +1181,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                                   'Progress',
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.grey.shade600,
+                                    color: isDark ? Colors.white70 : Colors.grey.shade600,
                                   ),
                                 ),
                                 Text(
@@ -1307,7 +1324,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                   label,
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.grey.shade600,
+                    color: isDark ? Colors.white70 : Colors.grey.shade600,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -1341,7 +1358,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Colors.grey.shade600,
+            color: isDark ? Colors.white70 : Colors.grey.shade600,
           ),
         ),
       ],
@@ -1581,13 +1598,13 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
+                          Icon(Icons.calendar_today, size: 16, color: isDark ? Colors.white70 : Colors.grey.shade600),
                           const SizedBox(width: 8),
                           Text(
                             'Posted: ${_formatPostDate(job['created_at'])}',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade600,
+                              color: isDark ? Colors.white70 : Colors.grey.shade600,
                             ),
                           ),
                         ],
@@ -1811,7 +1828,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                   label,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey.shade600,
+                    color: isDark ? Colors.white70 : Colors.grey.shade600,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -1991,7 +2008,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                         description,
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey.shade600,
+                          color: isDark ? Colors.white70 : Colors.grey.shade600,
                           height: 1.5,
                         ),
                       ),
@@ -2030,7 +2047,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                                 width: 100,
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.grey.shade300),
+                                  border: Border.all(color: isDark ? AppTheme.navy600 : Colors.grey.shade300),
                                 ),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
@@ -2058,13 +2075,13 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
+                          Icon(Icons.calendar_today, size: 16, color: isDark ? Colors.white70 : Colors.grey.shade600),
                           const SizedBox(width: 8),
                           Text(
                             'Posted: ${_formatPostDate(createdAt.toString())}',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade600,
+                              color: isDark ? Colors.white70 : Colors.grey.shade600,
                             ),
                           ),
                         ],

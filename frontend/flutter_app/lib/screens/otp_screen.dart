@@ -426,13 +426,13 @@ class _OTPScreenState extends State<OTPScreen> {
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
                               color: isDark
-                                  ? AppTheme.navy800.withOpacity(0.9)
-                                  : Colors.white.withOpacity(0.9),
+                                  ? AppTheme.navy800
+                                  : Colors.white,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: isDark
                                     ? AppTheme.navy700
-                                    : Colors.white.withOpacity(0.3),
+                                    : Colors.grey.shade200,
                                 width: 1.5,
                               ),
                               boxShadow: [
@@ -445,12 +445,13 @@ class _OTPScreenState extends State<OTPScreen> {
                                 ),
                               ],
                             ),
-                            child: Column(
+                              child: Column(
                               children: [
                                 Text(
                                   'Verification Code',
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     fontWeight: FontWeight.w600,
+                                    color: isDark ? Colors.white : const Color(0xFF111827),
                                   ),
                                 ),
                                 const SizedBox(height: 24),
@@ -482,6 +483,8 @@ class _OTPScreenState extends State<OTPScreen> {
                                             decoration: InputDecoration(
                                               counterText: '',
                                               contentPadding: EdgeInsets.zero,
+                                              fillColor: isDark ? AppTheme.navy700 : Colors.white,
+                                              filled: true,
                                               border: OutlineInputBorder(
                                                 borderRadius: BorderRadius.circular(12),
                                                 borderSide: BorderSide(
@@ -493,8 +496,10 @@ class _OTPScreenState extends State<OTPScreen> {
                                               ),
                                               focusedBorder: OutlineInputBorder(
                                                 borderRadius: BorderRadius.circular(12),
-                                                borderSide: const BorderSide(
-                                                  color: AppTheme.teal500,
+                                                borderSide: BorderSide(
+                                                  color: isDark
+                                                      ? AppTheme.teal500
+                                                      : AppTheme.primary600,
                                                   width: 2,
                                                 ),
                                               ),
@@ -589,14 +594,22 @@ class _OTPScreenState extends State<OTPScreen> {
                                   Container(
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Colors.red.withOpacity(0.1),
-                                      border: Border.all(color: Colors.red.shade300),
+                                      color: isDark
+                                          ? Colors.red.withOpacity(0.2)
+                                          : Colors.red.withOpacity(0.1),
+                                      border: Border.all(
+                                        color: isDark
+                                            ? Colors.red.shade400
+                                            : Colors.red.shade300,
+                                      ),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
                                       _error,
                                       style: TextStyle(
-                                        color: Colors.red.shade700,
+                                        color: isDark
+                                            ? Colors.red.shade300
+                                            : Colors.red.shade700,
                                         fontSize: 12,
                                       ),
                                       textAlign: TextAlign.center,

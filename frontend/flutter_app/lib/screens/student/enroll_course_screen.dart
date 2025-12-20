@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../config/theme.dart';
 import '../../services/explore_service.dart';
 import '../../services/api_service.dart';
+import '../institution_profile_screen.dart';
 
 class EnrollCourseScreen extends StatefulWidget {
   final int courseId;
@@ -793,12 +794,26 @@ class _EnrollCourseScreenState extends State<EnrollCourseScreen> {
             const SizedBox(height: 12),
           ],
           if (_courseDetails!['institution_name'] != null)
-            _buildInfoRow(
-              'Institution',
-              _courseDetails!['institution_name'],
-              Icons.business,
-              AppTheme.primary600,
-              isDark,
+            GestureDetector(
+              onTap: _courseDetails!['institution_username'] != null
+                  ? () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => InstitutionProfileScreen(
+                            username: _courseDetails!['institution_username'],
+                          ),
+                        ),
+                      );
+                    }
+                  : null,
+              child: _buildInfoRow(
+                'Institution',
+                _courseDetails!['institution_name'],
+                Icons.business,
+                AppTheme.primary600,
+                isDark,
+              ),
             ),
         ],
       ),

@@ -5,6 +5,8 @@ import '../../config/theme.dart';
 import '../../services/student_service.dart';
 import '../../services/explore_service.dart';
 import '../../services/api_service.dart';
+import '../../widgets/full_screen_image_viewer.dart';
+import '../institution_profile_screen.dart';
 
 class CourseDetailsScreen extends StatefulWidget {
   final int courseId;
@@ -18,7 +20,8 @@ class CourseDetailsScreen extends StatefulWidget {
   State<CourseDetailsScreen> createState() => _CourseDetailsScreenState();
 }
 
-class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
+class _CourseDetailsScreenState extends State<CourseDetailsScreen>
+    with TickerProviderStateMixin {
   Map<String, dynamic>? _courseDetails;
   Map<String, dynamic>? _attendanceData;
   Map<String, dynamic>? _gradesData;
@@ -32,10 +35,121 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
   bool _isCourseInfoExpanded = false;
   String? _error;
 
+  // Animation controllers for each card
+  late AnimationController _courseInfoController;
+  late AnimationController _attendanceController;
+  late AnimationController _gradesController;
+  late AnimationController _progressController;
+  
+  // Scroll controller for scroll-based animations
+  final ScrollController _scrollController = ScrollController();
+  
+  // Track which cards have been animated
+  bool _courseInfoAnimated = false;
+  bool _attendanceAnimated = false;
+  bool _gradesAnimated = false;
+  bool _progressAnimated = false;
+  
+  // Debounce for scroll animations
+  DateTime? _lastScrollAnimation;
+
   @override
   void initState() {
     super.initState();
     _loadAllData();
+    
+    // Initialize animation controllers with more dynamic timing
+    _courseInfoController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _attendanceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _gradesController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _progressController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+
+    // Add scroll listener for scroll-based animations
+    _scrollController.addListener(_onScroll);
+    
+    // Start initial animations with delays after data loads
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted && !_courseInfoAnimated) {
+        _courseInfoController.forward();
+        _courseInfoAnimated = true;
+      }
+    });
+  }
+  
+  void _onScroll() {
+    if (!mounted) return;
+    
+    final scrollPosition = _scrollController.offset;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final now = DateTime.now();
+    
+    // Debounce: only trigger re-animations every 300ms
+    final canReAnimate = _lastScrollAnimation == null || 
+        now.difference(_lastScrollAnimation!).inMilliseconds > 300;
+    
+    // Trigger initial animations based on scroll position
+    if (scrollPosition > 50 && !_attendanceAnimated) {
+      _attendanceController.forward();
+      _attendanceAnimated = true;
+    }
+    if (scrollPosition > screenHeight * 0.5 && !_gradesAnimated) {
+      _gradesController.forward();
+      _gradesAnimated = true;
+    }
+    if (scrollPosition > screenHeight * 0.8 && !_progressAnimated) {
+      _progressController.forward();
+      _progressAnimated = true;
+    }
+    
+    // Re-trigger subtle animations on scroll for "dancing" effect
+    // Use reset() and forward() to avoid TweenSequence range issues
+    if (canReAnimate && scrollPosition > 0 && _courseInfoAnimated && 
+        !_courseInfoController.isAnimating && _courseInfoController.value > 0.5) {
+      _courseInfoController.reset();
+      _courseInfoController.forward();
+      _lastScrollAnimation = now;
+    }
+    if (canReAnimate && scrollPosition > 50 && _attendanceAnimated && 
+        !_attendanceController.isAnimating && _attendanceController.value > 0.5) {
+      _attendanceController.reset();
+      _attendanceController.forward();
+      _lastScrollAnimation = now;
+    }
+    if (canReAnimate && scrollPosition > screenHeight * 0.5 && _gradesAnimated && 
+        !_gradesController.isAnimating && _gradesController.value > 0.5) {
+      _gradesController.reset();
+      _gradesController.forward();
+      _lastScrollAnimation = now;
+    }
+    if (canReAnimate && scrollPosition > screenHeight * 0.8 && _progressAnimated && 
+        !_progressController.isAnimating && _progressController.value > 0.5) {
+      _progressController.reset();
+      _progressController.forward();
+      _lastScrollAnimation = now;
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _courseInfoController.dispose();
+    _attendanceController.dispose();
+    _gradesController.dispose();
+    _progressController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadAllData() async {
@@ -312,29 +426,103 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
               : RefreshIndicator(
                   onRefresh: _loadAllData,
                   child: SingleChildScrollView(
+                    controller: _scrollController,
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Course Info Card (Collapsible)
-                        _buildCourseInfoCard(isDark),
+                        _buildAnimatedCard(
+                          controller: _courseInfoController,
+                          child: _buildCourseInfoCard(isDark),
+                        ),
                         const SizedBox(height: 16),
 
                         // Attendance Card
-                        _buildAttendanceCard(isDark),
+                        _buildAnimatedCard(
+                          controller: _attendanceController,
+                          child: _buildAttendanceCard(isDark),
+                        ),
                         const SizedBox(height: 16),
 
                         // Grades Card
-                        _buildGradesCard(isDark),
+                        _buildAnimatedCard(
+                          controller: _gradesController,
+                          child: _buildGradesCard(isDark),
+                        ),
                         const SizedBox(height: 16),
 
                         // Progress Card
-                        _buildProgressCard(isDark),
+                        _buildAnimatedCard(
+                          controller: _progressController,
+                          child: _buildProgressCard(isDark),
+                        ),
                       ],
                     ),
                   ),
                 ),
+    );
+  }
+
+  Widget _buildAnimatedCard({
+    required AnimationController controller,
+    required Widget child,
+  }) {
+    // Create more dynamic "dancing" animations with rotation, bounce, and spring
+    final slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.5),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: controller,
+      curve: Curves.easeOutCubic,
+    ));
+
+    final fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: controller,
+      curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+    ));
+
+    // More bouncy scale animation
+    final scaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween<double>(begin: 0.6, end: 1.15), weight: 40),
+      TweenSequenceItem(tween: Tween<double>(begin: 1.15, end: 0.95), weight: 30),
+      TweenSequenceItem(tween: Tween<double>(begin: 0.95, end: 1.0), weight: 30),
+    ]).animate(CurvedAnimation(
+      parent: controller,
+      curve: Curves.elasticOut,
+    ));
+
+    // More pronounced rotation for "dancing" effect
+    final rotationAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween<double>(begin: -0.1, end: 0.05), weight: 50),
+      TweenSequenceItem(tween: Tween<double>(begin: 0.05, end: 0.0), weight: 50),
+    ]).animate(CurvedAnimation(
+      parent: controller,
+      curve: Curves.easeOutBack,
+    ));
+
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        return FadeTransition(
+          opacity: fadeAnimation,
+          child: SlideTransition(
+            position: slideAnimation,
+            child: Transform.rotate(
+              angle: rotationAnimation.value,
+              child: Transform.scale(
+                scale: scaleAnimation.value,
+                child: child,
+              ),
+            ),
+          ),
+        );
+      },
+      child: child,
     );
   }
 
@@ -422,17 +610,44 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                 children: [
                   // Course Image
                   if (_courseDetails!['course_image'] != null)
-                    Container(
-                      width: double.infinity,
-                      height: 200,
-                      margin: const EdgeInsets.only(bottom: 20),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        image: DecorationImage(
-                          image: NetworkImage(
-                            _getImageUrl(_courseDetails!['course_image'])!,
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => FullScreenImageViewer(
+                              imageUrl: _getImageUrl(_courseDetails!['course_image'])!,
+                            ),
+                            fullscreenDialog: true,
                           ),
-                          fit: BoxFit.cover,
+                        );
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          width: double.infinity,
+                          height: 200,
+                          margin: const EdgeInsets.only(bottom: 20),
+                          child: Image.network(
+                            _getImageUrl(_courseDetails!['course_image'])!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              final title = _courseDetails!['title'] ?? 'C';
+                              return Container(
+                                color: AppTheme.primary600,
+                                child: Center(
+                                  child: Text(
+                                    (title.toString().isNotEmpty ? title.toString()[0] : 'C').toUpperCase(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 64,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ),
@@ -451,7 +666,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                       _courseDetails!['about'],
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey.shade700,
+                        color: isDark ? Colors.white : Colors.grey.shade700,
                         height: 1.5,
                       ),
                     ),
@@ -526,12 +741,26 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                   ],
                   if (_courseDetails!['institution_name'] != null) ...[
                     const SizedBox(height: 12),
-                    _buildInfoRow(
-                      'Institution',
-                      _courseDetails!['institution_name'],
-                      Icons.business,
-                      AppTheme.primary600,
-                      isDark,
+                    GestureDetector(
+                      onTap: _courseDetails!['institution_username'] != null
+                          ? () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => InstitutionProfileScreen(
+                                    username: _courseDetails!['institution_username'],
+                                  ),
+                                ),
+                              );
+                            }
+                          : null,
+                      child: _buildInfoRow(
+                        'Institution',
+                        _courseDetails!['institution_name'],
+                        Icons.business,
+                        AppTheme.primary600,
+                        isDark,
+                      ),
                     ),
                   ],
                 ],
@@ -680,7 +909,12 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('Attendance Progress'),
+                                  Text(
+                                    'Attendance Progress',
+                                    style: TextStyle(
+                                      color: isDark ? Colors.white70 : Colors.black87,
+                                    ),
+                                  ),
                                   Text(
                                     '${((_attendanceData!['attendance_percentage'] ?? 0) as num).toStringAsFixed(1)}%',
                                     style: TextStyle(
@@ -723,7 +957,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                           if (_attendanceData!['records'] != null &&
                               (_attendanceData!['records'] as List).isNotEmpty)
                             ...(_attendanceData!['records'] as List)
-                                .map((record) => _buildAttendanceRecord(record))
+                                .map((record) => _buildAttendanceRecord(record, isDark))
                                 .toList()
                           else
                             const Center(
@@ -823,11 +1057,11 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        const Text(
+                                        Text(
                                           'Course',
                                           style: TextStyle(
                                             fontSize: 12,
-                                            color: Colors.grey,
+                                            color: isDark ? Colors.white70 : Colors.grey.shade600,
                                           ),
                                         ),
                                         Text(
@@ -1028,7 +1262,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
     );
   }
 
-  Widget _buildAttendanceRecord(Map<String, dynamic> record) {
+  Widget _buildAttendanceRecord(Map<String, dynamic> record, bool isDark) {
     IconData icon;
     Color color;
     String label;
@@ -1059,7 +1293,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: isDark ? AppTheme.navy700 : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -1068,14 +1302,15 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.grey.shade200,
+              color: isDark ? AppTheme.navy600 : Colors.grey.shade200,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Center(
               child: Text(
                 '${record['lecture_number'] ?? ''}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : Colors.black87,
                 ),
               ),
             ),
@@ -1084,8 +1319,9 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
           Expanded(
             child: Text(
               'Lecture ${record['lecture_number'] ?? ''}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white70 : Colors.black87,
               ),
             ),
           ),

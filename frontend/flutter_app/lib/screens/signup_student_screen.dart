@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../config/theme.dart';
 import '../services/api_service.dart';
+import '../widgets/animated_background.dart';
 import 'login_screen.dart';
 
 class SignupStudentScreen extends StatefulWidget {
@@ -187,8 +188,9 @@ class _SignupStudentScreenState extends State<SignupStudentScreen> {
         ),
         title: const Text('Student Sign Up'),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
+      body: AnimatedBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,
@@ -413,6 +415,7 @@ class _SignupStudentScreenState extends State<SignupStudentScreen> {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

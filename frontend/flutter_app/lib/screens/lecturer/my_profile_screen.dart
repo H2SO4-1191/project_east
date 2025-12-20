@@ -4,7 +4,6 @@ import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../widgets/full_screen_image_viewer.dart';
-import 'edit_profile_page.dart';
 
 class LecturerMyProfileScreen extends StatefulWidget {
   const LecturerMyProfileScreen({super.key});
@@ -408,12 +407,7 @@ class _LecturerMyProfileScreenState extends State<LecturerMyProfileScreen> {
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const LecturerEditProfilePage(),
-                  ),
-                ).then((_) => _loadProfile());
+                Navigator.pushNamed(context, '/lecturer/edit-profile/').then((_) => _loadProfile());
               },
               tooltip: 'Edit Profile',
             )

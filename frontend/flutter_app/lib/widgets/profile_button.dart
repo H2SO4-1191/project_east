@@ -618,9 +618,9 @@ class _ProfileButtonState extends State<ProfileButton> {
               ),
             );
           } else if (userType == 'lecturer') {
-            Navigator.pushNamed(context, '/lecturer/edit-profile');
+            Navigator.pushNamed(context, '/lecturer/edit-profile/');
           } else if (userType == 'student') {
-            Navigator.pushNamed(context, '/student/edit-profile');
+            Navigator.pushNamed(context, '/student/edit-profile/');
           }
         } else if (value == 'verify') {
           final userType = instituteData['userType'] ?? '';

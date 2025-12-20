@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../services/explore_service.dart';
 import '../services/api_service.dart';
+import '../widgets/animated_background.dart';
+import 'institution_profile_screen.dart';
 
 class PublicCourseDetailsScreen extends StatefulWidget {
   final int courseId;
@@ -124,27 +126,28 @@ class _PublicCourseDetailsScreenState extends State<PublicCourseDetailsScreen> {
         ),
         title: const Text('Course Details'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text(_error!),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _fetchCourseDetails,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
-              : _courseDetails == null
-                  ? const Center(child: Text('Course not found'))
-                  : SingleChildScrollView(
+      body: AnimatedBackground(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text(_error!),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _fetchCourseDetails,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                : _courseDetails == null
+                    ? const Center(child: Text('Course not found'))
+                    : SingleChildScrollView(
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,6 +181,7 @@ class _PublicCourseDetailsScreenState extends State<PublicCourseDetailsScreen> {
                         ],
                       ),
                     ),
+        ),
     );
   }
 
@@ -474,12 +478,26 @@ class _PublicCourseDetailsScreenState extends State<PublicCourseDetailsScreen> {
             const SizedBox(height: 12),
           ],
           if (_courseDetails!['institution_name'] != null)
-            _buildInfoRow(
-              'Institution',
-              _courseDetails!['institution_name'],
-              Icons.business,
-              AppTheme.primary600,
-              isDark,
+            GestureDetector(
+              onTap: _courseDetails!['institution_username'] != null
+                  ? () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => InstitutionProfileScreen(
+                            username: _courseDetails!['institution_username'],
+                          ),
+                        ),
+                      );
+                    }
+                  : null,
+              child: _buildInfoRow(
+                'Institution',
+                _courseDetails!['institution_name'],
+                Icons.business,
+                AppTheme.primary600,
+                isDark,
+              ),
             ),
         ],
       ),

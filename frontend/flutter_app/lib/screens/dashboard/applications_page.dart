@@ -33,10 +33,11 @@ class _ApplicationsPageState extends State<ApplicationsPage> {
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final accessToken = authProvider.accessToken;
-      final refreshToken = authProvider.refreshToken;
+      final instituteData = authProvider.instituteData;
+      final accessToken = instituteData['accessToken'] as String?;
+      final refreshToken = instituteData['refreshToken'] as String?;
 
-      if (accessToken == null) {
+      if (accessToken == null || accessToken.isEmpty) {
         throw Exception('Not authenticated');
       }
 
@@ -96,10 +97,11 @@ class _ApplicationsPageState extends State<ApplicationsPage> {
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final accessToken = authProvider.accessToken;
-      final refreshToken = authProvider.refreshToken;
+      final instituteData = authProvider.instituteData;
+      final accessToken = instituteData['accessToken'] as String?;
+      final refreshToken = instituteData['refreshToken'] as String?;
 
-      if (accessToken == null) {
+      if (accessToken == null || accessToken.isEmpty) {
         throw Exception('Not authenticated');
       }
 
