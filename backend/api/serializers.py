@@ -879,15 +879,15 @@ class ExamSerializer(serializers.ModelSerializer):
         fields = ["id", "title", "date", "max_score"]
 
 class GradeCreateSerializer(serializers.Serializer):
-    student_id = serializers.IntegerField()
+    username = serializers.CharField()
     score = serializers.FloatField()
 
 class GradeBulkCreateSerializer(serializers.Serializer):
     grades = GradeCreateSerializer(many=True)
 
 class AttendanceRecordSerializer(serializers.Serializer):
-    student_id = serializers.IntegerField()
-    status = serializers.ChoiceField(choices=["present", "absent", "late"])
+    username = serializers.CharField()
+    status = serializers.ChoiceField(choices=["present", "absent"])
 
 class AttendanceCreateSerializer(serializers.Serializer):
     lecture_number = serializers.IntegerField()

@@ -1059,14 +1059,14 @@ class LecturerAddGradesView(APIView):
         max_score = exam.max_score
 
         for item in grades_data:
-            student_id = item["student_id"]
+            username = item["username"]
             score = item["score"]
 
             if score < 0 or score > max_score:
                 continue
 
             try:
-                student = Student.objects.get(id=student_id, courses=course)
+                student = Student.objects.get(user__username=username, courses=course)
             except Student.DoesNotExist:
                 continue
 
@@ -1281,7 +1281,7 @@ class LecturerEditGradesView(APIView):
         max_score = exam.max_score
 
         for item in grades_data:
-            student_id = item["student_id"]
+            username = item["username"]
             score = item["score"]
 
             # Validate score
@@ -1289,7 +1289,7 @@ class LecturerEditGradesView(APIView):
                 continue
 
             try:
-                student = Student.objects.get(id=student_id, courses=course)
+                student = Student.objects.get(user__username=username, courses=course)
             except Student.DoesNotExist:
                 continue
 
