@@ -2096,15 +2096,25 @@ class StudentSetupPaymentMethodView(APIView):
 class ExamsListView(APIView):
     permission_classes = [IsAuthenticated, IsVerified, IsInstitution | IsLecturer]
 
-    def get(self, request):
+    def get(self, request, course_id):
         user = request.user
 
+        try:
+            course = Course.objects.get(id=course_id)
+        except Course.DoesNotExist:
+            return Response({"success": False, "message": "Course not found."}, status=404)
+
+        # Permission check
         if user.user_type == "institution":
-            exams = Exam.objects.filter(course__institution=user.institution).select_related("course")
+            if course.institution != user.institution:
+                return Response({"success": False, "message": "Not allowed."}, status=403)
         elif user.user_type == "lecturer":
-            exams = Exam.objects.filter(course__lecturer=user.lecturer).select_related("course")
+            if course.lecturer != user.lecturer:
+                return Response({"success": False, "message": "Not allowed."}, status=403)
         else:
             return Response({"success": False, "message": "Not allowed."}, status=403)
+
+        exams = Exam.objects.filter(course=course)
 
         exam_list = [
             {
@@ -2112,8 +2122,8 @@ class ExamsListView(APIView):
                 "exam_title": exam.title,
                 "date": exam.date,
                 "max_score": exam.max_score,
-                "course_id": exam.course.id,
-                "course_title": exam.course.title
+                "course_id": course.id,
+                "course_title": course.title
             }
             for exam in exams
         ]

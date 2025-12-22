@@ -67,7 +67,7 @@ urlpatterns = [
     path("lecturer/schedule/", LecturerWeeklyScheduleView.as_view()),
     path("lecturer/exam/<int:exam_id>/grades/edit/", LecturerEditGradesView.as_view()),
 
-    path("institution-lecturer/exams/", ExamsListView.as_view()),
+    path("institution-lecturer/courses/<int:course_id>/exams/", ExamsListView.as_view()),
     path("institution-lecturer/exam/<int:exam_id>/grades/view/", InstitutionOrLecturerViewGradesView.as_view()),
     path("institution-lecturer/course/<int:course_id>/attendance/<int:lecture_number>/", InstitutionOrLecturerViewLectureAttendanceView.as_view()),
 
