@@ -1135,6 +1135,26 @@ class LecturerMarkAttendanceView(APIView):
                 defaults={"status": status_val}
             )
 
+            # send email only if absent
+            if status_val == "absent":
+                subject = f"Attendance Alert - {course.title} Lecture {lecture_number}"
+                msg = (
+                    f"Dear {student.user.first_name},\n\n"
+                    f"You were marked absent for lecture {lecture_number} of '{course.title}'.\n"
+                    f"Please make sure to catch up.\n\nBest regards."
+                )
+                recipients = [student.user.email]
+                if student.responsible_email:
+                    recipients.append(student.responsible_email)
+
+                send_mail(
+                    subject=subject,
+                    message=msg,
+                    from_email=settings.EMAIL_HOST_USER,
+                    recipient_list=recipients,
+                    fail_silently=True,
+                )
+
         return Response({"success": True, "message": "Attendance saved successfully."})
 
 class InstitutionOrLecturerViewLectureAttendanceView(APIView):
