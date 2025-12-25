@@ -44,6 +44,7 @@ class ExploreService {
   static Future<Map<String, dynamic>> exploreSearch({
     required String query,
     String? filter,
+    String? city,
     String? accessToken,
     String? refreshToken,
     Function(Map<String, dynamic>)? onTokenRefreshed,
@@ -54,6 +55,7 @@ class ExploreService {
       final params = <String, String>{};
       if (query.isNotEmpty) params['q'] = query;
       if (filter != null && filter.isNotEmpty) params['filter'] = filter;
+      if (city != null && city.isNotEmpty) params['city'] = city;
 
       final uri = Uri.parse('$baseUrl/explore/').replace(queryParameters: params);
 

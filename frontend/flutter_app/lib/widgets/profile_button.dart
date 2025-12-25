@@ -226,59 +226,20 @@ class _ProfileButtonState extends State<ProfileButton> {
             width: 2,
           ),
         ),
-        child: ClipOval(
-          child: Image.network(
-            _profileImageUrl!,
-            width: 36,
-            height: 36,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              // Fall back to initial on error and clear the image URL
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  setState(() {
-                    _profileImageUrl = null;
-                  });
-                }
-              });
-              return Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isDark ? AppTheme.navy700 : AppTheme.primary50,
-                ),
-                child: Center(
-                  child: Text(
-                    initial,
-                    style: TextStyle(
-                      color: isDark ? AppTheme.teal400 : AppTheme.primary600,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              );
-            },
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isDark ? AppTheme.navy700 : AppTheme.primary50,
-                ),
-                child: const Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-              );
-            },
-          ),
+        child: CircleAvatar(
+          radius: 18,
+          backgroundColor: isDark ? AppTheme.navy700 : AppTheme.primary50,
+          backgroundImage: NetworkImage(_profileImageUrl!),
+          onBackgroundImageError: (exception, stackTrace) {
+            // Fall back to initial on error and clear the image URL
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() {
+                  _profileImageUrl = null;
+                });
+              }
+            });
+          },
         ),
       );
     }
@@ -624,12 +585,82 @@ class _ProfileButtonState extends State<ProfileButton> {
           }
         } else if (value == 'verify') {
           final userType = instituteData['userType'] ?? '';
+          final email = instituteData['email'];
+          final accessToken = instituteData['accessToken'];
+          final refreshToken = instituteData['refreshToken'];
+          
           if (userType == 'student') {
-            Navigator.pushNamed(context, '/student/verify');
+            Navigator.pushNamed(context, '/student/verify').then((_) async {
+              // Check and update verification status after returning
+              if (email != null && accessToken != null) {
+                try {
+                  final verificationStatus = await ApiService.checkVerificationStatus(
+                    email.toString(),
+                    accessToken: accessToken.toString(),
+                    refreshToken: refreshToken?.toString(),
+                    onTokenRefreshed: (tokens) {
+                      authProvider.onTokenRefreshed(tokens);
+                    },
+                    onSessionExpired: () {
+                      authProvider.onSessionExpired();
+                    },
+                  );
+                  await authProvider.updateInstituteData({
+                    'isVerified': verificationStatus['is_verified'] ?? false,
+                  });
+                } catch (e) {
+                  // Silently fail - verification screen already updated the state
+                }
+              }
+            });
           } else if (userType == 'lecturer') {
-            Navigator.pushNamed(context, '/lecturer/verify');
+            Navigator.pushNamed(context, '/lecturer/verify').then((_) async {
+              // Check and update verification status after returning
+              if (email != null && accessToken != null) {
+                try {
+                  final verificationStatus = await ApiService.checkVerificationStatus(
+                    email.toString(),
+                    accessToken: accessToken.toString(),
+                    refreshToken: refreshToken?.toString(),
+                    onTokenRefreshed: (tokens) {
+                      authProvider.onTokenRefreshed(tokens);
+                    },
+                    onSessionExpired: () {
+                      authProvider.onSessionExpired();
+                    },
+                  );
+                  await authProvider.updateInstituteData({
+                    'isVerified': verificationStatus['is_verified'] ?? false,
+                  });
+                } catch (e) {
+                  // Silently fail - verification screen already updated the state
+                }
+              }
+            });
           } else if (userType == 'institution') {
-            Navigator.pushNamed(context, '/institution/verify');
+            Navigator.pushNamed(context, '/institution/verify').then((_) async {
+              // Check and update verification status after returning
+              if (email != null && accessToken != null) {
+                try {
+                  final verificationStatus = await ApiService.checkVerificationStatus(
+                    email.toString(),
+                    accessToken: accessToken.toString(),
+                    refreshToken: refreshToken?.toString(),
+                    onTokenRefreshed: (tokens) {
+                      authProvider.onTokenRefreshed(tokens);
+                    },
+                    onSessionExpired: () {
+                      authProvider.onSessionExpired();
+                    },
+                  );
+                  await authProvider.updateInstituteData({
+                    'isVerified': verificationStatus['is_verified'] ?? false,
+                  });
+                } catch (e) {
+                  // Silently fail - verification screen already updated the state
+                }
+              }
+            });
           }
         } else if (value == 'theme') {
           themeProvider.toggleTheme();

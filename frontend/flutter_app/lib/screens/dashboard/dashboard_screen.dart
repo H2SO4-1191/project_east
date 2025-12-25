@@ -14,6 +14,7 @@ import 'staff_page.dart';
 import 'schedule_page.dart';
 import 'settings_page.dart';
 import 'applications_page.dart';
+import 'institution_courses_page.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -187,6 +188,9 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
         break;
       case DashboardPageType.applications:
         page = const ApplicationsPage();
+        break;
+      case DashboardPageType.myCourses:
+        page = const InstitutionCoursesPage();
         break;
     }
 
@@ -376,8 +380,13 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
                                   onTap: () => _navigateToPage(DashboardPageType.applications),
                                 ),
                                 DashboardPageCard(
-                                  pageType: DashboardPageType.settings,
+                                  pageType: DashboardPageType.myCourses,
                                   index: 5,
+                                  onTap: () => _navigateToPage(DashboardPageType.myCourses),
+                                ),
+                                DashboardPageCard(
+                                  pageType: DashboardPageType.settings,
+                                  index: 6,
                                   onTap: () => _navigateToPage(DashboardPageType.settings),
                                 ),
                               ],

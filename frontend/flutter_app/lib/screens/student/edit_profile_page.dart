@@ -22,6 +22,10 @@ class _StudentEditProfilePageState extends State<StudentEditProfilePage> {
   final _interestingKeywordsController = TextEditingController();
   final _responsiblePhoneController = TextEditingController();
   final _responsibleEmailController = TextEditingController();
+  final _facebookLinkController = TextEditingController();
+  final _instagramLinkController = TextEditingController();
+  final _xLinkController = TextEditingController();
+  final _tiktokLinkController = TextEditingController();
 
   final ImagePicker _picker = ImagePicker();
   
@@ -95,6 +99,10 @@ class _StudentEditProfilePageState extends State<StudentEditProfilePage> {
     _interestingKeywordsController.text = data['interesting_keywords'] ?? '';
     _responsiblePhoneController.text = data['responsible_phone'] ?? '';
     _responsibleEmailController.text = data['responsible_email'] ?? '';
+    _facebookLinkController.text = data['facebook_link'] ?? '';
+    _instagramLinkController.text = data['instagram_link'] ?? '';
+    _xLinkController.text = data['x_link'] ?? '';
+    _tiktokLinkController.text = data['tiktok_link'] ?? '';
     _selectedCity = data['city'];
     _selectedStudyingLevel = data['studying_level'];
   }
@@ -108,6 +116,10 @@ class _StudentEditProfilePageState extends State<StudentEditProfilePage> {
     _interestingKeywordsController.dispose();
     _responsiblePhoneController.dispose();
     _responsibleEmailController.dispose();
+    _facebookLinkController.dispose();
+    _instagramLinkController.dispose();
+    _xLinkController.dispose();
+    _tiktokLinkController.dispose();
     super.dispose();
   }
 
@@ -296,6 +308,18 @@ class _StudentEditProfilePageState extends State<StudentEditProfilePage> {
       }
       if (_responsibleEmailController.text.trim().isNotEmpty) {
         payload['responsible_email'] = _responsibleEmailController.text.trim();
+      }
+      if (_facebookLinkController.text.trim().isNotEmpty) {
+        payload['facebook_link'] = _facebookLinkController.text.trim();
+      }
+      if (_instagramLinkController.text.trim().isNotEmpty) {
+        payload['instagram_link'] = _instagramLinkController.text.trim();
+      }
+      if (_xLinkController.text.trim().isNotEmpty) {
+        payload['x_link'] = _xLinkController.text.trim();
+      }
+      if (_tiktokLinkController.text.trim().isNotEmpty) {
+        payload['tiktok_link'] = _tiktokLinkController.text.trim();
       }
 
       // Add file fields only if they are provided
@@ -735,6 +759,43 @@ class _StudentEditProfilePageState extends State<StudentEditProfilePage> {
                     'Guardian Email',
                     _responsibleEmailController,
                     icon: Icons.email,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Social Media Links Section
+              _buildSectionCard(
+                context,
+                'Social Media Links',
+                Icons.share,
+                [
+                  _buildTextField(
+                    'Facebook Link',
+                    _facebookLinkController,
+                    icon: Icons.facebook,
+                    hint: 'https://facebook.com/yourpage',
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    'Instagram Link',
+                    _instagramLinkController,
+                    icon: Icons.camera_alt,
+                    hint: 'https://instagram.com/yourprofile',
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    'X (Twitter) Link',
+                    _xLinkController,
+                    icon: Icons.alternate_email,
+                    hint: 'https://x.com/yourprofile',
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    'TikTok Link',
+                    _tiktokLinkController,
+                    icon: Icons.music_note,
+                    hint: 'https://tiktok.com/@yourprofile',
                   ),
                 ],
               ),

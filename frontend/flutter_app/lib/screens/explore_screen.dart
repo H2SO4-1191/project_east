@@ -34,8 +34,32 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
   bool _isLoading = false;
   String? _error;
   String? _selectedFilter; // null = 'all', or 'courses', 'students', etc.
+  String? _selectedCity; // Selected city filter
   bool _isFilterExpanded = false; // For collapsible filter panel
+  bool _isCityExpanded = false; // For city filter expansion
   List<Map<String, dynamic>> _searchResults = []; // Store search results
+
+  // City map with keys and display names
+  static const Map<String, String> _cities = {
+    'baghdad': 'Baghdad',
+    'basra': 'Basra',
+    'maysan': 'Maysan',
+    'dhi_qar': 'Dhi Qar',
+    'muthanna': 'Muthanna',
+    'qadisiyyah': 'Qadisiyyah',
+    'najaf': 'Najaf',
+    'karbala': 'Karbala',
+    'babel': 'Babel',
+    'wasit': 'Wasit',
+    'anbar': 'Anbar',
+    'salah_al_din': 'Salah Al-Din',
+    'kirkuk': 'Kirkuk',
+    'diyala': 'Diyala',
+    'mosul': 'Mosul',
+    'erbil': 'Erbil',
+    'duhok': 'Duhok',
+    'sulaymaniyah': 'Sulaymaniyah',
+  };
 
   @override
   bool get wantKeepAlive => true;
@@ -69,6 +93,13 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
     _performSearch();
   }
 
+  void _onCityChanged(String? city) {
+    setState(() {
+      _selectedCity = city;
+    });
+    _performSearch();
+  }
+
   Future<void> _performSearch() async {
     setState(() {
       _isLoading = true;
@@ -82,10 +113,12 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
       
       final query = _searchController.text.trim();
       final filter = _selectedFilter;
+      final city = _selectedCity;
       
       final data = await ExploreService.exploreSearch(
         query: query,
         filter: filter,
+        city: city,
         accessToken: accessToken,
         refreshToken: refreshToken,
         onTokenRefreshed: (tokens) {
@@ -203,6 +236,7 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
           if (_searchController.text.isNotEmpty) {
             _searchController.clear();
             _selectedFilter = null;
+            _selectedCity = null;
             _performSearch();
           }
           _searchFocusNode.unfocus();
@@ -329,23 +363,42 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
                       color: isDark ? Colors.white : Colors.black87,
                     ),
                   ),
-                  if (_selectedFilter != null) ...[
+                  if (_selectedFilter != null || _selectedCity != null) ...[
                     const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary600,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        _getFilterLabel(_selectedFilter),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                    if (_selectedFilter != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary600,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _getFilterLabel(_selectedFilter),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
-                    ),
+                    if (_selectedCity != null) ...[
+                      if (_selectedFilter != null) const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.teal500,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _cities[_selectedCity] ?? _selectedCity!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                   const Spacer(),
                   AnimatedRotation(
@@ -365,16 +418,88 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
             firstChild: const SizedBox.shrink(),
             secondChild: Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildFilterChip('All', null, isDark),
-                  _buildFilterChip('Courses', 'courses', isDark),
-                  _buildFilterChip('Students', 'students', isDark),
-                  _buildFilterChip('Lecturers', 'lecturers', isDark),
-                  _buildFilterChip('Jobs', 'jobs', isDark),
-                  _buildFilterChip('Institutions', 'institutions', isDark),
+                  // Type filters
+                  Text(
+                    'Type',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white70 : Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildFilterChip('All', null, isDark),
+                      _buildFilterChip('Courses', 'courses', isDark),
+                      _buildFilterChip('Students', 'students', isDark),
+                      _buildFilterChip('Lecturers', 'lecturers', isDark),
+                      _buildFilterChip('Jobs', 'jobs', isDark),
+                      _buildFilterChip('Institutions', 'institutions', isDark),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // City filter section
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _isCityExpanded = !_isCityExpanded;
+                      });
+                    },
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          size: 16,
+                          color: AppTheme.teal500,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'City',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white70 : Colors.grey.shade600,
+                          ),
+                        ),
+                        const Spacer(),
+                        AnimatedRotation(
+                          turns: _isCityExpanded ? 0.5 : 0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Icon(
+                            Icons.keyboard_arrow_down,
+                            size: 16,
+                            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AnimatedCrossFade(
+                    firstChild: const SizedBox.shrink(),
+                    secondChild: Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildCityChip('All Cities', null, isDark),
+                          ..._cities.entries.map((entry) => 
+                            _buildCityChip(entry.value, entry.key, isDark)
+                          ),
+                        ],
+                      ),
+                    ),
+                    crossFadeState: _isCityExpanded
+                        ? CrossFadeState.showSecond
+                        : CrossFadeState.showFirst,
+                    duration: const Duration(milliseconds: 200),
+                  ),
                 ],
               ),
             ),
@@ -430,6 +555,27 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
     );
   }
 
+  Widget _buildCityChip(String label, String? city, bool isDark) {
+    final isSelected = _selectedCity == city;
+
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (selected) {
+        _onCityChanged(selected ? city : null);
+      },
+      backgroundColor: isDark ? AppTheme.navy700 : Colors.grey.shade200,
+      selectedColor: AppTheme.teal500,
+      checkmarkColor: Colors.white,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black87),
+        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+  }
+
   Widget _buildSearchResults(bool isDark) {
     if (_searchResults.isEmpty) {
       return Center(
@@ -469,22 +615,25 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
         final itemType = item['itemType'] as String?;
 
         // Use existing card widgets based on item type
+        Widget card;
         switch (itemType) {
           case 'student':
-            return StudentCard(
+            card = StudentCard(
               student: item,
               onTap: () => _handleResultTap(item, itemType),
             );
+            break;
           case 'lecturer':
-            return LecturerCard(
+            card = LecturerCard(
               lecturer: item,
               isMarked: false,
               onTap: () => _handleResultTap(item, itemType),
               onMark: () {}, // Not used in search results
               showMarkButton: userType == 'institution',
             );
+            break;
           case 'course':
-            return CourseCard(
+            card = CourseCard(
               course: item,
               onTap: () {
                 final courseId = item['id'];
@@ -497,16 +646,24 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
                 }
               },
             );
+            break;
           case 'job':
-            return JobCard(
+            card = JobCard(
               job: item,
               onTap: () => _handleResultTap(item, itemType),
             );
+            break;
           case 'institution':
-            return _buildInstitutionCard(item, isDark);
+            card = _buildInstitutionCard(item, isDark);
+            break;
           default:
             return const SizedBox.shrink();
         }
+        
+        return _buildAnimatedCard(
+          delay: index * 100,
+          child: card,
+        );
       },
     );
   }
@@ -1042,32 +1199,116 @@ class _ExploreScreenState extends State<ExploreScreen> with AutomaticKeepAliveCl
       mainAxisSpacing: 16,
       childAspectRatio: 1.2,
       children: [
-        CategoryCard(
-          category: CategoryType.courses,
-          index: 0,
-          onTap: () => _navigateToCategory(CategoryType.courses),
+        _buildAnimatedCard(
+          delay: 0,
+          child: CategoryCard(
+            category: CategoryType.courses,
+            index: 0,
+            onTap: () => _navigateToCategory(CategoryType.courses),
+          ),
         ),
-        CategoryCard(
-          category: CategoryType.students,
-          index: 1,
-          onTap: () => _navigateToCategory(CategoryType.students),
+        _buildAnimatedCard(
+          delay: 100,
+          child: CategoryCard(
+            category: CategoryType.students,
+            index: 1,
+            onTap: () => _navigateToCategory(CategoryType.students),
+          ),
         ),
-        CategoryCard(
-          category: CategoryType.lecturers,
-          index: 2,
-          onTap: () => _navigateToCategory(CategoryType.lecturers),
+        _buildAnimatedCard(
+          delay: 200,
+          child: CategoryCard(
+            category: CategoryType.lecturers,
+            index: 2,
+            onTap: () => _navigateToCategory(CategoryType.lecturers),
+          ),
         ),
-        CategoryCard(
-          category: CategoryType.jobs,
-          index: 3,
-          onTap: () => _navigateToCategory(CategoryType.jobs),
+        _buildAnimatedCard(
+          delay: 300,
+          child: CategoryCard(
+            category: CategoryType.jobs,
+            index: 3,
+            onTap: () => _navigateToCategory(CategoryType.jobs),
+          ),
         ),
-        CategoryCard(
-          category: CategoryType.institutions,
-          index: 4,
-          onTap: () => _navigateToCategory(CategoryType.institutions),
+        _buildAnimatedCard(
+          delay: 400,
+          child: CategoryCard(
+            category: CategoryType.institutions,
+            index: 4,
+            onTap: () => _navigateToCategory(CategoryType.institutions),
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAnimatedCard({required int delay, required Widget child}) {
+    return _DelayedAnimatedCard(delay: delay, child: child);
+  }
+}
+
+class _DelayedAnimatedCard extends StatefulWidget {
+  final int delay;
+  final Widget child;
+
+  const _DelayedAnimatedCard({
+    required this.delay,
+    required this.child,
+  });
+
+  @override
+  State<_DelayedAnimatedCard> createState() => _DelayedAnimatedCardState();
+}
+
+class _DelayedAnimatedCardState extends State<_DelayedAnimatedCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+    
+    // Start animation after delay
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) {
+        _controller.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _animation.value,
+          child: Transform.translate(
+            offset: Offset(0, 30 * (1 - _animation.value)),
+            child: Transform.scale(
+              scale: 0.9 + (0.1 * _animation.value),
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: widget.child,
     );
   }
 }

@@ -23,6 +23,10 @@ class _LecturerEditProfilePageState extends State<LecturerEditProfilePage> {
   final _skillsController = TextEditingController();
   final _experienceController = TextEditingController();
   final _freeTimeController = TextEditingController();
+  final _facebookLinkController = TextEditingController();
+  final _instagramLinkController = TextEditingController();
+  final _xLinkController = TextEditingController();
+  final _tiktokLinkController = TextEditingController();
 
   final ImagePicker _picker = ImagePicker();
   
@@ -84,6 +88,10 @@ class _LecturerEditProfilePageState extends State<LecturerEditProfilePage> {
     _skillsController.text = data['skills'] ?? '';
     _experienceController.text = data['experience'] ?? '';
     _freeTimeController.text = data['free_time'] ?? '';
+    _facebookLinkController.text = data['facebook_link'] ?? '';
+    _instagramLinkController.text = data['instagram_link'] ?? '';
+    _xLinkController.text = data['x_link'] ?? '';
+    _tiktokLinkController.text = data['tiktok_link'] ?? '';
     _selectedCity = data['city'];
     _selectedAcademicAchievement = data['academic_achievement'];
   }
@@ -98,6 +106,10 @@ class _LecturerEditProfilePageState extends State<LecturerEditProfilePage> {
     _skillsController.dispose();
     _experienceController.dispose();
     _freeTimeController.dispose();
+    _facebookLinkController.dispose();
+    _instagramLinkController.dispose();
+    _xLinkController.dispose();
+    _tiktokLinkController.dispose();
     super.dispose();
   }
 
@@ -289,6 +301,18 @@ class _LecturerEditProfilePageState extends State<LecturerEditProfilePage> {
       }
       if (_freeTimeController.text.trim().isNotEmpty) {
         payload['free_time'] = _freeTimeController.text.trim();
+      }
+      if (_facebookLinkController.text.trim().isNotEmpty) {
+        payload['facebook_link'] = _facebookLinkController.text.trim();
+      }
+      if (_instagramLinkController.text.trim().isNotEmpty) {
+        payload['instagram_link'] = _instagramLinkController.text.trim();
+      }
+      if (_xLinkController.text.trim().isNotEmpty) {
+        payload['x_link'] = _xLinkController.text.trim();
+      }
+      if (_tiktokLinkController.text.trim().isNotEmpty) {
+        payload['tiktok_link'] = _tiktokLinkController.text.trim();
       }
 
       // Add file fields only if they are provided
@@ -586,6 +610,36 @@ class _LecturerEditProfilePageState extends State<LecturerEditProfilePage> {
               ),
               const SizedBox(height: 16),
               _buildTextField('About', _aboutController, maxLines: 3),
+              const SizedBox(height: 16),
+              
+              // Social Media Links
+              Text(
+                'Social Media Links',
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Builder(
+                builder: (context) {
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  final isSmallScreen = screenWidth < 600;
+                  final crossAxisCount = isSmallScreen ? 1 : 2;
+                  
+                  return GridView.count(
+                    crossAxisCount: crossAxisCount,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: isSmallScreen ? 2.5 : 1.3,
+                    children: [
+                      _buildTextField('Facebook Link', _facebookLinkController),
+                      _buildTextField('Instagram Link', _instagramLinkController),
+                      _buildTextField('X (Twitter) Link', _xLinkController),
+                      _buildTextField('TikTok Link', _tiktokLinkController),
+                    ],
+                  );
+                },
+              ),
               const SizedBox(height: 16),
               
               // Lecturer Specific Fields

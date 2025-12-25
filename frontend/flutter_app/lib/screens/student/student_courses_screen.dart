@@ -8,6 +8,7 @@ import '../../services/explore_service.dart';
 import '../../services/api_service.dart';
 import '../../widgets/language_switcher.dart';
 import '../../widgets/modern_bottom_nav.dart';
+import '../../widgets/enhanced_loading_indicator.dart';
 
 class StudentCoursesScreen extends StatefulWidget {
   const StudentCoursesScreen({super.key});
@@ -16,15 +17,49 @@ class StudentCoursesScreen extends StatefulWidget {
   State<StudentCoursesScreen> createState() => _StudentCoursesScreenState();
 }
 
-class _StudentCoursesScreenState extends State<StudentCoursesScreen> {
+class _StudentCoursesScreenState extends State<StudentCoursesScreen>
+    with TickerProviderStateMixin {
   List<dynamic> _courses = [];
   bool _isLoading = true;
   String? _error;
+  String? _firstName;
+  
+  late AnimationController _coursesCardController;
+  late AnimationController _priceCardController;
 
   @override
   void initState() {
     super.initState();
     _fetchCourses();
+    
+    // Initialize animation controllers for stat cards
+    _coursesCardController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _priceCardController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    
+    // Start animations with staggered delays
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _coursesCardController.forward();
+      }
+    });
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) {
+        _priceCardController.forward();
+      }
+    });
+  }
+  
+  @override
+  void dispose() {
+    _coursesCardController.dispose();
+    _priceCardController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchCourses() async {
@@ -65,6 +100,7 @@ class _StudentCoursesScreenState extends State<StudentCoursesScreen> {
       // Extract username from profile
       final profileData = profileResponse['data'] ?? profileResponse;
       final username = profileData['username'];
+      final profileFirstName = profileData['first_name'];
 
       if (username == null || username.toString().isEmpty) {
         setState(() {
@@ -90,6 +126,9 @@ class _StudentCoursesScreenState extends State<StudentCoursesScreen> {
 
       setState(() {
         _courses = courses;
+        _firstName = (profileFirstName?.toString().trim().isNotEmpty ?? false)
+            ? profileFirstName.toString().trim()
+            : _firstName;
       });
     } catch (e) {
       setState(() {
@@ -151,7 +190,6 @@ class _StudentCoursesScreenState extends State<StudentCoursesScreen> {
       0,
       (sum, course) => sum + (double.tryParse(course['price']?.toString() ?? '0') ?? 0),
     );
-    final uniqueLevels = _courses.map((c) => c['level']).toSet().length;
 
     return Scaffold(
       backgroundColor: isDark ? AppTheme.navy900 : const Color(0xFFF9FAFB),
@@ -209,7 +247,7 @@ class _StudentCoursesScreenState extends State<StudentCoursesScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const FullScreenLoading(message: 'Loading your courses...')
           : _error != null
               ? Center(
                   child: Column(
@@ -248,7 +286,7 @@ class _StudentCoursesScreenState extends State<StudentCoursesScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Hello, ${instituteData['firstName'] ?? instituteData['username'] ?? 'Student'}!',
+                                    'Hello, ${_firstName ?? instituteData['firstName'] ?? instituteData['username'] ?? 'Student'}!',
                                     style: const TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold,
@@ -310,39 +348,32 @@ class _StudentCoursesScreenState extends State<StudentCoursesScreen> {
 
                       if (totalCourses > 0) ...[
                         const SizedBox(height: 24),
-                        // Stats Cards
+                        // Stats Cards with animations
                         Row(
                           children: [
                             Expanded(
-                              child: _buildStatCard(
+                              child: _buildAnimatedStatCard(
                                 context,
                                 isDark,
-                                Icons.book,
+                                Icons.book_rounded,
                                 'Enrolled Courses',
                                 '$totalCourses',
                                 Colors.blue,
+                                _coursesCardController,
+                                0,
                               ),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
-                              child: _buildStatCard(
+                              child: _buildAnimatedStatCard(
                                 context,
                                 isDark,
-                                Icons.attach_money,
+                                Icons.attach_money_rounded,
                                 'Total Price',
                                 '\$${totalPrice.toStringAsFixed(2)}',
                                 Colors.green,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildStatCard(
-                                context,
-                                isDark,
-                                Icons.school,
-                                'Levels',
-                                '$uniqueLevels',
-                                Colors.purple,
+                                _priceCardController,
+                                1,
                               ),
                             ),
                           ],
@@ -382,109 +413,200 @@ class _StudentCoursesScreenState extends State<StudentCoursesScreen> {
     );
   }
 
-  Widget _buildStatCard(
+  Widget _buildAnimatedStatCard(
     BuildContext context,
     bool isDark,
     IconData icon,
     String label,
     String value,
     Color color,
+    AnimationController controller,
+    int index,
   ) {
-    // Create gradient colors based on the base color
-    final gradientColors = _getGradientColors(color);
+    // Create enhanced gradient colors based on the base color
+    final gradientColors = _getEnhancedGradientColors(color);
     
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: gradientColors,
+    // Animations
+    final slideAnimation = Tween<Offset>(
+      begin: Offset(0, 0.3 + (index * 0.1)),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: controller,
+      curve: Curves.easeOutCubic,
+    ));
+    
+    final fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: controller,
+      curve: const Interval(0.0, 0.8, curve: Curves.easeOut),
+    ));
+    
+    final scaleAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: controller,
+      curve: Curves.easeOutBack,
+    ));
+    
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        return FadeTransition(
+          opacity: fadeAnimation,
+          child: SlideTransition(
+            position: slideAnimation,
+            child: Transform.scale(
+              scale: scaleAnimation.value,
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: gradientColors,
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+              spreadRadius: 2,
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-            spreadRadius: 0,
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Icon with background
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.25),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Icon with enhanced background
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.5),
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(-2, -2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                icon,
+                color: Colors.white,
+                size: 32,
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Label with better styling
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.white.withOpacity(0.95),
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Value with enhanced styling
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Flexible(
+                  child: Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      height: 1.0,
+                      letterSpacing: -1.0,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black26,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                // Decorative element
+                Container(
+                  margin: const EdgeInsets.only(left: 4, bottom: 4),
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.8),
+                    shape: BoxShape.circle,
+                  ),
                 ),
               ],
             ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(height: 20),
-          // Label
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.white.withOpacity(0.9),
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Value
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              height: 1.1,
-              letterSpacing: -0.5,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
-
-  List<Color> _getGradientColors(Color baseColor) {
-    // Create beautiful gradients based on the base color
+  
+  List<Color> _getEnhancedGradientColors(Color baseColor) {
+    // Create enhanced, more vibrant gradients based on the base color
     if (baseColor == Colors.blue) {
-      return [Colors.blue.shade600, Colors.blue.shade400];
+      return [
+        Colors.blue.shade700,
+        Colors.blue.shade500,
+        Colors.blue.shade400,
+      ];
     } else if (baseColor == Colors.green) {
-      return [Colors.green.shade600, Colors.teal.shade400];
+      return [
+        Colors.green.shade700,
+        Colors.teal.shade500,
+        Colors.teal.shade400,
+      ];
     } else if (baseColor == Colors.purple) {
-      return [Colors.purple.shade600, Colors.purple.shade400];
+      return [
+        Colors.purple.shade700,
+        Colors.purple.shade500,
+        Colors.purple.shade400,
+      ];
     } else {
       // Default gradient - use the base color with opacity variations
       return [
         baseColor,
-        Color.lerp(baseColor, Colors.white, 0.3) ?? baseColor,
+        Color.lerp(baseColor, Colors.white, 0.2) ?? baseColor,
+        Color.lerp(baseColor, Colors.white, 0.4) ?? baseColor,
       ];
     }
   }
+  
 
   Widget _buildEmptyState(BuildContext context, bool isDark) {
     return Container(
@@ -554,7 +676,7 @@ class _StudentCoursesScreenState extends State<StudentCoursesScreen> {
                 context: context,
                 barrierDismissible: false,
                 builder: (context) => const Center(
-                  child: CircularProgressIndicator(),
+                  child: EnhancedLoadingIndicator(),
                 ),
               );
 

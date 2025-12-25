@@ -26,6 +26,10 @@ dependencies:
   # Storage
   shared_preferences: ^2.2.2
   
+  # Notifications
+  flutter_local_notifications: ^17.2.2
+  permission_handler: ^11.3.1
+  
   # Charts
   fl_chart: ^0.66.0
   
@@ -53,11 +57,14 @@ flutter:
   assets:
     - assets/images/
     - assets/lottie/
+    - assets/logo.png
+    - assets/circle.png
+    - assets/logo2.png
 
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: "assets/logo.png"
+  image_path: "assets/logo2.png"
   adaptive_icon_background: "#1E3A5F"
-  adaptive_icon_foreground: "assets/logo.png"
+  adaptive_icon_foreground: "assets/logo2.png"
 

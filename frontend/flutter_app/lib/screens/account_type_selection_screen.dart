@@ -45,40 +45,49 @@ class AccountTypeSelectionScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 40),
-              _buildAccountTypeCard(
-                context,
-                isDark,
-                icon: Icons.school,
-                title: 'Student',
-                description: 'Join courses and track your progress',
-                color: AppTheme.primary600,
-                onTap: () {
-                  Navigator.pushNamed(context, '/signup/student');
-                },
+              _buildAnimatedCard(
+                delay: 0,
+                child: _buildAccountTypeCard(
+                  context,
+                  isDark,
+                  icon: Icons.school,
+                  title: 'Student',
+                  description: 'Join courses and track your progress',
+                  color: AppTheme.primary600,
+                  onTap: () {
+                    Navigator.pushNamed(context, '/signup/student');
+                  },
+                ),
               ),
               const SizedBox(height: 16),
-              _buildAccountTypeCard(
-                context,
-                isDark,
-                icon: Icons.person,
-                title: 'Lecturer',
-                description: 'Teach courses and manage students',
-                color: AppTheme.teal500,
-                onTap: () {
-                  Navigator.pushNamed(context, '/signup/lecturer');
-                },
+              _buildAnimatedCard(
+                delay: 100,
+                child: _buildAccountTypeCard(
+                  context,
+                  isDark,
+                  icon: Icons.person,
+                  title: 'Lecturer',
+                  description: 'Teach courses and manage students',
+                  color: AppTheme.teal500,
+                  onTap: () {
+                    Navigator.pushNamed(context, '/signup/lecturer');
+                  },
+                ),
               ),
               const SizedBox(height: 16),
-              _buildAccountTypeCard(
-                context,
-                isDark,
-                icon: Icons.business,
-                title: 'Institution',
-                description: 'Manage your educational institution',
-                color: AppTheme.gold500,
-                onTap: () {
-                  Navigator.pushNamed(context, '/signup/institution');
-                },
+              _buildAnimatedCard(
+                delay: 200,
+                child: _buildAccountTypeCard(
+                  context,
+                  isDark,
+                  icon: Icons.business,
+                  title: 'Institution',
+                  description: 'Manage your educational institution',
+                  color: AppTheme.gold500,
+                  onTap: () {
+                    Navigator.pushNamed(context, '/signup/institution');
+                  },
+                ),
               ),
             ],
           ),
@@ -153,6 +162,75 @@ class AccountTypeSelectionScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildAnimatedCard({required int delay, required Widget child}) {
+    return _DelayedAnimatedCard(delay: delay, child: child);
+  }
+}
+
+class _DelayedAnimatedCard extends StatefulWidget {
+  final int delay;
+  final Widget child;
+
+  const _DelayedAnimatedCard({
+    required this.delay,
+    required this.child,
+  });
+
+  @override
+  State<_DelayedAnimatedCard> createState() => _DelayedAnimatedCardState();
+}
+
+class _DelayedAnimatedCardState extends State<_DelayedAnimatedCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+    
+    // Start animation after delay
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) {
+        _controller.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _animation.value,
+          child: Transform.translate(
+            offset: Offset(0, 30 * (1 - _animation.value)),
+            child: Transform.scale(
+              scale: 0.9 + (0.1 * _animation.value),
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: widget.child,
     );
   }
 }

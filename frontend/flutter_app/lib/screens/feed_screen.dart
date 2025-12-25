@@ -8,6 +8,9 @@ import '../services/api_service.dart';
 import '../models/feed_item.dart';
 import '../services/profile_service.dart';
 import '../services/explore_service.dart';
+import '../services/notification_service.dart';
+import 'notifications_screen.dart';
+import '../widgets/enhanced_loading_indicator.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -21,6 +24,9 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
   bool _isLoading = true;
   String? _error;
   List<FeedItem> _feedItems = [];
+  int _notificationCount = 0;
+  bool _hasViewedNotifications = false;
+  int _viewedNotificationCount = 0; // Track count when user viewed notifications
 
   @override
   bool get wantKeepAlive => true;
@@ -28,7 +34,85 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
   @override
   void initState() {
     super.initState();
+    _initializeNotifications();
     _loadFeed();
+    _loadNotifications();
+  }
+
+  Future<void> _initializeNotifications() async {
+    // Initialize notification service
+    await NotificationService().initialize();
+  }
+
+  Future<void> _loadNotifications() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final accessToken = authProvider.accessToken;
+    final refreshToken = authProvider.refreshToken;
+    final userType = authProvider.instituteData['userType'];
+
+    // Only load notifications for students and lecturers
+    if (accessToken == null || (userType != 'student' && userType != 'lecturer')) {
+      return;
+    }
+
+    try {
+      final data = await ApiService.getNotifications(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        onTokenRefreshed: (tokens) {
+          authProvider.onTokenRefreshed(tokens);
+        },
+        onSessionExpired: () {
+          authProvider.onSessionExpired();
+        },
+      );
+
+      if (mounted && data['success'] == true && data['notifications'] != null) {
+        final notifications = data['notifications'] as List;
+        final newCount = notifications.length;
+        
+        if (_hasViewedNotifications) {
+          // User has viewed notifications
+          // Only show count if there are MORE notifications than when they viewed
+          if (newCount > _viewedNotificationCount) {
+            // New notifications arrived after viewing
+            setState(() {
+              _notificationCount = newCount - _viewedNotificationCount; // Show only new ones
+              _hasViewedNotifications = false; // Mark as unviewed since new ones arrived
+            });
+            
+            // Show device notifications for new notifications
+            await NotificationService().showLectureReminders(
+              notifications.map((n) => n as Map<String, dynamic>).toList(),
+            );
+          } else {
+            // Same or fewer notifications, keep count at 0
+            setState(() {
+              _notificationCount = 0;
+            });
+          }
+        } else {
+          // User hasn't viewed yet, show the actual count
+          setState(() {
+            _notificationCount = newCount;
+          });
+          
+          // Show device notifications if there are any
+          if (notifications.isNotEmpty) {
+            await NotificationService().showLectureReminders(
+              notifications.map((n) => n as Map<String, dynamic>).toList(),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      // Silently fail - don't show error for notifications
+      if (mounted) {
+        setState(() {
+          _notificationCount = 0;
+        });
+      }
+    }
   }
 
   @override
@@ -102,16 +186,8 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
             if (_isLoading)
               SliverFillRemaining(
                 child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const CircularProgressIndicator(),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Loading feed...',
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ],
+                  child: EnhancedLoadingIndicator(
+                    message: 'Loading feed...',
                   ),
                 ),
               )
@@ -174,7 +250,10 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
                     (context, index) {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 16.0),
-                        child: _buildFeedItem(context, _feedItems[index], isDark),
+                        child: _buildAnimatedFeedItem(
+                          delay: index * 100,
+                          child: _buildFeedItem(context, _feedItems[index], isDark),
+                        ),
                       );
                     },
                     childCount: _feedItems.length,
@@ -193,6 +272,9 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
     bool isAuthenticated,
     Map<String, dynamic> instituteData,
   ) {
+    final userType = instituteData['userType'];
+    final showNotifications = isAuthenticated && (userType == 'student' || userType == 'lecturer');
+
     return AppBar(
       elevation: 0,
       backgroundColor: isDark ? AppTheme.navy800 : Colors.white,
@@ -208,6 +290,69 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
           fontWeight: FontWeight.bold,
         ),
       ),
+      actions: [
+        if (showNotifications)
+          SizedBox(
+            width: 56,
+            height: 56,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                IconButton(
+                  padding: const EdgeInsets.all(12),
+                  icon: const Icon(Icons.notifications_outlined),
+                  onPressed: () async {
+                    // Store the current count and reset display count when opening notifications page
+                    setState(() {
+                      _viewedNotificationCount = _notificationCount; // Remember how many were viewed
+                      _notificationCount = 0; // Reset display count
+                      _hasViewedNotifications = true; // Mark as viewed
+                    });
+                    
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const NotificationsScreen(),
+                      ),
+                    );
+                    // Reload notifications after returning to check for new ones
+                    _loadNotifications();
+                  },
+                  tooltip: 'Notifications',
+                ),
+                if (_notificationCount > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isDark ? AppTheme.navy800 : Colors.white,
+                          width: 2,
+                        ),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        _notificationCount > 9 ? '9+' : '$_notificationCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
@@ -1828,4 +1973,72 @@ class _FeedScreenState extends State<FeedScreen> with AutomaticKeepAliveClientMi
     );
   }
 
+  Widget _buildAnimatedFeedItem({required int delay, required Widget child}) {
+    return _DelayedAnimatedFeedItem(delay: delay, child: child);
+  }
+}
+
+class _DelayedAnimatedFeedItem extends StatefulWidget {
+  final int delay;
+  final Widget child;
+
+  const _DelayedAnimatedFeedItem({
+    required this.delay,
+    required this.child,
+  });
+
+  @override
+  State<_DelayedAnimatedFeedItem> createState() => _DelayedAnimatedFeedItemState();
+}
+
+class _DelayedAnimatedFeedItemState extends State<_DelayedAnimatedFeedItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+    
+    // Start animation after delay
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) {
+        _controller.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _animation.value,
+          child: Transform.translate(
+            offset: Offset(0, 30 * (1 - _animation.value)),
+            child: Transform.scale(
+              scale: 0.9 + (0.1 * _animation.value),
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: widget.child,
+    );
+  }
 }

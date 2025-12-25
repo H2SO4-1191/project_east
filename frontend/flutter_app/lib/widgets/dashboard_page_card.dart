@@ -9,6 +9,7 @@ enum DashboardPageType {
   schedule,
   settings,
   applications,
+  myCourses,
 }
 
 class DashboardPageCard extends StatefulWidget {
@@ -90,6 +91,8 @@ class _DashboardPageCardState extends State<DashboardPageCard>
         return const Duration(seconds: 3);
       case DashboardPageType.applications:
         return const Duration(seconds: 2);
+      case DashboardPageType.myCourses:
+        return const Duration(seconds: 2);
     }
   }
 
@@ -102,6 +105,7 @@ class _DashboardPageCardState extends State<DashboardPageCard>
       case DashboardPageType.lecturers:
       case DashboardPageType.settings:
       case DashboardPageType.applications:
+      case DashboardPageType.myCourses:
         return true;
     }
   }
@@ -120,6 +124,8 @@ class _DashboardPageCardState extends State<DashboardPageCard>
         return Icons.settings;
       case DashboardPageType.applications:
         return Icons.assignment;
+      case DashboardPageType.myCourses:
+        return Icons.book;
     }
   }
 
@@ -137,6 +143,8 @@ class _DashboardPageCardState extends State<DashboardPageCard>
         return 'Settings';
       case DashboardPageType.applications:
         return 'Applications';
+      case DashboardPageType.myCourses:
+        return 'My Courses';
     }
   }
 
@@ -154,6 +162,8 @@ class _DashboardPageCardState extends State<DashboardPageCard>
         return [AppTheme.primary600, AppTheme.teal600];
       case DashboardPageType.applications:
         return [Colors.indigo.shade600, Colors.indigo.shade700];
+      case DashboardPageType.myCourses:
+        return [Colors.purple.shade600, Colors.purple.shade800];
     }
   }
 
@@ -223,6 +233,18 @@ class _DashboardPageCardState extends State<DashboardPageCard>
           builder: (context, child) {
             return Transform.scale(
               scale: 1.0 + (_iconController.value * 0.1),
+              child: child!,
+            );
+          },
+          child: icon,
+        );
+      case DashboardPageType.myCourses:
+        // Gentle floating
+        return AnimatedBuilder(
+          animation: _iconController,
+          builder: (context, child) {
+            return Transform.translate(
+              offset: Offset(0, -(_iconController.value * 6)),
               child: child!,
             );
           },

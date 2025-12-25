@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/explore_service.dart';
 import '../../services/api_service.dart';
 import '../../widgets/post_card.dart';
+import '../../widgets/enhanced_loading_indicator.dart';
 
 class JobsFilteredView extends StatefulWidget {
   const JobsFilteredView({super.key});
@@ -23,6 +23,7 @@ class _JobsFilteredViewState extends State<JobsFilteredView> {
   bool _isLoading = false;
   String? _error;
   List<dynamic> _jobs = [];
+  String? _selectedCity;
 
   @override
   void initState() {
@@ -46,6 +47,42 @@ class _JobsFilteredViewState extends State<JobsFilteredView> {
     });
   }
 
+  static const Map<String, String> _cities = {
+    'baghdad': 'Baghdad',
+    'basra': 'Basra',
+    'maysan': 'Maysan',
+    'dhi_qar': 'Dhi Qar',
+    'muthanna': 'Muthanna',
+    'qadisiyyah': 'Qadisiyyah',
+    'najaf': 'Najaf',
+    'karbala': 'Karbala',
+    'babel': 'Babel',
+    'wasit': 'Wasit',
+    'anbar': 'Anbar',
+    'salah_al_din': 'Salah Al-Din',
+    'kirkuk': 'Kirkuk',
+    'diyala': 'Diyala',
+    'mosul': 'Mosul',
+    'erbil': 'Erbil',
+    'duhok': 'Duhok',
+    'sulaymaniyah': 'Sulaymaniyah',
+  };
+
+  bool _matchesCity(dynamic cityValue) {
+    if (_selectedCity == null || _selectedCity!.isEmpty) return true;
+    if (cityValue == null) return false;
+    final code = _selectedCity!;
+    final targetRaw = cityValue.toString().trim().toLowerCase();
+    final normalizedTarget = targetRaw.replaceAll(RegExp(r'[\s-]+'), '_');
+    if (normalizedTarget == code) return true;
+    final display = _cities[code]?.toLowerCase();
+    if (display != null) {
+      final normalizedDisplay = display.replaceAll(RegExp(r'[\s-]+'), '_');
+      if (normalizedTarget == normalizedDisplay || targetRaw == display) return true;
+    }
+    return false;
+  }
+
   Future<void> _performSearch() async {
     setState(() {
       _isLoading = true;
@@ -58,9 +95,12 @@ class _JobsFilteredViewState extends State<JobsFilteredView> {
       final refreshToken = authProvider.refreshToken;
       
       final query = _searchController.text.trim();
+      final combinedQuery = _selectedCity != null && _selectedCity!.isNotEmpty
+          ? '${query.isNotEmpty ? '$query ' : ''}city:${_selectedCity!}'
+          : query;
       
       final data = await ExploreService.exploreSearch(
-        query: query,
+        query: combinedQuery,
         filter: 'jobs',
         accessToken: accessToken,
         refreshToken: refreshToken,
@@ -79,11 +119,12 @@ class _JobsFilteredViewState extends State<JobsFilteredView> {
       if (data['success'] == true || (results is Map)) {
         setState(() {
           // Try different possible keys for jobs
-          _jobs = results['jobs'] is List 
+          final list = results['jobs'] is List 
               ? List.from(results['jobs'])
               : (results['posts'] is List 
                   ? List.from(results['posts'])
                   : []);
+          _jobs = list.where((j) => _matchesCity(j['city'])).toList();
         });
       } else {
         setState(() {
@@ -155,7 +196,7 @@ class _JobsFilteredViewState extends State<JobsFilteredView> {
         child: isLoading
             ? const Padding(
                 padding: EdgeInsets.all(48.0),
-                child: Center(child: CircularProgressIndicator()),
+                child: const Center(child: EnhancedLoadingIndicator()),
               )
             : Column(
                 mainAxisSize: MainAxisSize.min,
@@ -564,9 +605,9 @@ class _JobsFilteredViewState extends State<JobsFilteredView> {
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        child: const SmallLoadingIndicator(
+                          size: 20,
+                          color: Colors.white,
                         ),
                       )
                     : const Text('Submit Application'),
@@ -695,66 +736,159 @@ class _JobsFilteredViewState extends State<JobsFilteredView> {
             ),
           ),
         ),
-        body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
-                      const SizedBox(height: 16),
-                      Text(_error!),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: _performSearch,
-                        child: const Text('Retry'),
-                      ),
-                    ],
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: DropdownButton<String>(
+                value: _selectedCity,
+                hint: const Text('Filter by city'),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCity = value;
+                  });
+                  _performSearch();
+                },
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('All cities'),
                   ),
-                )
-              : _jobs.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No jobs found',
-                            style: TextStyle(color: Colors.grey.shade600),
-                          ),
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _performSearch,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _jobs.length,
-                        itemBuilder: (context, index) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: PostCard(
-                              post: _jobs[index],
-                              onTap: () => _showJobSheet(_jobs[index]),
-                            )
-                                .animate()
-                                .fadeIn(
-                                  duration: 300.ms,
-                                  delay: (index * 50).ms,
-                                )
-                                .slideX(
-                                  begin: 0.2,
-                                  end: 0,
-                                  duration: 300.ms,
-                                  delay: (index * 50).ms,
+                  ..._cities.entries.map((e) => DropdownMenuItem<String>(
+                        value: e.key,
+                        child: Text(e.value),
+                      )),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: EnhancedLoadingIndicator())
+                : _error != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
+                            const SizedBox(height: 16),
+                            Text(_error!),
+                            const SizedBox(height: 24),
+                            ElevatedButton(
+                              onPressed: _performSearch,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : _jobs.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No jobs found',
+                                  style: TextStyle(color: Colors.grey.shade600),
                                 ),
-                          );
-                        },
-                      ),
-                    ),
+                              ],
+                            ),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: _performSearch,
+                            child: ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _jobs.length,
+                              itemBuilder: (context, index) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: _buildAnimatedCard(
+                                    delay: index * 100,
+                                    child: PostCard(
+                                      post: _jobs[index],
+                                      onTap: () => _showJobSheet(_jobs[index]),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+          ),
+        ],
       ),
+      ),
+    );
+  }
+
+  Widget _buildAnimatedCard({required int delay, required Widget child}) {
+    return _DelayedAnimatedCard(delay: delay, child: child);
+  }
+}
+
+class _DelayedAnimatedCard extends StatefulWidget {
+  final int delay;
+  final Widget child;
+
+  const _DelayedAnimatedCard({
+    required this.delay,
+    required this.child,
+  });
+
+  @override
+  State<_DelayedAnimatedCard> createState() => _DelayedAnimatedCardState();
+}
+
+class _DelayedAnimatedCardState extends State<_DelayedAnimatedCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+    
+    // Start animation after delay
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) {
+        _controller.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _animation.value,
+          child: Transform.translate(
+            offset: Offset(0, 30 * (1 - _animation.value)),
+            child: Transform.scale(
+              scale: 0.9 + (0.1 * _animation.value),
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: widget.child,
     );
   }
 }

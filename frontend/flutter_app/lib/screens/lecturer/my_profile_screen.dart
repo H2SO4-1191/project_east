@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
@@ -340,6 +341,128 @@ class _LecturerMyProfileScreenState extends State<LecturerMyProfileScreen> {
         ),
       ),
     );
+  }
+
+  bool _hasSocialMediaLinks() {
+    return (_profileData?['facebook_link'] != null && _profileData!['facebook_link'].toString().isNotEmpty) ||
+           (_profileData?['instagram_link'] != null && _profileData!['instagram_link'].toString().isNotEmpty) ||
+           (_profileData?['x_link'] != null && _profileData!['x_link'].toString().isNotEmpty) ||
+           (_profileData?['tiktok_link'] != null && _profileData!['tiktok_link'].toString().isNotEmpty);
+  }
+
+  Widget _buildSocialMediaLinks() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        if (_profileData?['facebook_link'] != null && _profileData!['facebook_link'].toString().isNotEmpty)
+          _buildSocialMediaButton(
+            icon: Icons.facebook,
+            label: 'Facebook',
+            url: _profileData!['facebook_link'].toString(),
+            color: const Color(0xFF1877F2),
+            isDark: isDark,
+          ),
+        if (_profileData?['instagram_link'] != null && _profileData!['instagram_link'].toString().isNotEmpty)
+          _buildSocialMediaButton(
+            icon: Icons.camera_alt,
+            label: 'Instagram',
+            url: _profileData!['instagram_link'].toString(),
+            color: const Color(0xFFE4405F),
+            isDark: isDark,
+          ),
+        if (_profileData?['x_link'] != null && _profileData!['x_link'].toString().isNotEmpty)
+          _buildSocialMediaButton(
+            icon: Icons.alternate_email,
+            label: 'X (Twitter)',
+            url: _profileData!['x_link'].toString(),
+            color: Colors.black,
+            isDark: isDark,
+          ),
+        if (_profileData?['tiktok_link'] != null && _profileData!['tiktok_link'].toString().isNotEmpty)
+          _buildSocialMediaButton(
+            icon: Icons.music_note,
+            label: 'TikTok',
+            url: _profileData!['tiktok_link'].toString(),
+            color: const Color(0xFF000000),
+            isDark: isDark,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSocialMediaButton({
+    required IconData icon,
+    required String label,
+    required String url,
+    required Color color,
+    required bool isDark,
+  }) {
+    return InkWell(
+      onTap: () async {
+        await _openExternalUrl(url);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.navy700 : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: color.withOpacity(0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openExternalUrl(String rawUrl) async {
+    String formattedUrl = rawUrl.trim();
+    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+      formattedUrl = 'https://$formattedUrl';
+    }
+    final uri = Uri.tryParse(formattedUrl);
+    if (uri == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open $formattedUrl')),
+        );
+      }
+      return;
+    }
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open $formattedUrl')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open $formattedUrl')),
+        );
+      }
+    }
   }
 
   Widget _buildVerificationPrompt() {
@@ -687,6 +810,16 @@ class _LecturerMyProfileScreenState extends State<LecturerMyProfileScreen> {
                                   _profileData!['about'].toString(),
                                   style: theme.textTheme.bodyMedium,
                                 ),
+                              ],
+                            ),
+
+                          // Social Media Links
+                          if (_hasSocialMediaLinks())
+                            _buildInfoCard(
+                              title: 'Social Media',
+                              icon: Icons.share,
+                              children: [
+                                _buildSocialMediaLinks(),
                               ],
                             ),
 

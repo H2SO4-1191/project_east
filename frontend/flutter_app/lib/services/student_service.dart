@@ -218,5 +218,59 @@ class StudentService {
       );
     }
   }
+
+  // Check if student is enrolled in a course
+  static Future<Map<String, dynamic>> checkStudentEnrollment({
+    required String accessToken,
+    required int courseId,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    VoidCallback? onSessionExpired,
+  }) async {
+    try {
+      var response = await http.get(
+        Uri.parse('$baseUrl/student/is-enrolled/$courseId/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+      );
+
+      if (response.statusCode == 401 && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await ApiService.refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+          response = await http.get(
+            Uri.parse('$baseUrl/student/is-enrolled/$courseId/'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${refreshed['access']}',
+            },
+          );
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      final data = _parseResponse(response.body);
+
+      if (response.statusCode != 200) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
 }
 

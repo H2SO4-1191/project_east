@@ -242,8 +242,10 @@ class _SignupScreenState extends State<SignupScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: TextFormField(
-                        controller: _firstNameController,
+                      child: _buildAnimatedField(
+                        delay: 0,
+                        child: TextFormField(
+                          controller: _firstNameController,
                         decoration: InputDecoration(
                           labelText: 'First Name',
                           border: OutlineInputBorder(
@@ -264,11 +266,14 @@ class _SignupScreenState extends State<SignupScreen> {
                           return null;
                         },
                       ),
+                      ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: TextFormField(
-                        controller: _lastNameController,
+                      child: _buildAnimatedField(
+                        delay: 100,
+                        child: TextFormField(
+                          controller: _lastNameController,
                         decoration: InputDecoration(
                           labelText: 'Last Name',
                           border: OutlineInputBorder(
@@ -289,12 +294,15 @@ class _SignupScreenState extends State<SignupScreen> {
                           return null;
                         },
                       ),
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _usernameController,
+                _buildAnimatedField(
+                  delay: 200,
+                  child: TextFormField(
+                    controller: _usernameController,
                   decoration: InputDecoration(
                     labelText: 'Username',
                     helperText: '⚠️ Username cannot be changed later',
@@ -320,9 +328,12 @@ class _SignupScreenState extends State<SignupScreen> {
                     return null;
                   },
                 ),
+                ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _emailController,
+                _buildAnimatedField(
+                  delay: 300,
+                  child: TextFormField(
+                    controller: _emailController,
                   decoration: InputDecoration(
                     labelText: 'Email',
                     border: OutlineInputBorder(
@@ -347,8 +358,11 @@ class _SignupScreenState extends State<SignupScreen> {
                     return null;
                   },
                 ),
+                ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
+                _buildAnimatedField(
+                  delay: 400,
+                  child: DropdownButtonFormField<String>(
                   value: _selectedCity,
                   decoration: InputDecoration(
                     labelText: 'City',
@@ -377,6 +391,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     return null;
                   },
                 ),
+                ),
                 if (_formError.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   Container(
@@ -393,9 +408,11 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ],
                 const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
+                _buildAnimatedField(
+                  delay: 500,
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleSubmit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.gold500,
@@ -412,13 +429,17 @@ class _SignupScreenState extends State<SignupScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                           )
                         : const Text('Create Account'),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
-                Center(
-                  child: TextButton(
+                _buildAnimatedField(
+                  delay: 600,
+                  child: Center(
+                    child: TextButton(
                     onPressed: () => Navigator.pushNamed(context, '/login'),
-                    child: const Text('Already have an account? Login'),
+                      child: const Text('Already have an account? Login'),
+                    ),
                   ),
                 ),
               ],
@@ -427,6 +448,75 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
         ),
       ),
+    );
+  }
+
+  Widget _buildAnimatedField({required int delay, required Widget child}) {
+    return _DelayedAnimatedField(delay: delay, child: child);
+  }
+}
+
+class _DelayedAnimatedField extends StatefulWidget {
+  final int delay;
+  final Widget child;
+
+  const _DelayedAnimatedField({
+    required this.delay,
+    required this.child,
+  });
+
+  @override
+  State<_DelayedAnimatedField> createState() => _DelayedAnimatedFieldState();
+}
+
+class _DelayedAnimatedFieldState extends State<_DelayedAnimatedField>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+    
+    // Start animation after delay
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) {
+        _controller.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _animation.value,
+          child: Transform.translate(
+            offset: Offset(0, 30 * (1 - _animation.value)),
+            child: Transform.scale(
+              scale: 0.9 + (0.1 * _animation.value),
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: widget.child,
     );
   }
 }

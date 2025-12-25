@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../config/theme.dart';
 import '../providers/theme_provider.dart';
 import '../services/profile_service.dart';
@@ -9,6 +10,7 @@ import '../providers/auth_provider.dart';
 import '../widgets/language_switcher.dart';
 import '../widgets/full_screen_image_viewer.dart';
 import '../widgets/animated_background.dart';
+import '../widgets/enhanced_loading_indicator.dart';
 
 class InstitutionProfileScreen extends StatefulWidget {
   final String username;
@@ -258,7 +260,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
       ),
       body: AnimatedBackground(
         child: _isLoadingProfile
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: EnhancedLoadingIndicator())
             : _error != null
                 ? Center(
                     child: Column(
@@ -439,6 +441,11 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                             style: const TextStyle(fontSize: 14),
                           ),
                         ],
+                        // Social Media Links
+                        if (_hasSocialMediaLinks(_profile!)) ...[
+                          const SizedBox(height: 16),
+                          _buildSocialMediaLinks(_profile!, isDark),
+                        ],
                         // Up Time and Up Days
                         if (upTime != null || upDays != null) ...[
                           const SizedBox(height: 12),
@@ -549,7 +556,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
 
   Widget _buildPostsTab(bool isDark) {
     if (_isLoadingPosts) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: EnhancedLoadingIndicator());
     }
 
     if (_posts.isEmpty) {
@@ -678,7 +685,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
 
   Widget _buildCoursesTab(bool isDark) {
     if (_isLoadingCourses) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: EnhancedLoadingIndicator());
     }
 
     if (_courses.isEmpty) {
@@ -786,7 +793,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
 
   Widget _buildJobsTab(bool isDark) {
     if (_isLoadingJobs) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: EnhancedLoadingIndicator());
     }
 
     if (_jobs.isEmpty) {
@@ -1225,7 +1232,7 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                     ] else if (_isLoadingCourseProgress) ...[
                       const Divider(),
                       const SizedBox(height: 16),
-                      const Center(child: CircularProgressIndicator()),
+                      const Center(child: EnhancedLoadingIndicator()),
                     ],
                     // Enroll Button
                     if (course['id'] != null) ...[
@@ -1395,6 +1402,112 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
       }
     } catch (e) {
       return dateString;
+    }
+  }
+
+  bool _hasSocialMediaLinks(Map<String, dynamic> profile) {
+    return (profile['facebook_link'] != null && profile['facebook_link'].toString().isNotEmpty) ||
+           (profile['instagram_link'] != null && profile['instagram_link'].toString().isNotEmpty) ||
+           (profile['x_link'] != null && profile['x_link'].toString().isNotEmpty) ||
+           (profile['tiktok_link'] != null && profile['tiktok_link'].toString().isNotEmpty);
+  }
+
+  Widget _buildSocialMediaLinks(Map<String, dynamic> profile, bool isDark) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        if (profile['facebook_link'] != null && profile['facebook_link'].toString().isNotEmpty)
+          _buildSocialMediaIcon(
+            context: context,
+            icon: Icons.facebook,
+            url: profile['facebook_link'].toString(),
+            color: const Color(0xFF1877F2),
+            isDark: isDark,
+          ),
+        if (profile['instagram_link'] != null && profile['instagram_link'].toString().isNotEmpty)
+          _buildSocialMediaIcon(
+            context: context,
+            icon: Icons.camera_alt,
+            url: profile['instagram_link'].toString(),
+            color: const Color(0xFFE4405F),
+            isDark: isDark,
+          ),
+        if (profile['x_link'] != null && profile['x_link'].toString().isNotEmpty)
+          _buildSocialMediaIcon(
+            context: context,
+            icon: Icons.alternate_email,
+            url: profile['x_link'].toString(),
+            color: Colors.black,
+            isDark: isDark,
+          ),
+        if (profile['tiktok_link'] != null && profile['tiktok_link'].toString().isNotEmpty)
+          _buildSocialMediaIcon(
+            context: context,
+            icon: Icons.music_note,
+            url: profile['tiktok_link'].toString(),
+            color: const Color(0xFF000000),
+            isDark: isDark,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSocialMediaIcon({
+    required BuildContext context,
+    required IconData icon,
+    required String url,
+    required Color color,
+    required bool isDark,
+  }) {
+    return InkWell(
+      onTap: () async {
+        await _openExternalUrl(context, url);
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.navy700 : Colors.grey.shade100,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: color.withOpacity(0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
+    );
+  }
+
+  Future<void> _openExternalUrl(BuildContext context, String rawUrl) async {
+    String formattedUrl = rawUrl.trim();
+    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+      formattedUrl = 'https://$formattedUrl';
+    }
+    final uri = Uri.tryParse(formattedUrl);
+    if (uri == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open $formattedUrl')),
+        );
+      }
+      return;
+    }
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open $formattedUrl')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open $formattedUrl')),
+        );
+      }
     }
   }
 
@@ -1792,13 +1905,9 @@ class _InstitutionProfileScreenState extends State<InstitutionProfileScreen>
                   foregroundColor: Colors.white,
                 ),
                 child: isSubmitting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
+                    ? const SmallLoadingIndicator(
+                        size: 20,
+                        color: Colors.white,
                       )
                     : const Text('Submit Application'),
               ),

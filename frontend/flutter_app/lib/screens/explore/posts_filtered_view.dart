@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/explore_service.dart';
 import '../../services/api_service.dart';
 import '../../widgets/post_card.dart';
+import '../../widgets/enhanced_loading_indicator.dart';
 
 class PostsFilteredView extends StatefulWidget {
   const PostsFilteredView({super.key});
@@ -263,7 +264,7 @@ class _PostsFilteredViewState extends State<PostsFilteredView> {
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: EnhancedLoadingIndicator())
           : _error != null
               ? Center(
                   child: Column(

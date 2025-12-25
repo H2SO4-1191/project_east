@@ -7,6 +7,7 @@ import '../../services/lecturer_service.dart';
 import '../../services/explore_service.dart';
 import '../../services/api_service.dart';
 import '../../widgets/modern_bottom_nav.dart';
+import '../../widgets/enhanced_loading_indicator.dart';
 
 class LecturerCourseDetailScreen extends StatefulWidget {
   const LecturerCourseDetailScreen({super.key});
@@ -98,7 +99,7 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const FullScreenLoading()
           : _error != null
               ? Center(
                   child: Column(
@@ -727,13 +728,9 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
                           ),
                         ),
                         child: isSubmitting
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
+                            ? const SmallLoadingIndicator(
+                                size: 24,
+                                color: Colors.white,
                               )
                             : const Text(
                                 'Create Exam',
@@ -829,7 +826,7 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
 
                   Expanded(
                     child: isLoadingExams
-                        ? const Center(child: CircularProgressIndicator())
+                        ? const Center(child: EnhancedLoadingIndicator())
                         : exams.isEmpty
                             ? Center(
                                 child: Column(
@@ -898,7 +895,22 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
 
                                         // Load students
                                         try {
-                                          final response = await LecturerService.getCourseStudents(_courseId!, 1);
+                                          final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                                          final accessToken = authProvider.instituteData['accessToken'];
+                                          final refreshToken = authProvider.instituteData['refreshToken'];
+
+                                          final response = await LecturerService.getCourseStudents(
+                                            courseId: _courseId!,
+                                            lectureNumber: 1,
+                                            accessToken: accessToken,
+                                            refreshToken: refreshToken,
+                                            onTokenRefreshed: (tokens) {
+                                              authProvider.onTokenRefreshed(tokens);
+                                            },
+                                            onSessionExpired: () {
+                                              authProvider.onSessionExpired();
+                                            },
+                                          );
                                           final studentsList = response['students'] ?? response['data'] ?? [];
                                           setModalState(() {
                                             students = studentsList;
@@ -911,6 +923,14 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
                                           setModalState(() {
                                             isLoadingStudents = false;
                                           });
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text(e is ApiException ? e.message : 'Failed to load students'),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
                                         }
                                       },
                                     ),
@@ -919,7 +939,7 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
 
                                 if (isLoadingStudents) ...[
                                   const SizedBox(height: 24),
-                                  const Center(child: CircularProgressIndicator()),
+                                  const Center(child: EnhancedLoadingIndicator()),
                                 ],
 
                                 if (students.isNotEmpty) ...[
@@ -1108,6 +1128,7 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
 
       final response = await LecturerService.getLecturerExams(
         accessToken: accessToken,
+        courseId: _courseId!,
         refreshToken: refreshToken,
         onTokenRefreshed: (tokens) {
           authProvider.onTokenRefreshed(tokens);
@@ -1238,7 +1259,22 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
 
                                 // Load students
                                 try {
-                                  final response = await LecturerService.getCourseStudents(_courseId!, value!);
+                                  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                                  final accessToken = authProvider.instituteData['accessToken'];
+                                  final refreshToken = authProvider.instituteData['refreshToken'];
+
+                                  final response = await LecturerService.getCourseStudents(
+                                    courseId: _courseId!,
+                                    lectureNumber: value!,
+                                    accessToken: accessToken,
+                                    refreshToken: refreshToken,
+                                    onTokenRefreshed: (tokens) {
+                                      authProvider.onTokenRefreshed(tokens);
+                                    },
+                                    onSessionExpired: () {
+                                      authProvider.onSessionExpired();
+                                    },
+                                  );
                                   final studentsList = response['students'] ?? response['data'] ?? [];
                                   setModalState(() {
                                     students = studentsList;
@@ -1251,6 +1287,14 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
                                   setModalState(() {
                                     isLoadingStudents = false;
                                   });
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(e is ApiException ? e.message : 'Failed to load students'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
                                 }
                               },
                             ),
@@ -1295,32 +1339,36 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
                                     child: Text(
                                       student['name'] ?? student['username'] ?? 'Student',
                                       style: const TextStyle(fontWeight: FontWeight.w500),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                  Row(
-                                    children: [
-                                      _buildAttendanceButton(
-                                        'Present',
-                                        Colors.green,
-                                        status == 'present',
-                                        () {
-                                          setModalState(() {
-                                            attendanceStatus[student['id']] = 'present';
-                                          });
-                                        },
-                                      ),
-                                      const SizedBox(width: 8),
-                                      _buildAttendanceButton(
-                                        'Absent',
-                                        Colors.red,
-                                        status == 'absent',
-                                        () {
-                                          setModalState(() {
-                                            attendanceStatus[student['id']] = 'absent';
-                                          });
-                                        },
-                                      ),
-                                    ],
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    width: 80,
+                                    child: _buildAttendanceButton(
+                                      'Present',
+                                      Colors.green,
+                                      status == 'present',
+                                      () {
+                                        setModalState(() {
+                                          attendanceStatus[student['id']] = 'present';
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    width: 80,
+                                    child: _buildAttendanceButton(
+                                      'Absent',
+                                      Colors.red,
+                                      status == 'absent',
+                                      () {
+                                        setModalState(() {
+                                          attendanceStatus[student['id']] = 'absent';
+                                        });
+                                      },
+                                    ),
                                   ),
                                 ],
                               ),
@@ -1351,7 +1399,8 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
 
                                   final records = students.map((student) {
                                     return {
-                                      'username': student['username'],
+                                      'username': student['username'] ?? student['name'],
+                                      'student_id': student['id'],
                                       'status': attendanceStatus[student['id']] ?? 'present',
                                     };
                                   }).toList();
@@ -1400,13 +1449,9 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
                           ),
                         ),
                         child: isSubmitting
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
+                            ? const SmallLoadingIndicator(
+                                size: 24,
+                                color: Colors.white,
                               )
                             : const Text(
                                 'Save Attendance',
@@ -1426,20 +1471,51 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
   Widget _buildAttendanceButton(String label, Color color, bool isSelected, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? color : color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : color,
+          color: isSelected ? color : color.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? color : color.withOpacity(0.3),
+            width: isSelected ? 2.0 : 1.5,
           ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: color.withOpacity(0.4),
+                    blurRadius: 8,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : [],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected) ...[
+              Icon(
+                label == 'Present' ? Icons.check_circle : Icons.cancel,
+                color: Colors.white,
+                size: 16,
+              ),
+              const SizedBox(width: 4),
+            ],
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected ? Colors.white : color,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1588,7 +1664,7 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
 
                           if (isLoading) ...[
                             const SizedBox(height: 24),
-                            const Center(child: CircularProgressIndicator()),
+                            const Center(child: EnhancedLoadingIndicator()),
                           ],
 
                           if (attendanceData != null) ...[

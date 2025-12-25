@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/explore_service.dart';
 import '../../services/api_service.dart';
 import '../../services/profile_service.dart';
+import '../../widgets/enhanced_loading_indicator.dart';
 import '../explore_screen.dart'; // For LecturerCard
 
 class LecturersFilteredView extends StatefulWidget {
@@ -24,6 +25,7 @@ class _LecturersFilteredViewState extends State<LecturersFilteredView> {
   bool _isLoading = false;
   String? _error;
   List<dynamic> _lecturers = [];
+  String? _selectedCity;
   
   Map<String, dynamic>? _selectedProfile;
   bool _isLoadingProfile = false;
@@ -52,6 +54,42 @@ class _LecturersFilteredViewState extends State<LecturersFilteredView> {
     });
   }
 
+  static const Map<String, String> _cities = {
+    'baghdad': 'Baghdad',
+    'basra': 'Basra',
+    'maysan': 'Maysan',
+    'dhi_qar': 'Dhi Qar',
+    'muthanna': 'Muthanna',
+    'qadisiyyah': 'Qadisiyyah',
+    'najaf': 'Najaf',
+    'karbala': 'Karbala',
+    'babel': 'Babel',
+    'wasit': 'Wasit',
+    'anbar': 'Anbar',
+    'salah_al_din': 'Salah Al-Din',
+    'kirkuk': 'Kirkuk',
+    'diyala': 'Diyala',
+    'mosul': 'Mosul',
+    'erbil': 'Erbil',
+    'duhok': 'Duhok',
+    'sulaymaniyah': 'Sulaymaniyah',
+  };
+
+  bool _matchesCity(dynamic cityValue) {
+    if (_selectedCity == null || _selectedCity!.isEmpty) return true;
+    if (cityValue == null) return false;
+    final code = _selectedCity!;
+    final targetRaw = cityValue.toString().trim().toLowerCase();
+    final normalizedTarget = targetRaw.replaceAll(RegExp(r'[\s-]+'), '_');
+    if (normalizedTarget == code) return true;
+    final display = _cities[code]?.toLowerCase();
+    if (display != null) {
+      final normalizedDisplay = display.replaceAll(RegExp(r'[\s-]+'), '_');
+      if (normalizedTarget == normalizedDisplay || targetRaw == display) return true;
+    }
+    return false;
+  }
+
   Future<void> _performSearch() async {
     setState(() {
       _isLoading = true;
@@ -64,9 +102,12 @@ class _LecturersFilteredViewState extends State<LecturersFilteredView> {
       final refreshToken = authProvider.refreshToken;
       
       final query = _searchController.text.trim();
+      final combinedQuery = _selectedCity != null && _selectedCity!.isNotEmpty
+          ? '${query.isNotEmpty ? '$query ' : ''}city:${_selectedCity!}'
+          : query;
       
       final data = await ExploreService.exploreSearch(
-        query: query,
+        query: combinedQuery,
         filter: 'lecturers',
         accessToken: accessToken,
         refreshToken: refreshToken,
@@ -84,7 +125,8 @@ class _LecturersFilteredViewState extends State<LecturersFilteredView> {
 
       if (data['success'] == true || (results is Map)) {
         setState(() {
-          _lecturers = results['lecturers'] is List ? List.from(results['lecturers']) : [];
+          final list = results['lecturers'] is List ? List.from(results['lecturers']) : [];
+          _lecturers = list.where((l) => _matchesCity(l['city'])).toList();
         });
         
         // Check marked lecturers if institution
@@ -287,7 +329,7 @@ class _LecturersFilteredViewState extends State<LecturersFilteredView> {
       child: _isLoadingProfile
           ? const Padding(
               padding: EdgeInsets.all(48.0),
-              child: Center(child: CircularProgressIndicator()),
+              child: const Center(child: EnhancedLoadingIndicator()),
             )
           : Column(
               mainAxisSize: MainAxisSize.min,
@@ -479,6 +521,18 @@ class _LecturersFilteredViewState extends State<LecturersFilteredView> {
                           ),
                           const SizedBox(height: 24),
                         ],
+                        // Social Media Links
+                        if (_hasSocialMediaLinks(profile)) ...[
+                          const SizedBox(height: 24),
+                          Text(
+                            'Social Media',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildSocialMediaLinks(profile, isDark),
+                        ],
                       ],
                     ),
                   ),
@@ -486,6 +540,112 @@ class _LecturersFilteredViewState extends State<LecturersFilteredView> {
               ],
             ),
     );
+  }
+
+  bool _hasSocialMediaLinks(Map<String, dynamic> profile) {
+    return (profile['facebook_link'] != null && profile['facebook_link'].toString().isNotEmpty) ||
+           (profile['instagram_link'] != null && profile['instagram_link'].toString().isNotEmpty) ||
+           (profile['x_link'] != null && profile['x_link'].toString().isNotEmpty) ||
+           (profile['tiktok_link'] != null && profile['tiktok_link'].toString().isNotEmpty);
+  }
+
+  Widget _buildSocialMediaLinks(Map<String, dynamic> profile, bool isDark) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        if (profile['facebook_link'] != null && profile['facebook_link'].toString().isNotEmpty)
+          _buildSocialMediaIcon(
+            context: context,
+            icon: Icons.facebook,
+            url: profile['facebook_link'].toString(),
+            color: const Color(0xFF1877F2),
+            isDark: isDark,
+          ),
+        if (profile['instagram_link'] != null && profile['instagram_link'].toString().isNotEmpty)
+          _buildSocialMediaIcon(
+            context: context,
+            icon: Icons.camera_alt,
+            url: profile['instagram_link'].toString(),
+            color: const Color(0xFFE4405F),
+            isDark: isDark,
+          ),
+        if (profile['x_link'] != null && profile['x_link'].toString().isNotEmpty)
+          _buildSocialMediaIcon(
+            context: context,
+            icon: Icons.alternate_email,
+            url: profile['x_link'].toString(),
+            color: Colors.black,
+            isDark: isDark,
+          ),
+        if (profile['tiktok_link'] != null && profile['tiktok_link'].toString().isNotEmpty)
+          _buildSocialMediaIcon(
+            context: context,
+            icon: Icons.music_note,
+            url: profile['tiktok_link'].toString(),
+            color: const Color(0xFF000000),
+            isDark: isDark,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSocialMediaIcon({
+    required BuildContext context,
+    required IconData icon,
+    required String url,
+    required Color color,
+    required bool isDark,
+  }) {
+    return InkWell(
+      onTap: () async {
+        await _openExternalUrl(context, url);
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.navy700 : Colors.grey.shade100,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: color.withOpacity(0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
+    );
+  }
+
+  Future<void> _openExternalUrl(BuildContext context, String rawUrl) async {
+    String formattedUrl = rawUrl.trim();
+    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+      formattedUrl = 'https://$formattedUrl';
+    }
+    final uri = Uri.tryParse(formattedUrl);
+    if (uri == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open $formattedUrl')),
+        );
+      }
+      return;
+    }
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open $formattedUrl')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open $formattedUrl')),
+        );
+      }
+    }
   }
 
   Widget _buildInfoRow(
@@ -594,71 +754,164 @@ class _LecturersFilteredViewState extends State<LecturersFilteredView> {
           ),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
-                      const SizedBox(height: 16),
-                      Text(_error!),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: _performSearch,
-                        child: const Text('Retry'),
-                      ),
-                    ],
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: DropdownButton<String>(
+                value: _selectedCity,
+                hint: const Text('Filter by city'),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCity = value;
+                  });
+                  _performSearch();
+                },
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('All cities'),
                   ),
-                )
-              : _lecturers.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No lecturers found',
-                            style: TextStyle(color: Colors.grey.shade600),
-                          ),
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _performSearch,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _lecturers.length,
-                        itemBuilder: (context, index) {
-                          final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                          final userType = authProvider.instituteData['userType'];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: LecturerCard(
-                              lecturer: _lecturers[index],
-                              isMarked: _markedLecturers.contains(_lecturers[index]['id']),
-                              onTap: () => _handleProfileTap(_lecturers[index]),
-                              onMark: () => _handleMarkLecturer(_lecturers[index]),
-                              showMarkButton: userType == 'institution',
-                            )
-                                .animate()
-                                .fadeIn(
-                                  duration: 300.ms,
-                                  delay: (index * 50).ms,
-                                )
-                                .slideX(
-                                  begin: 0.2,
-                                  end: 0,
-                                  duration: 300.ms,
-                                  delay: (index * 50).ms,
+                  ..._cities.entries.map((e) => DropdownMenuItem<String>(
+                        value: e.key,
+                        child: Text(e.value),
+                      )),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: EnhancedLoadingIndicator())
+                : _error != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
+                            const SizedBox(height: 16),
+                            Text(_error!),
+                            const SizedBox(height: 24),
+                            ElevatedButton(
+                              onPressed: _performSearch,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : _lecturers.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No lecturers found',
+                                  style: TextStyle(color: Colors.grey.shade600),
                                 ),
-                          );
-                        },
-                      ),
-                    ),
+                              ],
+                            ),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: _performSearch,
+                            child: ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _lecturers.length,
+                              itemBuilder: (context, index) {
+                                final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                                final userType = authProvider.instituteData['userType'];
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: _buildAnimatedCard(
+                                    delay: index * 100,
+                                    child: LecturerCard(
+                                      lecturer: _lecturers[index],
+                                      isMarked: _markedLecturers.contains(_lecturers[index]['id']),
+                                      onTap: () => _handleProfileTap(_lecturers[index]),
+                                      onMark: () => _handleMarkLecturer(_lecturers[index]),
+                                      showMarkButton: userType == 'institution',
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+          ),
+        ],
       ),
+      ),
+    );
+  }
+
+  Widget _buildAnimatedCard({required int delay, required Widget child}) {
+    return _DelayedAnimatedCard(delay: delay, child: child);
+  }
+}
+
+class _DelayedAnimatedCard extends StatefulWidget {
+  final int delay;
+  final Widget child;
+
+  const _DelayedAnimatedCard({
+    required this.delay,
+    required this.child,
+  });
+
+  @override
+  State<_DelayedAnimatedCard> createState() => _DelayedAnimatedCardState();
+}
+
+class _DelayedAnimatedCardState extends State<_DelayedAnimatedCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+    
+    // Start animation after delay
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) {
+        _controller.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _animation.value,
+          child: Transform.translate(
+            offset: Offset(0, 30 * (1 - _animation.value)),
+            child: Transform.scale(
+              scale: 0.9 + (0.1 * _animation.value),
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: widget.child,
     );
   }
 }

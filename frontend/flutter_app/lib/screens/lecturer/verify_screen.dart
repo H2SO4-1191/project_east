@@ -20,6 +20,10 @@ class _LecturerVerifyScreenState extends State<LecturerVerifyScreen> {
   final _specialtyController = TextEditingController();
   final _skillsController = TextEditingController();
   final _experienceController = TextEditingController();
+  final _facebookLinkController = TextEditingController();
+  final _instagramLinkController = TextEditingController();
+  final _xLinkController = TextEditingController();
+  final _tiktokLinkController = TextEditingController();
   
   TimeOfDay? _freeTimeStart;
   TimeOfDay? _freeTimeEnd;
@@ -232,6 +236,10 @@ class _LecturerVerifyScreenState extends State<LecturerVerifyScreen> {
         'skills': _skillsController.text.trim(),
         'experience': _experienceController.text.trim(),
         'free_time': freeTimeRange,
+        'facebook_link': _facebookLinkController.text.trim().isNotEmpty ? _facebookLinkController.text.trim() : null,
+        'instagram_link': _instagramLinkController.text.trim().isNotEmpty ? _instagramLinkController.text.trim() : null,
+        'x_link': _xLinkController.text.trim().isNotEmpty ? _xLinkController.text.trim() : null,
+        'tiktok_link': _tiktokLinkController.text.trim().isNotEmpty ? _tiktokLinkController.text.trim() : null,
         'profile_image': _profileImage,
         'idcard_front': _idcardFront,
         'idcard_back': _idcardBack,
@@ -239,7 +247,7 @@ class _LecturerVerifyScreenState extends State<LecturerVerifyScreen> {
         'residence_back': _residenceBack,
       };
 
-      await ApiService.verifyLecturer(
+      final result = await ApiService.verifyLecturer(
         accessToken: accessToken,
         refreshToken: refreshToken,
         payload: payload,
@@ -251,13 +259,48 @@ class _LecturerVerifyScreenState extends State<LecturerVerifyScreen> {
         },
       );
 
+      // Update verification status in AuthProvider to refresh the whole app
+      final isVerified = result['is_verified'] ?? false;
+      await authProvider.updateInstituteData({
+        'isVerified': isVerified,
+      });
+
+      // Also check verification status from API to ensure it's up to date
+      try {
+        final email = authProvider.instituteData['email'];
+        if (email != null && email.toString().isNotEmpty) {
+          final verificationStatus = await ApiService.checkVerificationStatus(
+            email.toString(),
+            accessToken: accessToken!,
+            refreshToken: refreshToken,
+            onTokenRefreshed: (tokens) {
+              authProvider.onTokenRefreshed(tokens);
+            },
+            onSessionExpired: () {
+              authProvider.onSessionExpired();
+            },
+          );
+          
+          // Update with the latest verification status from API
+          final latestIsVerified = verificationStatus['is_verified'] ?? isVerified;
+          await authProvider.updateInstituteData({
+            'isVerified': latestIsVerified,
+          });
+        }
+      } catch (e) {
+        // Silently fail - we already have the status from verifyLecturer response
+        print('Failed to check verification status: $e');
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Verification submitted successfully!'),
+          SnackBar(
+            content: Text(result['message'] ?? 'Verification submitted successfully!'),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
           ),
         );
+        // Pop with result to trigger refresh in parent screen
         Navigator.pop(context, true);
       }
     } catch (e) {
@@ -336,6 +379,10 @@ class _LecturerVerifyScreenState extends State<LecturerVerifyScreen> {
     _specialtyController.dispose();
     _skillsController.dispose();
     _experienceController.dispose();
+    _facebookLinkController.dispose();
+    _instagramLinkController.dispose();
+    _xLinkController.dispose();
+    _tiktokLinkController.dispose();
     super.dispose();
   }
 
@@ -491,6 +538,42 @@ class _LecturerVerifyScreenState extends State<LecturerVerifyScreen> {
                 icon: Icons.description,
                 maxLines: 3,
                 validator: (v) => v?.isEmpty == true ? 'About is required' : null,
+              ),
+              const SizedBox(height: 24),
+
+              // Social Media Links
+              _buildSectionTitle('Social Media Links', Icons.share),
+              const SizedBox(height: 12),
+              _buildTextField(
+                controller: _facebookLinkController,
+                label: 'Facebook Link',
+                hint: 'https://facebook.com/yourpage',
+                icon: Icons.facebook,
+                keyboardType: TextInputType.url,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _instagramLinkController,
+                label: 'Instagram Link',
+                hint: 'https://instagram.com/yourprofile',
+                icon: Icons.camera_alt,
+                keyboardType: TextInputType.url,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _xLinkController,
+                label: 'X (Twitter) Link',
+                hint: 'https://x.com/yourprofile',
+                icon: Icons.alternate_email,
+                keyboardType: TextInputType.url,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _tiktokLinkController,
+                label: 'TikTok Link',
+                hint: 'https://tiktok.com/@yourprofile',
+                icon: Icons.music_note,
+                keyboardType: TextInputType.url,
               ),
               const SizedBox(height: 24),
 

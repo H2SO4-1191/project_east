@@ -7,6 +7,7 @@ import '../../services/student_service.dart';
 import '../../services/api_service.dart';
 import '../../widgets/language_switcher.dart';
 import '../../widgets/modern_bottom_nav.dart';
+import '../../widgets/enhanced_loading_indicator.dart';
 
 class StudentScheduleScreen extends StatefulWidget {
   const StudentScheduleScreen({super.key});
@@ -248,7 +249,7 @@ class _StudentScheduleScreenState extends State<StudentScheduleScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: EnhancedLoadingIndicator())
           : _error != null
               ? _buildErrorView(context, isDark)
               : SingleChildScrollView(
@@ -479,7 +480,6 @@ class _StudentScheduleScreenState extends State<StudentScheduleScreen> {
     int index,
   ) {
     final courseTitle = session['course'] ?? 'Course';
-    final courseId = session['course_id'];
     final time = session['time'] ?? '';
     final instructor = session['instructor'] ?? 'TBA';
     final institution = session['institution'] ?? 'N/A';
@@ -580,27 +580,6 @@ class _StudentScheduleScreenState extends State<StudentScheduleScreen> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (courseId != null) ...[
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            'ID: $courseId',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Colors.white70,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),

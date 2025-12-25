@@ -355,6 +355,26 @@ class ApiService {
         fieldCount++;
         print('   - Added field: up_days = ${payload['up_days']}');
       }
+      if (payload['facebook_link'] != null) {
+        request.fields['facebook_link'] = payload['facebook_link'].toString();
+        fieldCount++;
+        print('   - Added field: facebook_link = ${payload['facebook_link']}');
+      }
+      if (payload['instagram_link'] != null) {
+        request.fields['instagram_link'] = payload['instagram_link'].toString();
+        fieldCount++;
+        print('   - Added field: instagram_link = ${payload['instagram_link']}');
+      }
+      if (payload['x_link'] != null) {
+        request.fields['x_link'] = payload['x_link'].toString();
+        fieldCount++;
+        print('   - Added field: x_link = ${payload['x_link']}');
+      }
+      if (payload['tiktok_link'] != null) {
+        request.fields['tiktok_link'] = payload['tiktok_link'].toString();
+        fieldCount++;
+        print('   - Added field: tiktok_link = ${payload['tiktok_link']}');
+      }
       print('   - Total text fields: $fieldCount');
 
       // Add file fields
@@ -554,6 +574,10 @@ class ApiService {
       if (payload['about'] != null) request.fields['about'] = payload['about'].toString();
       if (payload['up_time'] != null) request.fields['up_time'] = payload['up_time'].toString();
       if (payload['up_days'] != null) request.fields['up_days'] = payload['up_days'].toString();
+      if (payload['facebook_link'] != null) request.fields['facebook_link'] = payload['facebook_link'].toString();
+      if (payload['instagram_link'] != null) request.fields['instagram_link'] = payload['instagram_link'].toString();
+      if (payload['x_link'] != null) request.fields['x_link'] = payload['x_link'].toString();
+      if (payload['tiktok_link'] != null) request.fields['tiktok_link'] = payload['tiktok_link'].toString();
 
       // Add file fields (only if provided)
       if (payload['profile_image'] != null && payload['profile_image'] is File) {
@@ -651,6 +675,10 @@ class ApiService {
       if (payload['skills'] != null) request.fields['skills'] = payload['skills'].toString();
       if (payload['experience'] != null) request.fields['experience'] = payload['experience'].toString();
       if (payload['free_time'] != null) request.fields['free_time'] = payload['free_time'].toString();
+      if (payload['facebook_link'] != null) request.fields['facebook_link'] = payload['facebook_link'].toString();
+      if (payload['instagram_link'] != null) request.fields['instagram_link'] = payload['instagram_link'].toString();
+      if (payload['x_link'] != null) request.fields['x_link'] = payload['x_link'].toString();
+      if (payload['tiktok_link'] != null) request.fields['tiktok_link'] = payload['tiktok_link'].toString();
 
       // Add file fields (only if provided)
       if (payload['profile_image'] != null && payload['profile_image'] is File) {
@@ -741,6 +769,10 @@ class ApiService {
       if (payload['phone_number'] != null) request.fields['phone_number'] = payload['phone_number'].toString();
       if (payload['about'] != null) request.fields['about'] = payload['about'].toString();
       if (payload['studying_level'] != null) request.fields['studying_level'] = payload['studying_level'].toString();
+      if (payload['facebook_link'] != null) request.fields['facebook_link'] = payload['facebook_link'].toString();
+      if (payload['instagram_link'] != null) request.fields['instagram_link'] = payload['instagram_link'].toString();
+      if (payload['x_link'] != null) request.fields['x_link'] = payload['x_link'].toString();
+      if (payload['tiktok_link'] != null) request.fields['tiktok_link'] = payload['tiktok_link'].toString();
 
       // Add file fields
       if (payload['profile_image'] != null && payload['profile_image'] is File) {
@@ -837,6 +869,10 @@ class ApiService {
       if (payload['skills'] != null) request.fields['skills'] = payload['skills'].toString();
       if (payload['experience'] != null) request.fields['experience'] = payload['experience'].toString();
       if (payload['free_time'] != null) request.fields['free_time'] = payload['free_time'].toString();
+      if (payload['facebook_link'] != null) request.fields['facebook_link'] = payload['facebook_link'].toString();
+      if (payload['instagram_link'] != null) request.fields['instagram_link'] = payload['instagram_link'].toString();
+      if (payload['x_link'] != null) request.fields['x_link'] = payload['x_link'].toString();
+      if (payload['tiktok_link'] != null) request.fields['tiktok_link'] = payload['tiktok_link'].toString();
 
       // Add file fields
       if (payload['profile_image'] != null && payload['profile_image'] is File) {
@@ -920,7 +956,7 @@ class ApiService {
     try {
       final request = http.MultipartRequest(
         'PUT',
-        Uri.parse('$baseUrl/student/profile/edit/'),
+        Uri.parse('$baseUrl/student/edit-profile/'),
       );
 
       request.headers['Authorization'] = 'Bearer $accessToken';
@@ -935,6 +971,10 @@ class ApiService {
       if (payload['interesting_keywords'] != null) request.fields['interesting_keywords'] = payload['interesting_keywords'].toString();
       if (payload['responsible_phone'] != null) request.fields['responsible_phone'] = payload['responsible_phone'].toString();
       if (payload['responsible_email'] != null) request.fields['responsible_email'] = payload['responsible_email'].toString();
+      if (payload['facebook_link'] != null) request.fields['facebook_link'] = payload['facebook_link'].toString();
+      if (payload['instagram_link'] != null) request.fields['instagram_link'] = payload['instagram_link'].toString();
+      if (payload['x_link'] != null) request.fields['x_link'] = payload['x_link'].toString();
+      if (payload['tiktok_link'] != null) request.fields['tiktok_link'] = payload['tiktok_link'].toString();
 
       // Add file fields (only if provided)
       if (payload['profile_image'] != null && payload['profile_image'] is File) {
@@ -966,7 +1006,7 @@ class ApiService {
           // Retry request with new token
           final retryRequest = http.MultipartRequest(
             'PUT',
-            Uri.parse('$baseUrl/student/profile/edit/'),
+            Uri.parse('$baseUrl/student/edit-profile/'),
           );
           retryRequest.headers['Authorization'] = 'Bearer ${refreshed['access']}';
           retryRequest.fields.addAll(request.fields);
@@ -2237,6 +2277,62 @@ class ApiService {
     }
   }
 
+  /// Get notifications (lecture reminders for students and lecturers)
+  static Future<Map<String, dynamic>> getNotifications({
+    String? accessToken,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      final headers = <String, String>{..._defaultHeaders};
+      if (accessToken != null && accessToken.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $accessToken';
+      }
+
+      var response = await http.get(
+        Uri.parse('$baseUrl/notifications/'),
+        headers: headers,
+      );
+
+      // Handle token refresh on 401 (only if token was provided)
+      if (response.statusCode == 401 && accessToken != null && refreshToken != null && onTokenRefreshed != null) {
+        try {
+          final refreshed = await refreshAccessToken(refreshToken);
+          onTokenRefreshed(refreshed);
+          
+          // Retry request with new token
+          headers['Authorization'] = 'Bearer ${refreshed['access']}';
+          response = await http.get(
+            Uri.parse('$baseUrl/notifications/'),
+            headers: headers,
+          );
+        } catch (refreshError) {
+          if (onSessionExpired != null) {
+            onSessionExpired();
+          }
+          throw ApiException(
+            status: 401,
+            message: 'Session expired. Please log in again.',
+          );
+        }
+      }
+
+      final data = _parseResponse(response.body);
+
+      if (response.statusCode != 200) {
+        throw _buildError(response.statusCode, data);
+      }
+
+      return data;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Network error. Please check your connection and try again.',
+      );
+    }
+  }
+
   /// Helper to convert 12-hour time to 24-hour format
   static String _convert12To24Hour(String time12) {
     try {
@@ -2262,6 +2358,78 @@ class ApiService {
     } catch (e) {
       return time12; // Return original if conversion fails
     }
+  }
+
+  /// Get institution username from my profile
+  static Future<String?> getInstitutionUsername({
+    required String accessToken,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    try {
+      final profile = await getInstitutionMyProfile(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        onTokenRefreshed: onTokenRefreshed,
+        onSessionExpired: onSessionExpired,
+      );
+      return profile['data']?['username'] ?? profile['username'];
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Get course exams
+  static Future<Map<String, dynamic>> getCourseExams({
+    required int courseId,
+    required String accessToken,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    return getProtected(
+      endpoint: '/institution-lecturer/courses/$courseId/exams/',
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      onTokenRefreshed: onTokenRefreshed,
+      onSessionExpired: onSessionExpired,
+    );
+  }
+
+  /// Get exam grades
+  static Future<Map<String, dynamic>> getExamGrades({
+    required int examId,
+    required String accessToken,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    return getProtected(
+      endpoint: '/institution-lecturer/exam/$examId/grades/view/',
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      onTokenRefreshed: onTokenRefreshed,
+      onSessionExpired: onSessionExpired,
+    );
+  }
+
+  /// Get course attendance for a specific lecture
+  static Future<Map<String, dynamic>> getCourseAttendance({
+    required int courseId,
+    required int lectureNumber,
+    required String accessToken,
+    String? refreshToken,
+    Function(Map<String, dynamic>)? onTokenRefreshed,
+    Function()? onSessionExpired,
+  }) async {
+    return getProtected(
+      endpoint: '/institution-lecturer/course/$courseId/attendance/$lectureNumber/',
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      onTokenRefreshed: onTokenRefreshed,
+      onSessionExpired: onSessionExpired,
+    );
   }
 }
 

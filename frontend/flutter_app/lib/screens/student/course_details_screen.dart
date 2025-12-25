@@ -6,6 +6,7 @@ import '../../services/student_service.dart';
 import '../../services/explore_service.dart';
 import '../../services/api_service.dart';
 import '../../widgets/full_screen_image_viewer.dart';
+import '../../widgets/enhanced_loading_indicator.dart';
 import '../institution_profile_screen.dart';
 
 class CourseDetailsScreen extends StatefulWidget {
@@ -41,17 +42,8 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen>
   late AnimationController _gradesController;
   late AnimationController _progressController;
   
-  // Scroll controller for scroll-based animations
+  // Scroll controller
   final ScrollController _scrollController = ScrollController();
-  
-  // Track which cards have been animated
-  bool _courseInfoAnimated = false;
-  bool _attendanceAnimated = false;
-  bool _gradesAnimated = false;
-  bool _progressAnimated = false;
-  
-  // Debounce for scroll animations
-  DateTime? _lastScrollAnimation;
 
   @override
   void initState() {
@@ -59,91 +51,38 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen>
     _loadAllData();
     
     // Initialize animation controllers with more dynamic timing
+    // Ensure they start at 0.0 to prevent TweenSequence assertion errors
     _courseInfoController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
-    );
+    )..value = 0.0;
     _attendanceController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
-    );
+    )..value = 0.0;
     _gradesController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
-    );
+    )..value = 0.0;
     _progressController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
-    );
+    )..value = 0.0;
 
-    // Add scroll listener for scroll-based animations
-    _scrollController.addListener(_onScroll);
-    
-    // Start initial animations with delays after data loads
+    // Start all animations immediately when page opens (no delay)
     Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted && !_courseInfoAnimated) {
+      if (mounted) {
+        // Start all animations at once - all cards show immediately
         _courseInfoController.forward();
-        _courseInfoAnimated = true;
+        _attendanceController.forward();
+        _gradesController.forward();
+        _progressController.forward();
       }
     });
-  }
-  
-  void _onScroll() {
-    if (!mounted) return;
-    
-    final scrollPosition = _scrollController.offset;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final now = DateTime.now();
-    
-    // Debounce: only trigger re-animations every 300ms
-    final canReAnimate = _lastScrollAnimation == null || 
-        now.difference(_lastScrollAnimation!).inMilliseconds > 300;
-    
-    // Trigger initial animations based on scroll position
-    if (scrollPosition > 50 && !_attendanceAnimated) {
-      _attendanceController.forward();
-      _attendanceAnimated = true;
-    }
-    if (scrollPosition > screenHeight * 0.5 && !_gradesAnimated) {
-      _gradesController.forward();
-      _gradesAnimated = true;
-    }
-    if (scrollPosition > screenHeight * 0.8 && !_progressAnimated) {
-      _progressController.forward();
-      _progressAnimated = true;
-    }
-    
-    // Re-trigger subtle animations on scroll for "dancing" effect
-    // Use reset() and forward() to avoid TweenSequence range issues
-    if (canReAnimate && scrollPosition > 0 && _courseInfoAnimated && 
-        !_courseInfoController.isAnimating && _courseInfoController.value > 0.5) {
-      _courseInfoController.reset();
-      _courseInfoController.forward();
-      _lastScrollAnimation = now;
-    }
-    if (canReAnimate && scrollPosition > 50 && _attendanceAnimated && 
-        !_attendanceController.isAnimating && _attendanceController.value > 0.5) {
-      _attendanceController.reset();
-      _attendanceController.forward();
-      _lastScrollAnimation = now;
-    }
-    if (canReAnimate && scrollPosition > screenHeight * 0.5 && _gradesAnimated && 
-        !_gradesController.isAnimating && _gradesController.value > 0.5) {
-      _gradesController.reset();
-      _gradesController.forward();
-      _lastScrollAnimation = now;
-    }
-    if (canReAnimate && scrollPosition > screenHeight * 0.8 && _progressAnimated && 
-        !_progressController.isAnimating && _progressController.value > 0.5) {
-      _progressController.reset();
-      _progressController.forward();
-      _lastScrollAnimation = now;
-    }
   }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _courseInfoController.dispose();
     _attendanceController.dispose();
@@ -406,7 +345,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen>
         ),
       ),
       body: _isLoadingCourse
-          ? const Center(child: CircularProgressIndicator())
+          ? const FullScreenLoading()
           : _error != null
               ? Center(
                   child: Column(
@@ -469,7 +408,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen>
     required AnimationController controller,
     required Widget child,
   }) {
-    // Create more dynamic "dancing" animations with rotation, bounce, and spring
+    // Create smooth animations without TweenSequence to avoid assertion errors
     final slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.5),
       end: Offset.zero,
@@ -486,21 +425,20 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen>
       curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
     ));
 
-    // More bouncy scale animation
-    final scaleAnimation = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween<double>(begin: 0.6, end: 1.15), weight: 40),
-      TweenSequenceItem(tween: Tween<double>(begin: 1.15, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween<double>(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(
+    // Simple scale animation without TweenSequence
+    final scaleAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1.0,
+    ).animate(CurvedAnimation(
       parent: controller,
-      curve: Curves.elasticOut,
+      curve: Curves.easeOutBack,
     ));
 
-    // More pronounced rotation for "dancing" effect
-    final rotationAnimation = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween<double>(begin: -0.1, end: 0.05), weight: 50),
-      TweenSequenceItem(tween: Tween<double>(begin: 0.05, end: 0.0), weight: 50),
-    ]).animate(CurvedAnimation(
+    // Simple rotation animation without TweenSequence
+    final rotationAnimation = Tween<double>(
+      begin: -0.05,
+      end: 0.0,
+    ).animate(CurvedAnimation(
       parent: controller,
       curve: Curves.easeOutBack,
     ));
@@ -865,7 +803,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen>
           Padding(
             padding: const EdgeInsets.all(20),
             child: _isLoadingAttendance
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: EnhancedLoadingIndicator())
                 : _attendanceData == null
                     ? const Center(
                         child: Padding(
@@ -1030,7 +968,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen>
           Padding(
             padding: const EdgeInsets.all(20),
             child: _isLoadingGrades
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: EnhancedLoadingIndicator())
                 : _gradesData == null
                     ? const Center(
                         child: Padding(
@@ -1161,7 +1099,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen>
           Padding(
             padding: const EdgeInsets.all(20),
             child: _isLoadingProgress
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: EnhancedLoadingIndicator())
                 : _progressData == null
                     ? const Center(
                         child: Padding(
@@ -1412,5 +1350,6 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen>
       ),
     );
   }
+
 }
 
