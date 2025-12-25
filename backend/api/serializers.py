@@ -179,6 +179,11 @@ class InstitutionEditProfileSerializer(serializers.ModelSerializer):
             'idcard_front',
             'residence_front',
             'residence_back',
+            'instagram_link',
+            'facebook_link',
+            'x_link',
+            'tiktok_link',
+
             'title',
             'location',
             'up_time',
@@ -339,6 +344,11 @@ class InstitutionSelfProfileSerializer(serializers.ModelSerializer):
             "residence_front",
             "residence_back",
             "is_verified",
+            "instagram_link",
+            "facebook_link"
+            "x_link",
+            "tiktok_link",
+            
 
             "title",
             "location",
@@ -361,9 +371,14 @@ class InstitutionPublicProfileSerializer(serializers.ModelSerializer):
             "city",
             "about",
             "profile_image",
+            "is_verified",
+            "instagram_link",
+            "facebook_link",
+            "x_link",
+            "tiktok_link",
+
             "title",
             "location",
-            "is_verified",
             "up_time",
             "up_days",
         ]
@@ -593,6 +608,11 @@ class LecturerSelfProfileSerializer(serializers.ModelSerializer):
     profile_image = serializers.ImageField(source="user.profile_image")
     is_verified = serializers.BooleanField(source="user.is_verified")
 
+    instagram_link = serializers.URLField(source="user.instagram_link")
+    facebook_link = serializers.URLField(source="user.facebook_link")
+    x_link = serializers.URLField(source="user.x_link")
+    tiktok_link = serializers.URLField(source="user.tiktok_link")
+
     idcard_back = serializers.ImageField(source="user.idcard_back")
     idcard_front = serializers.ImageField(source="user.idcard_front")
     residence_front = serializers.ImageField(source="user.residence_front")
@@ -619,6 +639,10 @@ class LecturerSelfProfileSerializer(serializers.ModelSerializer):
             "residence_back",
             "is_verified",
 
+            "facebook_link",
+            "instagram_link",
+            "x_link",
+            "tiktok_link",
 
             "academic_achievement",
             "specialty",
@@ -634,6 +658,11 @@ class LecturerPublicProfileSerializer(serializers.ModelSerializer):
     city = serializers.CharField(source="user.city")
     profile_image = serializers.ImageField(source="user.profile_image")
     is_verified = serializers.BooleanField(source="user.is_verified")
+
+    instagram_link = serializers.URLField(source="user.instagram_link")
+    facebook_link = serializers.URLField(source="user.facebook_link")
+    x_link = serializers.URLField(source="user.x_link")
+    tiktok_link = serializers.URLField(source="user.tiktok_link")
 
     institutions = serializers.StringRelatedField(many=True)
 
@@ -651,6 +680,11 @@ class LecturerPublicProfileSerializer(serializers.ModelSerializer):
             "institutions",
             "free_time",
             "is_verified",
+
+            "facebook_link",
+            "instagram_link",
+            "x_link",
+            "tiktok_link",
         ]
 
 class LecturerCourseListSerializer(serializers.ModelSerializer):
@@ -687,6 +721,11 @@ class LecturerEditProfileSerializer(serializers.ModelSerializer):
             "idcard_front",
             "residence_front",
             "residence_back",
+
+            "facebook_link",
+            "instagram_link",
+            "x_link",
+            "tiktok_link",
 
             "academic_achievement",
             "specialty",
@@ -743,6 +782,11 @@ class StudentSelfProfileSerializer(serializers.ModelSerializer):
             "residence_back",
             "is_verified",
 
+            "facebook_link",
+            "instagram_link",
+            "x_link",
+            "tiktok_link",
+
             "studying_level",
             "interesting_keywords",
             "responsible_phone",
@@ -763,6 +807,11 @@ class StudentPublicProfileSerializer(serializers.ModelSerializer):
             "profile_image",
             "studying_level",
             "is_verified",
+
+            "facebook_link",
+            "instagram_link",
+            "x_link",
+            "tiktok_link",
         ]
 
 class StudentCourseListSerializer(serializers.ModelSerializer):
@@ -799,6 +848,11 @@ class StudentEditProfileSerializer(serializers.ModelSerializer):
             "residence_front",
             "residence_back",
 
+            "facebook_link",
+            "instagram_link",
+            "x_link",
+            "tiktok_link",
+
             "studying_level",
             "interesting_keywords",
             "responsible_phone",
@@ -825,15 +879,15 @@ class ExamSerializer(serializers.ModelSerializer):
         fields = ["id", "title", "date", "max_score"]
 
 class GradeCreateSerializer(serializers.Serializer):
-    student_id = serializers.IntegerField()
+    username = serializers.CharField()
     score = serializers.FloatField()
 
 class GradeBulkCreateSerializer(serializers.Serializer):
     grades = GradeCreateSerializer(many=True)
 
 class AttendanceRecordSerializer(serializers.Serializer):
-    student_id = serializers.IntegerField()
-    status = serializers.ChoiceField(choices=["present", "absent", "late"])
+    username = serializers.CharField()
+    status = serializers.ChoiceField(choices=["present", "absent"])
 
 class AttendanceCreateSerializer(serializers.Serializer):
     lecture_number = serializers.IntegerField()

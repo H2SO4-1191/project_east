@@ -1059,14 +1059,14 @@ class LecturerAddGradesView(APIView):
         max_score = exam.max_score
 
         for item in grades_data:
-            student_id = item["student_id"]
+            username = item["username"]
             score = item["score"]
 
             if score < 0 or score > max_score:
                 continue
 
             try:
-                student = Student.objects.get(id=student_id, courses=course)
+                student = Student.objects.get(user__username=username, courses=course)
             except Student.DoesNotExist:
                 continue
 
@@ -1134,6 +1134,26 @@ class LecturerMarkAttendanceView(APIView):
                 lecture_number=lecture_number,
                 defaults={"status": status_val}
             )
+
+            # send email only if absent
+            if status_val == "absent":
+                subject = f"Attendance Alert - {course.title} Lecture {lecture_number}"
+                msg = (
+                    f"Dear {student.user.first_name},\n\n"
+                    f"You were marked absent for lecture {lecture_number} of '{course.title}'.\n"
+                    f"Please make sure to catch up.\n\nBest regards."
+                )
+                recipients = [student.user.email]
+                if student.responsible_email:
+                    recipients.append(student.responsible_email)
+
+                send_mail(
+                    subject=subject,
+                    message=msg,
+                    from_email=settings.EMAIL_HOST_USER,
+                    recipient_list=recipients,
+                    fail_silently=True,
+                )
 
         return Response({"success": True, "message": "Attendance saved successfully."})
 
@@ -1261,7 +1281,7 @@ class LecturerEditGradesView(APIView):
         max_score = exam.max_score
 
         for item in grades_data:
-            student_id = item["student_id"]
+            username = item["username"]
             score = item["score"]
 
             # Validate score
@@ -1269,7 +1289,7 @@ class LecturerEditGradesView(APIView):
                 continue
 
             try:
-                student = Student.objects.get(id=student_id, courses=course)
+                student = Student.objects.get(user__username=username, courses=course)
             except Student.DoesNotExist:
                 continue
 
@@ -2076,15 +2096,25 @@ class StudentSetupPaymentMethodView(APIView):
 class ExamsListView(APIView):
     permission_classes = [IsAuthenticated, IsVerified, IsInstitution | IsLecturer]
 
-    def get(self, request):
+    def get(self, request, course_id):
         user = request.user
 
+        try:
+            course = Course.objects.get(id=course_id)
+        except Course.DoesNotExist:
+            return Response({"success": False, "message": "Course not found."}, status=404)
+
+        # Permission check
         if user.user_type == "institution":
-            exams = Exam.objects.filter(course__institution=user.institution).select_related("course")
+            if course.institution != user.institution:
+                return Response({"success": False, "message": "Not allowed."}, status=403)
         elif user.user_type == "lecturer":
-            exams = Exam.objects.filter(course__lecturer=user.lecturer).select_related("course")
+            if course.lecturer != user.lecturer:
+                return Response({"success": False, "message": "Not allowed."}, status=403)
         else:
             return Response({"success": False, "message": "Not allowed."}, status=403)
+
+        exams = Exam.objects.filter(course=course)
 
         exam_list = [
             {
@@ -2092,8 +2122,8 @@ class ExamsListView(APIView):
                 "exam_title": exam.title,
                 "date": exam.date,
                 "max_score": exam.max_score,
-                "course_id": exam.course.id,
-                "course_title": exam.course.title
+                "course_id": course.id,
+                "course_title": course.title
             }
             for exam in exams
         ]
