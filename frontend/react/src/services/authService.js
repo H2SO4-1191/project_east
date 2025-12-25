@@ -320,7 +320,7 @@ export const authService = {
 
   async getFeed(accessToken = null, options = {}) {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
-    
+
     const headers = { ...defaultHeaders };
     if (accessToken) {
       headers.Authorization = `Bearer ${accessToken}`;
@@ -673,8 +673,13 @@ export const authService = {
     if (payload.profile_image) formData.append('profile_image', payload.profile_image);
     if (payload.idcard_back) formData.append('idcard_back', payload.idcard_back);
     if (payload.idcard_front) formData.append('idcard_front', payload.idcard_front);
-    if (payload.residence_front) formData.append('residence_front', payload.residence_front);
     if (payload.residence_back) formData.append('residence_back', payload.residence_back);
+
+    // Append social media links
+    if (payload.facebook_link !== undefined) formData.append('facebook_link', payload.facebook_link);
+    if (payload.instagram_link !== undefined) formData.append('instagram_link', payload.instagram_link);
+    if (payload.x_link !== undefined) formData.append('x_link', payload.x_link);
+    if (payload.tiktok_link !== undefined) formData.append('tiktok_link', payload.tiktok_link);
 
     const makeRequest = async (token) =>
       fetch(`${BASE_URL}/lecturer/edit-profile/`, {
@@ -1539,8 +1544,58 @@ export const authService = {
   },
 
   // Submit grades for an exam (bulk create/update + send emails)
+  // List exams for a lecturer
+  async listExams(accessToken, courseId, options = {}) {
+    const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    if (!courseId) {
+      throw buildError(400, { message: 'Course ID is required to list exams' });
+    }
+
+    const makeRequest = async (token) =>
+      fetch(`${BASE_URL}/institution-lecturer/courses/${courseId}/exams/`, {
+        method: 'GET',
+        headers: {
+          ...defaultHeaders,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    let response = await makeRequest(accessToken);
+
+    if (response.status === 401 && refreshToken && onTokenRefreshed) {
+      try {
+        const refreshed = await this.refreshAccessToken(refreshToken);
+        onTokenRefreshed(refreshed);
+        response = await makeRequest(refreshed.access);
+      } catch (refreshError) {
+        if (typeof onSessionExpired === 'function') {
+          onSessionExpired();
+        }
+        throw buildError(
+          refreshError?.status || 401,
+          refreshError?.data || { message: 'Session expired. Please log in again.' }
+        );
+      }
+    }
+
+    const data = await parseResponse(response);
+
+    if (!response.ok) {
+      throw buildError(response.status, data);
+    }
+
+    return data;
+  },
+
   async submitExamGrades(accessToken, examId, grades, options = {}) {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
+
+    // Update grades to use username instead of student_id
+    const gradesWithUsername = grades.map(grade => ({
+      username: grade.username, // Use username instead of student_id
+      score: parseFloat(grade.score)
+    }));
 
     const makeRequest = async (token) =>
       fetch(`${BASE_URL}/lecturer/exam/${examId}/grades/`, {
@@ -1549,7 +1604,7 @@ export const authService = {
           ...defaultHeaders,
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ grades }),
+        body: JSON.stringify({ grades: gradesWithUsername }),
       });
 
     let response = await makeRequest(accessToken);
@@ -1584,7 +1639,7 @@ export const authService = {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
 
     const makeRequest = async (token) =>
-      fetch(`${BASE_URL}/lecturer/exam/${examId}/grades/view/`, {
+      fetch(`${BASE_URL}/institution-lecturer/exam/${examId}/grades/view/`, {
         method: 'GET',
         headers: {
           ...defaultHeaders,
@@ -1623,6 +1678,12 @@ export const authService = {
   async editExamGrades(accessToken, examId, grades, options = {}) {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
 
+    // Update grades to use username instead of student_id
+    const gradesWithUsername = grades.map(grade => ({
+      username: grade.username, // Use username instead of student_id
+      score: parseFloat(grade.score)
+    }));
+
     const makeRequest = async (token) =>
       fetch(`${BASE_URL}/lecturer/exam/${examId}/grades/edit/`, {
         method: 'PUT',
@@ -1630,7 +1691,7 @@ export const authService = {
           ...defaultHeaders,
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ grades }),
+        body: JSON.stringify({ grades: gradesWithUsername }),
       });
 
     let response = await makeRequest(accessToken);
@@ -1665,11 +1726,12 @@ export const authService = {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
 
     // Validate and format the request body
-    // Server requires student_id only (username removed)
+    // Include both username and student_id for compatibility
     const requestBody = {
       lecture_number: parseInt(lectureNumber, 10),
       records: records.map(record => ({
-        student_id: parseInt(record.student_id, 10), // Include student_id (required by server)
+        username: record.username, // Use username
+        student_id: record.student_id || record.id, // Include student_id for compatibility
         status: record.status || 'present' // Ensure status is present
       }))
     };
@@ -1685,8 +1747,8 @@ export const authService = {
 
     // Validate each record
     for (const record of requestBody.records) {
-      if (isNaN(record.student_id)) {
-        throw buildError(400, { message: `Invalid student_id: ${record.student_id}. Student ID is required and must be a number` });
+      if (!record.username || typeof record.username !== 'string') {
+        throw buildError(400, { message: `Invalid username: ${record.username}. Username is required and must be a string` });
       }
       if (!['present', 'absent', 'late'].includes(record.status)) {
         throw buildError(400, { message: `Invalid status: ${record.status}. Must be 'present', 'absent', or 'late'` });
@@ -1743,7 +1805,7 @@ export const authService = {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
 
     const makeRequest = async (token) =>
-      fetch(`${BASE_URL}/lecturer/course/${courseId}/attendance/${lectureNumber}/`, {
+      fetch(`${BASE_URL}/institution-lecturer/course/${courseId}/attendance/${lectureNumber}/`, {
         method: 'GET',
         headers: {
           ...defaultHeaders,
@@ -1905,13 +1967,13 @@ export const authService = {
     }
 
     const formData = new FormData();
-    
+
     // Required field: title
     formData.append('title', payload.title);
-    
+
     // Optional field: description (send empty string if not provided)
     formData.append('description', payload.description || '');
-    
+
     // Optional field: images (0..N files, only append if provided)
     if (payload.images && Array.isArray(payload.images) && payload.images.length > 0) {
       payload.images.forEach((image) => {
@@ -1974,7 +2036,7 @@ export const authService = {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
 
     const formData = new FormData();
-    
+
     // Required fields
     formData.append('title', payload.title);
     formData.append('about', payload.about);
@@ -1982,19 +2044,19 @@ export const authService = {
     formData.append('ending_date', payload.ending_date);
     formData.append('level', payload.level);
     formData.append('price', payload.price);
-    
+
     // Days array - append each day
     if (payload.days && Array.isArray(payload.days)) {
       payload.days.forEach((day) => {
         formData.append('days', day);
       });
     }
-    
+
     formData.append('start_time', payload.start_time);
     formData.append('end_time', payload.end_time);
     // Ensure lecturer is sent as integer (FormData converts to string, but backend expects numeric string)
     formData.append('lecturer', String(Number(payload.lecturer)));
-    
+
     // Optional fields
     if (payload.course_image) {
       formData.append('course_image', payload.course_image);
@@ -2049,7 +2111,7 @@ export const authService = {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
 
     const formData = new FormData();
-    
+
     // Append only provided fields (partial update)
     if (payload.title) formData.append('title', payload.title);
     if (payload.about) formData.append('about', payload.about);
@@ -2057,14 +2119,14 @@ export const authService = {
     if (payload.ending_date) formData.append('ending_date', payload.ending_date);
     if (payload.level) formData.append('level', payload.level);
     if (payload.price !== undefined) formData.append('price', payload.price);
-    
+
     // Days array - append each day if provided
     if (payload.days && Array.isArray(payload.days)) {
       payload.days.forEach((day) => {
         formData.append('days', day);
       });
     }
-    
+
     if (payload.start_time) formData.append('start_time', payload.start_time);
     if (payload.end_time) formData.append('end_time', payload.end_time);
     if (payload.lecturer) formData.append('lecturer', payload.lecturer);
@@ -2115,19 +2177,19 @@ export const authService = {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
 
     const formData = new FormData();
-    
+
     // Required fields
     formData.append('first_name', payload.first_name);
     formData.append('last_name', payload.last_name);
     formData.append('phone_number', payload.phone_number);
     formData.append('duty', payload.duty);
     formData.append('salary', payload.salary);
-    
+
     // Required file
     if (payload.personal_image) {
       formData.append('personal_image', payload.personal_image);
     }
-    
+
     // Optional files
     if (payload.idcard_front) {
       formData.append('idcard_front', payload.idcard_front);
@@ -2230,14 +2292,14 @@ export const authService = {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
 
     const formData = new FormData();
-    
+
     // Append only provided fields (partial update)
     if (payload.first_name) formData.append('first_name', payload.first_name);
     if (payload.last_name) formData.append('last_name', payload.last_name);
     if (payload.phone_number) formData.append('phone_number', payload.phone_number);
     if (payload.duty) formData.append('duty', payload.duty);
     if (payload.salary !== undefined) formData.append('salary', payload.salary);
-    
+
     // Files
     if (payload.personal_image) formData.append('personal_image', payload.personal_image);
     if (payload.idcard_front) formData.append('idcard_front', payload.idcard_front);
@@ -2386,7 +2448,7 @@ export const authService = {
     }
 
     const formData = new FormData();
-    
+
     // Required fields
     formData.append('phone_number', payload.phone_number);
     formData.append('about', payload.about);
@@ -2395,7 +2457,7 @@ export const authService = {
     formData.append('skills', payload.skills);
     formData.append('experience', payload.experience);
     formData.append('free_time', payload.free_time);
-    
+
     // Required files
     if (payload.profile_image) formData.append('profile_image', payload.profile_image);
     if (payload.idcard_front) formData.append('idcard_front', payload.idcard_front);
@@ -2457,12 +2519,12 @@ export const authService = {
 
     // Create FormData for multipart/form-data request
     const formData = new FormData();
-    
+
     // Required text fields - always append (backend will validate)
     formData.append('phone_number', payload.phone_number || '');
     formData.append('about', payload.about || '');
     formData.append('studying_level', payload.studying_level || '');
-    
+
     // Optional text fields - only append if they exist and have non-empty values
     if (payload.responsible_phone && payload.responsible_phone.trim()) {
       formData.append('responsible_phone', payload.responsible_phone.trim());
@@ -2470,7 +2532,7 @@ export const authService = {
     if (payload.responsible_email && payload.responsible_email.trim()) {
       formData.append('responsible_email', payload.responsible_email.trim());
     }
-    
+
     // Required file fields - append if they exist (backend will validate if missing)
     if (payload.profile_image) {
       formData.append('profile_image', payload.profile_image);
@@ -2846,11 +2908,15 @@ export const authService = {
   },
 
   // Get list of students for a specific lecture number in a course
-  async getCourseStudents(accessToken, courseId, options = {}) {
+  async getCourseStudents(accessToken, courseId, lectureNumber, options = {}) {
     const { refreshToken, onTokenRefreshed, onSessionExpired } = options;
 
+    // Try using query parameter format: course/<course_id>/students/?lecture_number=<lecture_number>
+    // If that doesn't work, we can fall back to attendance view endpoint
+    const url = `${BASE_URL}/course/${courseId}/students/?lecture_number=${lectureNumber}`;
+
     const makeRequest = async (token) =>
-      fetch(`${BASE_URL}/course/${courseId}/students/`, {
+      fetch(url, {
         method: 'GET',
         headers: {
           ...defaultHeaders,

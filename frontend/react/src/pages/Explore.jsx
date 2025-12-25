@@ -100,6 +100,9 @@ const Explore = () => {
   const [showLecturerCoursesModal, setShowLecturerCoursesModal] = useState(false);
   const [lecturerCourses, setLecturerCourses] = useState([]);
   const [isLoadingLecturerCourses, setIsLoadingLecturerCourses] = useState(false);
+  
+  // Expanded image modal state
+  const [expandedImage, setExpandedImage] = useState(null);
 
   const isInstitution = instituteData.userType === 'institution';
 
@@ -1923,8 +1926,12 @@ const Explore = () => {
                                   <img
                                     src={studentImage}
                                     alt={item.name || item.username}
-                                    className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
+                                    className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800 cursor-pointer hover:opacity-80 transition-opacity"
                                     onError={(e) => { e.target.src = defaultStudentAvatar; }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setExpandedImage(studentImage);
+                                    }}
                                   />
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1">
@@ -1972,8 +1979,12 @@ const Explore = () => {
                                     <img
                                       src={lecturerImage}
                                       alt={item.name || item.username}
-                                      className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
+                                      className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800 cursor-pointer hover:opacity-80 transition-opacity"
                                       onError={(e) => { e.target.src = defaultLecturerAvatar; }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExpandedImage(lecturerImage);
+                                      }}
                                     />
                                     <div className="flex-1">
                                       <div className="flex items-center gap-2 mb-1">
@@ -2409,8 +2420,12 @@ const Explore = () => {
                             <img
                               src={studentImgTab}
                               alt={student.name || student.username}
-                              className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
+                              className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800 cursor-pointer hover:opacity-80 transition-opacity"
                               onError={(e) => { e.target.src = defaultStudentAvatarTab; }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedImage(studentImgTab);
+                              }}
                             />
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
@@ -2495,8 +2510,12 @@ const Explore = () => {
                               <img
                                 src={lecturerImgTab}
                                 alt={lecturer.name || lecturer.username}
-                                className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
+                                className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800 cursor-pointer hover:opacity-80 transition-opacity"
                                 onError={(e) => { e.target.src = defaultLecturerAvatarTab; }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedImage(lecturerImgTab);
+                                }}
                               />
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
@@ -4177,6 +4196,41 @@ const Explore = () => {
         isOpen={showKeyboardHelp} 
         onClose={() => setShowKeyboardHelp(false)} 
       />
+
+      {/* Expanded Image Modal */}
+      <AnimatePresence>
+        {expandedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+            onClick={() => setExpandedImage(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative max-w-4xl max-h-[90vh] w-full"
+            >
+              <img
+                src={expandedImage}
+                alt="Expanded profile"
+                className="w-full h-full object-contain rounded-lg"
+              />
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setExpandedImage(null)}
+                className="absolute top-4 right-4 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors backdrop-blur-sm"
+              >
+                <FaTimes className="text-white text-lg" />
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Lecturer Courses Modal */}
       <AnimatePresence>

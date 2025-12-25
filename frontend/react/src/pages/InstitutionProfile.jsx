@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { 
-  FaUniversity, 
+import {
+  FaUniversity,
+  FaUsers,
   FaArrowLeft,
   FaNewspaper,
   FaBook,
@@ -13,7 +14,11 @@ import {
   FaDollarSign,
   FaCalendarAlt,
   FaUser,
-  FaSpinner
+  FaSpinner,
+  FaFacebook,
+  FaInstagram,
+  FaTwitter,
+  FaTiktok
 } from 'react-icons/fa';
 import { authService } from '../services/authService';
 import { useInstitute } from '../context/InstituteContext';
@@ -27,11 +32,11 @@ const InstitutionProfile = () => {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
   const { instituteData, updateInstituteData } = useInstitute();
-  
+
   // Get initial tab from URL query parameter, default to 'posts'
   const initialTab = searchParams.get('tab') || 'posts';
   const [activeTab, setActiveTab] = useState(initialTab); // 'posts', 'courses', 'jobs'
-  
+
   // Update active tab when URL query parameter changes
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab') || 'posts';
@@ -47,7 +52,7 @@ const InstitutionProfile = () => {
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const [isLoadingCourses, setIsLoadingCourses] = useState(false);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
-  
+
   // Modal states
   const [selectedJob, setSelectedJob] = useState(null);
   const [showJobModal, setShowJobModal] = useState(false);
@@ -56,7 +61,7 @@ const InstitutionProfile = () => {
   const [showCourseModal, setShowCourseModal] = useState(false);
   const [isLoadingCourseDetails, setIsLoadingCourseDetails] = useState(false);
   const [courseProgress, setCourseProgress] = useState(null);
-  
+
   // Enrollment and job application states
   const [enrollingCourseId, setEnrollingCourseId] = useState(null);
   const [isApplyingToJob, setIsApplyingToJob] = useState(false);
@@ -81,7 +86,7 @@ const InstitutionProfile = () => {
   useEffect(() => {
     const fetchInstitutionInfo = async () => {
       if (!username) return;
-      
+
       try {
         const profileData = await authService.getInstitutionPublicProfile(username);
         if (profileData?.success && profileData?.data) {
@@ -135,7 +140,7 @@ const InstitutionProfile = () => {
       } else if (data?.results) {
         coursesData = Array.isArray(data.results) ? data.results : [];
       }
-      
+
       // Check enrollment status for courses if user is a student
       if (instituteData.isAuthenticated && instituteData.userType === 'student' && instituteData.accessToken && coursesData.length > 0) {
         const enrollmentChecks = await Promise.allSettled(
@@ -166,7 +171,7 @@ const InstitutionProfile = () => {
             }
           })
         );
-        
+
         // Create a map of course IDs to enrollment status
         const enrollmentMap = new Map();
         enrollmentChecks.forEach((result) => {
@@ -174,7 +179,7 @@ const InstitutionProfile = () => {
             enrollmentMap.set(result.value.courseId, result.value.isEnrolled);
           }
         });
-        
+
         // Update courses with enrollment status
         const coursesWithEnrollment = coursesData.map(course => {
           const courseId = course.id || course.course_id;
@@ -183,7 +188,7 @@ const InstitutionProfile = () => {
             is_enrolled: enrollmentMap.get(courseId) || false,
           };
         });
-        
+
         setCourses(coursesWithEnrollment);
       } else {
         setCourses(coursesData);
@@ -236,7 +241,7 @@ const InstitutionProfile = () => {
     setSelectedJob(job);
     setShowJobModal(true);
     setIsLoadingJobDetails(true);
-    
+
     try {
       const jobDetails = await authService.getJobDetails(job.id);
       if (jobDetails?.success && jobDetails?.data) {
@@ -258,7 +263,7 @@ const InstitutionProfile = () => {
     setShowCourseModal(true);
     setIsLoadingCourseDetails(true);
     setCourseProgress(null);
-    
+
     try {
       // Fetch course details, progress, and enrollment status in parallel
       const promises = [
@@ -277,7 +282,7 @@ const InstitutionProfile = () => {
           }
         ).catch(() => null), // Progress is optional, don't fail if it errors
       ];
-      
+
       // Add enrollment check if user is a student
       if (instituteData.isAuthenticated && instituteData.userType === 'student' && instituteData.accessToken) {
         promises.push(
@@ -299,10 +304,10 @@ const InstitutionProfile = () => {
           ).catch(() => ({ is_enrolled: false })) // Default to not enrolled if check fails
         );
       }
-      
+
       const results = await Promise.all(promises);
       const [courseDetails, progressData, enrollmentStatus] = results;
-      
+
       if (courseDetails?.success && courseDetails?.data) {
         const courseData = { ...course, ...courseDetails.data };
         // Add enrollment status if available
@@ -318,7 +323,7 @@ const InstitutionProfile = () => {
         }
         setSelectedCourse(courseData);
       }
-      
+
       if (progressData?.success && progressData?.progress) {
         setCourseProgress(progressData.progress);
       }
@@ -592,6 +597,52 @@ const InstitutionProfile = () => {
                   )}
                 </div>
               )}
+
+              {/* Social Media Links */}
+              {(institutionInfo.facebook_link || institutionInfo.instagram_link || institutionInfo.x_link || institutionInfo.tiktok_link) && (
+                <div className="mt-4 flex gap-4">
+                  {institutionInfo.facebook_link && (
+                    <a
+                      href={institutionInfo.facebook_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full hover:scale-110 transition-transform"
+                    >
+                      <FaFacebook className="w-5 h-5" />
+                    </a>
+                  )}
+                  {institutionInfo.instagram_link && (
+                    <a
+                      href={institutionInfo.instagram_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 rounded-full hover:scale-110 transition-transform"
+                    >
+                      <FaInstagram className="w-5 h-5" />
+                    </a>
+                  )}
+                  {institutionInfo.x_link && (
+                    <a
+                      href={institutionInfo.x_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-full hover:scale-110 transition-transform"
+                    >
+                      <FaTwitter className="w-5 h-5" />
+                    </a>
+                  )}
+                  {institutionInfo.tiktok_link && (
+                    <a
+                      href={institutionInfo.tiktok_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 bg-black/5 dark:bg-white/10 text-black dark:text-white rounded-full hover:scale-110 transition-transform"
+                    >
+                      <FaTiktok className="w-5 h-5" />
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -602,11 +653,10 @@ const InstitutionProfile = () => {
         <div className="flex gap-4 mb-6 border-b border-gray-200 dark:border-navy-700">
           <button
             onClick={() => setActiveTab('posts')}
-            className={`px-6 py-3 font-semibold transition-colors border-b-2 ${
-              activeTab === 'posts'
-                ? 'border-primary-600 dark:border-teal-400 text-primary-600 dark:text-teal-400'
-                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-            }`}
+            className={`px-6 py-3 font-semibold transition-colors border-b-2 ${activeTab === 'posts'
+              ? 'border-primary-600 dark:border-teal-400 text-primary-600 dark:text-teal-400'
+              : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+              }`}
           >
             <div className="flex items-center gap-2">
               <FaNewspaper />
@@ -620,11 +670,10 @@ const InstitutionProfile = () => {
           </button>
           <button
             onClick={() => setActiveTab('courses')}
-            className={`px-6 py-3 font-semibold transition-colors border-b-2 ${
-              activeTab === 'courses'
-                ? 'border-primary-600 dark:border-teal-400 text-primary-600 dark:text-teal-400'
-                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-            }`}
+            className={`px-6 py-3 font-semibold transition-colors border-b-2 ${activeTab === 'courses'
+              ? 'border-primary-600 dark:border-teal-400 text-primary-600 dark:text-teal-400'
+              : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+              }`}
           >
             <div className="flex items-center gap-2">
               <FaBook />
@@ -638,11 +687,10 @@ const InstitutionProfile = () => {
           </button>
           <button
             onClick={() => setActiveTab('jobs')}
-            className={`px-6 py-3 font-semibold transition-colors border-b-2 ${
-              activeTab === 'jobs'
-                ? 'border-primary-600 dark:border-teal-400 text-primary-600 dark:text-teal-400'
-                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-            }`}
+            className={`px-6 py-3 font-semibold transition-colors border-b-2 ${activeTab === 'jobs'
+              ? 'border-primary-600 dark:border-teal-400 text-primary-600 dark:text-teal-400'
+              : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+              }`}
           >
             <div className="flex items-center gap-2">
               <FaBriefcase />

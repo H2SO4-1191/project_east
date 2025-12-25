@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { 
-  FaUniversity, 
-  FaUser, 
-  FaSignInAlt, 
-  FaSignOutAlt, 
+import {
+  FaUniversity,
+  FaUser,
+  FaSignInAlt,
+  FaSignOutAlt,
   FaTachometerAlt,
   FaMapMarkerAlt,
   FaUsers,
@@ -70,218 +70,25 @@ const Feed = () => {
   const [showApplyJobModal, setShowApplyJobModal] = useState(false);
   const [applyJobMessage, setApplyJobMessage] = useState('');
   const [isApplying, setIsApplying] = useState(false);
-  const [hoveredInstitution, setHoveredInstitution] = useState(null);
+  const [hoveredItemId, setHoveredItemId] = useState(null);
   const [hoverInstitutionData, setHoverInstitutionData] = useState(null);
   const [isLoadingHoverInstitution, setIsLoadingHoverInstitution] = useState(false);
   const hoverTimeoutRef = useRef(null);
   const [isAddingPaymentMethod, setIsAddingPaymentMethod] = useState(false);
-  
+
   // Keyboard shortcuts
   useKeyboardShortcuts({
-    onSearch: () => {}, // Search bar removed
+    onSearch: () => { }, // Search bar removed
     onHelp: () => setShowKeyboardHelp(true),
     userType: instituteData.userType,
   });
-  
-  // Demo students data
-  const [students] = useState([
-    {
-      id: 1,
-      name: 'Ahmed Hassan',
-      major: 'Computer Science',
-      year: '3rd Year',
-      university: 'Baghdad University',
-      image: 'https://i.pravatar.cc/150?img=12',
-      bio: 'Passionate about AI and Machine Learning',
-      email: 'ahmed.hassan@student.edu',
-      phone: '+964 770 123 4567',
-      location: 'Baghdad, Iraq',
-      gpa: '3.8',
-      isVerified: true, // Demo verification status
-      skills: ['Python', 'JavaScript', 'Machine Learning', 'React'],
-      interests: ['Artificial Intelligence', 'Web Development', 'Data Science'],
-      achievements: ['Dean\'s List 2023', 'Hackathon Winner', 'Research Assistant'],
-      about: 'I am a dedicated Computer Science student with a strong passion for artificial intelligence and machine learning. Currently working on several projects involving neural networks and deep learning. Always eager to learn new technologies and collaborate on innovative projects.',
-    },
-    {
-      id: 2,
-      name: 'Fatima Ali',
-      major: 'Business Administration',
-      year: '2nd Year',
-      university: 'Al-Noor Institute',
-      image: 'https://i.pravatar.cc/150?img=45',
-      bio: 'Future entrepreneur and business leader',
-      email: 'fatima.ali@student.edu',
-      phone: '+964 771 234 5678',
-      location: 'Baghdad, Iraq',
-      gpa: '3.9',
-      isVerified: true, // Demo verification status
-      skills: ['Marketing', 'Finance', 'Leadership', 'Strategic Planning'],
-      interests: ['Entrepreneurship', 'Digital Marketing', 'Business Strategy'],
-      achievements: ['Student Council President', 'Business Plan Competition Winner', 'Internship at Top Firm'],
-      about: 'Aspiring entrepreneur with a keen interest in business strategy and innovation. I believe in creating value through sustainable business practices and am currently developing my own startup idea focused on e-commerce solutions.',
-    },
-    {
-      id: 3,
-      name: 'Omar Khalid',
-      major: 'Engineering',
-      year: '4th Year',
-      university: 'Kurdistan Technical University',
-      image: 'https://i.pravatar.cc/150?img=33',
-      bio: 'Building the future with technology',
-      email: 'omar.khalid@student.edu',
-      phone: '+964 772 345 6789',
-      location: 'Erbil, Iraq',
-      gpa: '3.7',
-      isVerified: false, // Demo verification status
-      skills: ['CAD Design', 'Project Management', 'AutoCAD', 'SolidWorks'],
-      interests: ['Mechanical Design', 'Robotics', 'Sustainable Engineering'],
-      achievements: ['Engineering Excellence Award', 'Senior Project Lead', 'Published Research Paper'],
-      about: 'Senior engineering student specializing in mechanical design and robotics. Passionate about creating sustainable solutions for real-world problems. Currently leading a team project on renewable energy systems.',
-    },
-    {
-      id: 4,
-      name: 'Zahra Mohammed',
-      major: 'Medicine',
-      year: '1st Year',
-      university: 'Euphrates Medical Institute',
-      image: 'https://i.pravatar.cc/150?img=47',
-      bio: 'Dedicated to healthcare and healing',
-      email: 'zahra.mohammed@student.edu',
-      phone: '+964 773 456 7890',
-      location: 'Najaf, Iraq',
-      gpa: '4.0',
-      isVerified: true, // Demo verification status
-      skills: ['Patient Care', 'Medical Research', 'Anatomy', 'Clinical Skills'],
-      interests: ['Pediatrics', 'Medical Research', 'Public Health'],
-      achievements: ['Top of Class', 'Medical Scholarship Recipient', 'Volunteer at Local Clinic'],
-      about: 'First-year medical student with a strong commitment to healthcare and patient welfare. Volunteering at local clinics to gain practical experience and contribute to community health. Aspiring to specialize in pediatrics.',
-    },
-    {
-      id: 5,
-      name: 'Youssef Ibrahim',
-      major: 'Data Science',
-      year: '3rd Year',
-      university: 'Mesopotamia Science College',
-      image: 'https://i.pravatar.cc/150?img=51',
-      bio: 'Data enthusiast and problem solver',
-      email: 'youssef.ibrahim@student.edu',
-      phone: '+964 774 567 8901',
-      location: 'Basra, Iraq',
-      gpa: '3.85',
-      isVerified: false, // Demo verification status
-      skills: ['Python', 'R', 'SQL', 'Data Visualization', 'Machine Learning'],
-      interests: ['Big Data', 'Predictive Analytics', 'Business Intelligence'],
-      achievements: ['Data Science Competition Winner', 'Research Publication', 'Industry Internship'],
-      about: 'Data science student with expertise in statistical analysis and machine learning. Experienced in working with large datasets and creating predictive models. Currently interning at a tech company focusing on business intelligence solutions.',
-    },
-  ]);
-
-  // Demo lecturers data
-  const [lecturers] = useState([
-    {
-      id: 1,
-      name: 'Dr. Sarah Khan',
-      specialty: 'Computer Science',
-      experience: '10 years',
-      university: 'Baghdad International Academy',
-      image: 'https://i.pravatar.cc/150?img=20',
-      bio: 'PhD in AI, Published researcher',
-      email: 'sarah.khan@university.edu',
-      phone: '+964 770 987 6543',
-      location: 'Baghdad, Iraq',
-      isVerified: true, // Demo verification status
-      education: 'PhD in Artificial Intelligence - MIT',
-      courses: ['Introduction to Programming', 'Machine Learning', 'Data Structures', 'AI Fundamentals'],
-      research: ['Neural Networks', 'Deep Learning', 'Computer Vision'],
-      publications: '25+ research papers in top-tier journals',
-      achievements: ['Best Teacher Award 2023', 'Research Excellence Award', 'IEEE Senior Member'],
-      about: 'Dr. Sarah Khan is a distinguished professor specializing in Artificial Intelligence and Machine Learning. With over 10 years of teaching experience and extensive research background, she has mentored hundreds of students and published numerous papers in leading journals. Her research focuses on neural networks and their applications in real-world problems.',
-    },
-    {
-      id: 2,
-      name: 'Prof. Ali Mahmoud',
-      specialty: 'Business Management',
-      experience: '15 years',
-      university: 'Tigris Business School',
-      image: 'https://i.pravatar.cc/150?img=13',
-      bio: 'MBA, Former CEO, Business consultant',
-      email: 'ali.mahmoud@university.edu',
-      phone: '+964 771 876 5432',
-      location: 'Erbil, Iraq',
-      isVerified: true, // Demo verification status
-      education: 'MBA - Harvard Business School',
-      courses: ['Business Strategy', 'Leadership', 'Entrepreneurship', 'Marketing Management'],
-      research: ['Strategic Management', 'Digital Transformation', 'Innovation'],
-      publications: 'Author of 3 business books',
-      achievements: ['Former Fortune 500 CEO', 'Business Consultant for 50+ companies', 'TED Speaker'],
-      about: 'Professor Ali Mahmoud brings 15 years of real-world business experience to the classroom. As a former CEO and successful entrepreneur, he combines academic theory with practical insights. His teaching style focuses on case studies and real business scenarios, preparing students for leadership roles in the corporate world.',
-    },
-    {
-      id: 3,
-      name: 'Dr. Layla Hassan',
-      specialty: 'Medical Sciences',
-      experience: '12 years',
-      university: 'Euphrates Medical Institute',
-      image: 'https://i.pravatar.cc/150?img=38',
-      bio: 'MD, Specialized in Internal Medicine',
-      email: 'layla.hassan@university.edu',
-      phone: '+964 772 765 4321',
-      location: 'Najaf, Iraq',
-      isVerified: false, // Demo verification status
-      education: 'MD, Fellowship in Internal Medicine',
-      courses: ['Human Anatomy', 'Physiology', 'Internal Medicine', 'Clinical Practice'],
-      research: ['Cardiovascular Health', 'Preventive Medicine', 'Patient Care'],
-      publications: '15+ medical journal publications',
-      achievements: ['Medical Excellence Award', 'Best Clinical Instructor', 'Healthcare Innovation Award'],
-      about: 'Dr. Layla Hassan is a practicing physician and dedicated educator with 12 years of experience in internal medicine. She combines her clinical expertise with teaching to provide students with comprehensive medical education. Her research focuses on cardiovascular health and preventive medicine.',
-    },
-    {
-      id: 4,
-      name: 'Prof. Karim Saleh',
-      specialty: 'Mathematics',
-      experience: '20 years',
-      university: 'Baghdad Technical University',
-      image: 'https://i.pravatar.cc/150?img=14',
-      bio: 'PhD in Applied Mathematics',
-      email: 'karim.saleh@university.edu',
-      phone: '+964 773 654 3210',
-      location: 'Baghdad, Iraq',
-      isVerified: true, // Demo verification status
-      education: 'PhD in Applied Mathematics - Oxford University',
-      courses: ['Calculus', 'Linear Algebra', 'Differential Equations', 'Mathematical Modeling'],
-      research: ['Applied Mathematics', 'Numerical Analysis', 'Mathematical Physics'],
-      publications: '40+ research papers',
-      achievements: ['Distinguished Professor Award', 'Mathematics Society Fellow', 'Textbook Author'],
-      about: 'Professor Karim Saleh is a renowned mathematician with 20 years of teaching experience. His expertise in applied mathematics has helped countless students understand complex mathematical concepts. He has authored several textbooks and is known for his engaging teaching methods that make mathematics accessible and interesting.',
-    },
-    {
-      id: 5,
-      name: 'Dr. Noor Ahmed',
-      specialty: 'Engineering',
-      experience: '8 years',
-      university: 'Kurdistan Technical University',
-      image: 'https://i.pravatar.cc/150?img=44',
-      bio: 'PhD in Mechanical Engineering',
-      email: 'noor.ahmed@university.edu',
-      phone: '+964 774 543 2109',
-      location: 'Sulaymaniyah, Iraq',
-      isVerified: false, // Demo verification status
-      education: 'PhD in Mechanical Engineering - Stanford University',
-      courses: ['Thermodynamics', 'Fluid Mechanics', 'Engineering Design', 'Robotics'],
-      research: ['Renewable Energy', 'Robotics', 'Sustainable Engineering'],
-      publications: '12+ engineering journals',
-      achievements: ['Young Engineer Award', 'Innovation in Teaching', 'Patent Holder'],
-      about: 'Dr. Noor Ahmed specializes in mechanical engineering with a focus on sustainable solutions and robotics. With 8 years of teaching and research experience, she brings innovative approaches to engineering education. Her work on renewable energy systems has been recognized internationally.',
-    },
-  ]);
 
 
   // Check authentication status on mount
   useEffect(() => {
     // Verify if user has valid authentication data
     const hasValidAuth = instituteData.accessToken && instituteData.isAuthenticated;
-    
+
     if (hasValidAuth) {
       console.log('User is authenticated:', {
         name: instituteData.name || instituteData.username,
@@ -472,11 +279,11 @@ const Feed = () => {
     const fetchFeed = async () => {
       setIsLoadingFeed(true);
       setFeedError(null);
-      
+
       try {
         const accessToken = instituteData.accessToken || null;
         const refreshToken = instituteData.refreshToken || null;
-        
+
         // Get feed from new endpoint: GET /home/feed/
         const feedData = await authService.getFeed(accessToken, {
           refreshToken,
@@ -502,10 +309,10 @@ const Feed = () => {
 
         // Extract results from paginated response
         const feedItems = feedData?.results || [];
-        
+
         if (Array.isArray(feedItems) && feedItems.length > 0) {
           console.log(`Processing ${feedItems.length} feed items`);
-          
+
           // Process each feed item
           const processedItems = feedItems.map(item => {
             // Handle image field (singular) - convert to images array for consistency
@@ -517,34 +324,34 @@ const Feed = () => {
               // If already an array, use it
               images = item.images;
             }
-            
+
             // Extract publisher/institution information from new API structure
-            const publisherUsername = item.publisher_username || 
-                                    item.institution_username || 
-                                    item.institution?.username || 
-                                    item.username;
-            
-            const publisherName = item.publisher_username || 
-                                 item.institution_name || 
-                                 item.institution?.name || 
-                                 item.institution?.title ||
-                                 item.institution_title ||
-                                 item.name ||
-                                 publisherUsername;
-            
-            const publisherProfileImage = item.publisher_profile_image || 
-                                         item.institution_profile_image || 
-                                         item.institution?.profile_image ||
-                                         null;
-            
+            const publisherUsername = item.publisher_username ||
+              item.institution_username ||
+              item.institution?.username ||
+              item.username;
+
+            const publisherName = item.publisher_username ||
+              item.institution_name ||
+              item.institution?.name ||
+              item.institution?.title ||
+              item.institution_title ||
+              item.name ||
+              publisherUsername;
+
+            const publisherProfileImage = item.publisher_profile_image ||
+              item.institution_profile_image ||
+              item.institution?.profile_image ||
+              null;
+
             const processedPublisherImage = publisherProfileImage ? getImageUrl(publisherProfileImage) : null;
-            
+
             console.log('Processing publisher profile image:', {
               original: publisherProfileImage,
               processed: processedPublisherImage,
               publisherUsername,
             });
-            
+
             return {
               ...item,
               images: images,
@@ -567,7 +374,7 @@ const Feed = () => {
 
           console.log('Processed feed items:', processedItems.length);
           console.log('Sample processed item:', processedItems[0]);
-          
+
           // Check enrollment status for courses if user is a student
           if (instituteData.isAuthenticated && instituteData.userType === 'student' && instituteData.accessToken) {
             const courses = processedItems.filter(item => item.type === 'course');
@@ -600,7 +407,7 @@ const Feed = () => {
                   }
                 })
               );
-              
+
               // Create a map of course IDs to enrollment status
               const enrollmentMap = new Map();
               enrollmentChecks.forEach((result) => {
@@ -608,7 +415,7 @@ const Feed = () => {
                   enrollmentMap.set(result.value.courseId, result.value.isEnrolled);
                 }
               });
-              
+
               // Update processed items with enrollment status
               const itemsWithEnrollment = processedItems.map(item => {
                 if (item.type === 'course') {
@@ -620,7 +427,7 @@ const Feed = () => {
                 }
                 return item;
               });
-              
+
               setFeedItems(itemsWithEnrollment);
             } else {
               setFeedItems(processedItems);
@@ -648,18 +455,18 @@ const Feed = () => {
   useEffect(() => {
     const fetchNotifications = async () => {
       // Only fetch notifications for students and lecturers
-      if (!instituteData.isAuthenticated || 
-          !instituteData.accessToken || 
-          (instituteData.userType !== 'student' && instituteData.userType !== 'lecturer')) {
+      if (!instituteData.isAuthenticated ||
+        !instituteData.accessToken ||
+        (instituteData.userType !== 'student' && instituteData.userType !== 'lecturer')) {
         setNotifications([]);
         return;
       }
 
       setIsLoadingNotifications(true);
-      
+
       try {
         const refreshToken = instituteData.refreshToken || null;
-        
+
         const notificationData = await authService.getNotifications(instituteData.accessToken, {
           refreshToken,
           onTokenRefreshed: (tokens) => {
@@ -700,10 +507,10 @@ const Feed = () => {
     };
 
     fetchNotifications();
-    
+
     // Refresh notifications every 5 minutes
     const interval = setInterval(fetchNotifications, 5 * 60 * 1000);
-    
+
     return () => clearInterval(interval);
   }, [instituteData.isAuthenticated, instituteData.accessToken, instituteData.userType, instituteData.refreshToken]);
 
@@ -727,7 +534,7 @@ const Feed = () => {
   const handleLogout = () => {
     // Clear all institute data
     localStorage.removeItem('instituteData');
-    
+
     updateInstituteData({
       name: '',
       email: '',
@@ -741,10 +548,10 @@ const Feed = () => {
       isAuthenticated: false,
       isVerified: false,
     });
-    
+
     setShowUserMenu(false);
     toast.success(t('feed.loggedOutSuccess'));
-    
+
     // Force page reload to ensure clean state
     window.location.reload();
   };
@@ -790,17 +597,17 @@ const Feed = () => {
     navigate(`/institution/profile/${username}?tab=jobs`);
   };
 
-  const handleInstitutionProfileHover = async (username, event) => {
+  const handleInstitutionProfileHover = async (itemId, username, event) => {
     if (!username) return;
-    
+
     // Clear any existing timeout
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
     }
-    
-    // Set hovered institution
-    setHoveredInstitution(username);
-    
+
+    // Set hovered item
+    setHoveredItemId(itemId);
+
     // Small delay before fetching to avoid unnecessary API calls
     hoverTimeoutRef.current = setTimeout(async () => {
       setIsLoadingHoverInstitution(true);
@@ -822,13 +629,17 @@ const Feed = () => {
   };
 
   const handleInstitutionProfileHoverLeave = () => {
-    // Clear timeout if still pending
+    // Clear open timeout if pending
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
     }
-    setHoveredInstitution(null);
-    setHoverInstitutionData(null);
-    setIsLoadingHoverInstitution(false);
+
+    // Set a delay before closing to allow moving mouse to the popup
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredItemId(null);
+      setHoverInstitutionData(null);
+      setIsLoadingHoverInstitution(false);
+    }, 300);
   };
 
   const handleCloseInstitutionProfile = () => {
@@ -896,206 +707,202 @@ const Feed = () => {
   };
 
   return (
-    <div className={`min-h-screen transition-colors flex ${
-      isLecturer 
-        ? 'bg-gray-50/95 dark:bg-navy-900' 
-        : 'bg-gray-50 dark:bg-navy-900'
-    }`} style={isLecturer ? { background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.03) 0%, transparent 50%)' } : undefined}>
+    <div className={`min-h-screen transition-colors flex ${isLecturer
+      ? 'bg-gray-50/95 dark:bg-navy-900'
+      : 'bg-gray-50 dark:bg-navy-900'
+      }`} style={isLecturer ? { background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.03) 0%, transparent 50%)' } : undefined}>
       {/* Left Sidebar - Desktop: Hover, Mobile: Logo Click */}
-      <aside 
-        className={`hidden lg:block shadow-xl border-r fixed left-0 top-0 bottom-0 overflow-y-auto z-40 transition-all duration-300 ${
-          isSidebarExpanded ? 'w-80' : 'w-20'
-        } ${
-          isLecturer 
-            ? 'bg-white dark:bg-navy-800 border-gray-200 dark:border-navy-700 border-l-2 border-l-purple-400/30 dark:border-l-purple-500/20' 
+      <aside
+        className={`hidden lg:block shadow-xl border-r fixed left-0 top-0 bottom-0 overflow-y-auto z-40 transition-all duration-300 ${isSidebarExpanded ? 'w-80' : 'w-20'
+          } ${isLecturer
+            ? 'bg-white dark:bg-navy-800 border-gray-200 dark:border-navy-700 border-l-2 border-l-purple-400/30 dark:border-l-purple-500/20'
             : 'bg-white dark:bg-navy-800 border-gray-200 dark:border-navy-700'
-        }`}
+          }`}
         onMouseEnter={() => setIsSidebarExpanded(true)}
         onMouseLeave={() => setIsSidebarExpanded(false)}
       >
         <div className="p-6 flex flex-col h-full">
           <div className="flex-1">
-          <h2 className={`text-xl font-bold text-gray-800 dark:text-white mb-6 transition-opacity duration-300 ${
-            isSidebarExpanded ? 'opacity-100' : 'opacity-0'
-          }`}>
-            {instituteData.isAuthenticated ? t('feed.explore') : t('feed.welcome')}
-          </h2>
-          
-          {/* Guest Message */}
-          {!instituteData.isAuthenticated && isSidebarExpanded && (
-            <div className="mb-6 p-4 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800">
-              <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
-                {t('feed.loginToSubscribe')}
-              </p>
-              <div className="flex flex-col gap-2">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => navigate('/login')}
-                  className="w-full px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-sm font-semibold transition-colors"
-                >
-                  {t('nav.login')}
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => navigate('/home')}
-                  className="w-full px-3 py-2 border border-primary-600 dark:border-teal-400 text-primary-600 dark:text-teal-400 rounded-lg text-sm font-semibold hover:bg-primary-50 dark:hover:bg-navy-700 transition-colors"
-                >
-                  {t('nav.signUp')}
-                </motion.button>
+            <h2 className={`text-xl font-bold text-gray-800 dark:text-white mb-6 transition-opacity duration-300 ${isSidebarExpanded ? 'opacity-100' : 'opacity-0'
+              }`}>
+              {instituteData.isAuthenticated ? t('feed.explore') : t('feed.welcome')}
+            </h2>
+
+            {/* Guest Message */}
+            {!instituteData.isAuthenticated && isSidebarExpanded && (
+              <div className="mb-6 p-4 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800">
+                <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+                  {t('feed.loginToSubscribe')}
+                </p>
+                <div className="flex flex-col gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => navigate('/login')}
+                    className="w-full px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-sm font-semibold transition-colors"
+                  >
+                    {t('nav.login')}
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => navigate('/home')}
+                    className="w-full px-3 py-2 border border-primary-600 dark:border-teal-400 text-primary-600 dark:text-teal-400 rounded-lg text-sm font-semibold hover:bg-primary-50 dark:hover:bg-navy-700 transition-colors"
+                  >
+                    {t('nav.signUp')}
+                  </motion.button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Sidebar Navigation Buttons - Role Based */}
-          {instituteData.isAuthenticated && (
-          <div className="space-y-2 mb-6">
-              {/* My Courses - Student & Lecturer Only */}
-              {(instituteData.userType === 'student' || instituteData.userType === 'lecturer') && (
-            <button
-                  onClick={() => {
-                    // Verification check for students only
-                    if (instituteData.userType === 'student' && !instituteData.isVerified) {
-                      setShowVerificationPopup(true);
-                      return;
-                    }
-                    if (instituteData.userType === 'student') {
-                      navigate('/student/courses');
-                    } else {
-                      navigate('/lecturer/courses');
-                    }
-                  }}
-                  className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 ${instituteData.userType === 'student' && !instituteData.isVerified ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  title={instituteData.userType === 'student' && !instituteData.isVerified ? t('nav.verificationRequired') || 'Verification Required' : t('nav.currentCourses')}
-            >
-                  <FaBook className="w-5 h-5 flex-shrink-0" />
-                  {isSidebarExpanded && <span className="font-medium">{t('nav.currentCourses')}</span>}
-            </button>
-              )}
-            
-              {/* Schedule - Student & Lecturer Only */}
-              {(instituteData.userType === 'student' || instituteData.userType === 'lecturer') && (
-            <button
-                  onClick={() => {
-                    // Verification check for students only
-                    if (instituteData.userType === 'student' && !instituteData.isVerified) {
-                      setShowVerificationPopup(true);
-                      return;
-                    }
-                    if (instituteData.userType === 'student') {
-                      navigate('/student/schedule');
-                    } else {
-                      navigate('/lecturer/schedule');
-                    }
-                  }}
-                  className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 ${instituteData.userType === 'student' && !instituteData.isVerified ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  title={instituteData.userType === 'student' && !instituteData.isVerified ? t('nav.verificationRequired') || 'Verification Required' : t('nav.schedule')}
-            >
-                  <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
-                  </svg>
-                  {isSidebarExpanded && <span className="font-medium">{t('nav.schedule')}</span>}
-            </button>
-              )}
-            
-              {/* Dashboard - Institution Only */}
-              {isInstitution && (
-            <button
-                  onClick={() => navigate('/dashboard')}
-                  className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
-                  title={t('nav.dashboard')}
-                >
-                  <FaTachometerAlt className="w-5 h-5 flex-shrink-0" />
-                  {isSidebarExpanded && <span className="font-medium">{t('nav.dashboard')}</span>}
-                </button>
-              )}
-
-              {/* Explore - All Authenticated Users */}
-              <button
-                onClick={() => navigate('/explore')}
-                className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
-                title={t('feed.explore')}
-            >
-              <FaCompass className="w-5 h-5 flex-shrink-0" />
-                {isSidebarExpanded && <span className="font-medium">{t('feed.explore')}</span>}
-            </button>
-            
-              {/* Profile - All Authenticated Users */}
-            <button
-                onClick={() => setShowProfileModal(true)}
-              className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
-                title={t('nav.profile') || 'Profile'}
-            >
-                <FaUser className="w-5 h-5 flex-shrink-0" />
-                {isSidebarExpanded && <span className="font-medium">{t('nav.profile') || 'Profile'}</span>}
-            </button>
-            
-            {/* Add Payment Method - Student Only */}
-            {instituteData.userType === 'student' && instituteData.isVerified && (
-              <button
-                onClick={async () => {
-                  setIsAddingPaymentMethod(true);
-                  try {
-                    const result = await authService.addStudentPaymentMethod(
-                      instituteData.accessToken,
-                      {
-                        refreshToken: instituteData.refreshToken,
-                        onTokenRefreshed: (tokens) => {
-                          updateInstituteData({
-                            accessToken: tokens.access,
-                            refreshToken: tokens.refresh || instituteData.refreshToken,
-                          });
-                        },
-                        onSessionExpired: () => {
-                          toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
-                        },
+            {/* Sidebar Navigation Buttons - Role Based */}
+            {instituteData.isAuthenticated && (
+              <div className="space-y-2 mb-6">
+                {/* My Courses - Student & Lecturer Only */}
+                {(instituteData.userType === 'student' || instituteData.userType === 'lecturer') && (
+                  <button
+                    onClick={() => {
+                      // Verification check for students only
+                      if (instituteData.userType === 'student' && !instituteData.isVerified) {
+                        setShowVerificationPopup(true);
+                        return;
                       }
-                    );
-
-                    if (result?.success && result?.client_secret) {
-                      // For Stripe Customer Attach, we might need to handle it differently
-                      // For now, show a message that payment method setup is in progress
-                      toast.success(t('feed.paymentMethodSetup') || 'Payment method setup initiated. Please check your email for further instructions.');
-                    } else {
-                      throw new Error(result?.message || 'Failed to setup payment method');
-                    }
-                  } catch (error) {
-                    console.error('Payment method error:', error);
-                    toast.error(error?.message || t('feed.failedToAddPaymentMethod') || 'Failed to add payment method');
-                  } finally {
-                    setIsAddingPaymentMethod(false);
-                  }
-                }}
-                disabled={isAddingPaymentMethod}
-                className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 ${isAddingPaymentMethod ? 'opacity-60 cursor-not-allowed' : ''}`}
-                title={t('feed.addPaymentMethod') || 'Add Payment Method'}
-              >
-                {isAddingPaymentMethod ? (
-                  <FaSpinner className="w-5 h-5 flex-shrink-0 animate-spin" />
-                ) : (
-                  <FaCreditCard className="w-5 h-5 flex-shrink-0" />
+                      if (instituteData.userType === 'student') {
+                        navigate('/student/courses');
+                      } else {
+                        navigate('/lecturer/courses');
+                      }
+                    }}
+                    className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 ${instituteData.userType === 'student' && !instituteData.isVerified ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    title={instituteData.userType === 'student' && !instituteData.isVerified ? t('nav.verificationRequired') || 'Verification Required' : t('nav.currentCourses')}
+                  >
+                    <FaBook className="w-5 h-5 flex-shrink-0" />
+                    {isSidebarExpanded && <span className="font-medium">{t('nav.currentCourses')}</span>}
+                  </button>
                 )}
-                {isSidebarExpanded && <span className="font-medium">{t('feed.addPaymentMethod') || 'Add Payment Method'}</span>}
-              </button>
+
+                {/* Schedule - Student & Lecturer Only */}
+                {(instituteData.userType === 'student' || instituteData.userType === 'lecturer') && (
+                  <button
+                    onClick={() => {
+                      // Verification check for students only
+                      if (instituteData.userType === 'student' && !instituteData.isVerified) {
+                        setShowVerificationPopup(true);
+                        return;
+                      }
+                      if (instituteData.userType === 'student') {
+                        navigate('/student/schedule');
+                      } else {
+                        navigate('/lecturer/schedule');
+                      }
+                    }}
+                    className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 ${instituteData.userType === 'student' && !instituteData.isVerified ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    title={instituteData.userType === 'student' && !instituteData.isVerified ? t('nav.verificationRequired') || 'Verification Required' : t('nav.schedule')}
+                  >
+                    <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                    </svg>
+                    {isSidebarExpanded && <span className="font-medium">{t('nav.schedule')}</span>}
+                  </button>
+                )}
+
+                {/* Dashboard - Institution Only */}
+                {isInstitution && (
+                  <button
+                    onClick={() => navigate('/dashboard')}
+                    className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
+                    title={t('nav.dashboard')}
+                  >
+                    <FaTachometerAlt className="w-5 h-5 flex-shrink-0" />
+                    {isSidebarExpanded && <span className="font-medium">{t('nav.dashboard')}</span>}
+                  </button>
+                )}
+
+                {/* Explore - All Authenticated Users */}
+                <button
+                  onClick={() => navigate('/explore')}
+                  className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
+                  title={t('feed.explore')}
+                >
+                  <FaCompass className="w-5 h-5 flex-shrink-0" />
+                  {isSidebarExpanded && <span className="font-medium">{t('feed.explore')}</span>}
+                </button>
+
+                {/* Profile - All Authenticated Users */}
+                <button
+                  onClick={() => setShowProfileModal(true)}
+                  className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
+                  title={t('nav.profile') || 'Profile'}
+                >
+                  <FaUser className="w-5 h-5 flex-shrink-0" />
+                  {isSidebarExpanded && <span className="font-medium">{t('nav.profile') || 'Profile'}</span>}
+                </button>
+
+                {/* Add Payment Method - Student Only */}
+                {instituteData.userType === 'student' && instituteData.isVerified && (
+                  <button
+                    onClick={async () => {
+                      setIsAddingPaymentMethod(true);
+                      try {
+                        const result = await authService.addStudentPaymentMethod(
+                          instituteData.accessToken,
+                          {
+                            refreshToken: instituteData.refreshToken,
+                            onTokenRefreshed: (tokens) => {
+                              updateInstituteData({
+                                accessToken: tokens.access,
+                                refreshToken: tokens.refresh || instituteData.refreshToken,
+                              });
+                            },
+                            onSessionExpired: () => {
+                              toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+                            },
+                          }
+                        );
+
+                        if (result?.success && result?.client_secret) {
+                          // For Stripe Customer Attach, we might need to handle it differently
+                          // For now, show a message that payment method setup is in progress
+                          toast.success(t('feed.paymentMethodSetup') || 'Payment method setup initiated. Please check your email for further instructions.');
+                        } else {
+                          throw new Error(result?.message || 'Failed to setup payment method');
+                        }
+                      } catch (error) {
+                        console.error('Payment method error:', error);
+                        toast.error(error?.message || t('feed.failedToAddPaymentMethod') || 'Failed to add payment method');
+                      } finally {
+                        setIsAddingPaymentMethod(false);
+                      }
+                    }}
+                    disabled={isAddingPaymentMethod}
+                    className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 ${isAddingPaymentMethod ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    title={t('feed.addPaymentMethod') || 'Add Payment Method'}
+                  >
+                    {isAddingPaymentMethod ? (
+                      <FaSpinner className="w-5 h-5 flex-shrink-0 animate-spin" />
+                    ) : (
+                      <FaCreditCard className="w-5 h-5 flex-shrink-0" />
+                    )}
+                    {isSidebarExpanded && <span className="font-medium">{t('feed.addPaymentMethod') || 'Add Payment Method'}</span>}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Guest Navigation */}
+            {!instituteData.isAuthenticated && (
+              <div className="space-y-2 mb-6">
+                <button
+                  onClick={() => navigate('/explore')}
+                  className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
+                  title={t('feed.explore')}
+                >
+                  <FaCompass className="w-5 h-5 flex-shrink-0" />
+                  {isSidebarExpanded && <span className="font-medium">{t('feed.explore')}</span>}
+                </button>
+              </div>
             )}
           </div>
-          )}
-
-          {/* Guest Navigation */}
-          {!instituteData.isAuthenticated && (
-            <div className="space-y-2 mb-6">
-              <button
-                onClick={() => navigate('/explore')}
-                className={`w-full flex items-center ${isSidebarExpanded ? 'gap-3' : 'justify-center'} px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700`}
-                title={t('feed.explore')}
-              >
-                <FaCompass className="w-5 h-5 flex-shrink-0" />
-                {isSidebarExpanded && <span className="font-medium">{t('feed.explore')}</span>}
-              </button>
-                  </div>
-          )}
-                </div>
 
           {/* Language Switcher & Theme Toggle - Bottom of Sidebar */}
           <div className={`mt-auto pt-6 border-t border-gray-200 dark:border-navy-700 space-y-2`}>
@@ -1105,11 +912,11 @@ const Feed = () => {
             ) : (
               <div className="flex items-center justify-center">
                 <LanguageSwitcher />
-                  </div>
+              </div>
             )}
 
             {/* Theme Toggle */}
-                <motion.button
+            <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={toggleTheme}
@@ -1122,8 +929,8 @@ const Feed = () => {
                 <FaMoon className="w-5 h-5 flex-shrink-0" />
               )}
               {isSidebarExpanded && <span className="font-medium">{isDark ? t('lightMode') || 'Light Mode' : t('darkMode') || 'Dark Mode'}</span>}
-                </motion.button>
-                      </div>
+            </motion.button>
+          </div>
         </div>
       </aside>
 
@@ -1143,9 +950,8 @@ const Feed = () => {
               animate={{ x: 0 }}
               exit={{ x: -320 }}
               transition={{ type: 'spring', damping: 20 }}
-              className={`fixed left-0 top-0 bottom-0 w-80 shadow-2xl z-50 lg:hidden overflow-y-auto bg-white dark:bg-navy-800 ${
-                isLecturer ? 'border-l-2 border-l-purple-400/30 dark:border-l-purple-500/20' : ''
-              }`}
+              className={`fixed left-0 top-0 bottom-0 w-80 shadow-2xl z-50 lg:hidden overflow-y-auto bg-white dark:bg-navy-800 ${isLecturer ? 'border-l-2 border-l-purple-400/30 dark:border-l-purple-500/20' : ''
+                }`}
             >
               <div className="p-6">
                 {/* Mobile Sidebar Header */}
@@ -1162,7 +968,7 @@ const Feed = () => {
                     <FaTimes className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                   </motion.button>
                 </div>
-                
+
                 {/* Guest Message */}
                 {!instituteData.isAuthenticated && (
                   <div className="mb-6 p-4 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800">
@@ -1195,14 +1001,14 @@ const Feed = () => {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Mobile Sidebar Navigation Buttons - Role Based */}
                 {instituteData.isAuthenticated && (
-                <div className="space-y-2 mb-6">
+                  <div className="space-y-2 mb-6">
                     {/* My Courses - Student & Lecturer Only */}
                     {(instituteData.userType === 'student' || instituteData.userType === 'lecturer') && (
-                  <button
-                    onClick={() => {
+                      <button
+                        onClick={() => {
                           // Verification check for students only
                           if (instituteData.userType === 'student' && !instituteData.isVerified) {
                             setShowVerificationPopup(true);
@@ -1214,19 +1020,19 @@ const Feed = () => {
                           } else {
                             navigate('/lecturer/courses');
                           }
-                      setIsMobileSidebarOpen(false);
-                    }}
+                          setIsMobileSidebarOpen(false);
+                        }}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 ${instituteData.userType === 'student' && !instituteData.isVerified ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  >
+                      >
                         <FaBook className="w-5 h-5 flex-shrink-0" />
                         <span className="font-medium">{t('nav.currentCourses')}</span>
-                  </button>
+                      </button>
                     )}
-                  
+
                     {/* Schedule - Student & Lecturer Only */}
                     {(instituteData.userType === 'student' || instituteData.userType === 'lecturer') && (
-                  <button
-                    onClick={() => {
+                      <button
+                        onClick={() => {
                           // Verification check for students only
                           if (instituteData.userType === 'student' && !instituteData.isVerified) {
                             setShowVerificationPopup(true);
@@ -1238,42 +1044,42 @@ const Feed = () => {
                           } else {
                             navigate('/lecturer/schedule');
                           }
-                      setIsMobileSidebarOpen(false);
-                    }}
+                          setIsMobileSidebarOpen(false);
+                        }}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 ${instituteData.userType === 'student' && !instituteData.isVerified ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  >
+                      >
                         <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
+                          <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                         </svg>
                         <span className="font-medium">{t('nav.schedule')}</span>
-                  </button>
+                      </button>
                     )}
-                  
+
                     {/* Dashboard - Institution Only */}
                     {isInstitution && (
-                  <button
-                    onClick={() => {
+                      <button
+                        onClick={() => {
                           navigate('/dashboard');
-                      setIsMobileSidebarOpen(false);
-                    }}
+                          setIsMobileSidebarOpen(false);
+                        }}
                         className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
-                  >
+                      >
                         <FaTachometerAlt className="w-5 h-5 flex-shrink-0" />
                         <span className="font-medium">{t('nav.dashboard')}</span>
-                  </button>
+                      </button>
                     )}
-                  
+
                     {/* Explore */}
-                  <button
-                    onClick={() => {
+                    <button
+                      onClick={() => {
                         navigate('/explore');
-                      setIsMobileSidebarOpen(false);
-                    }}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
-                  >
+                        setIsMobileSidebarOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
+                    >
                       <FaCompass className="w-5 h-5 flex-shrink-0" />
                       <span className="font-medium">{t('feed.explore')}</span>
-                  </button>
+                    </button>
 
                     {/* Profile */}
                     <button
@@ -1286,7 +1092,7 @@ const Feed = () => {
                       <FaUser className="w-5 h-5 flex-shrink-0" />
                       <span className="font-medium">{t('nav.profile') || 'Profile'}</span>
                     </button>
-                        </div>
+                  </div>
                 )}
 
                 {/* Guest Navigation */}
@@ -1302,7 +1108,7 @@ const Feed = () => {
                       <FaCompass className="w-5 h-5 flex-shrink-0" />
                       <span className="font-medium">{t('feed.explore')}</span>
                     </button>
-                        </div>
+                  </div>
                 )}
 
                 {/* Language Switcher & Theme Toggle - Bottom of Mobile Sidebar */}
@@ -1311,7 +1117,7 @@ const Feed = () => {
                   <LanguageSwitcher variant="sidebar" />
 
                   {/* Theme Toggle */}
-                      <motion.button
+                  <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={toggleTheme}
@@ -1323,7 +1129,7 @@ const Feed = () => {
                       <FaMoon className="w-5 h-5 flex-shrink-0" />
                     )}
                     <span className="font-medium">{isDark ? t('lightMode') || 'Light Mode' : t('darkMode') || 'Dark Mode'}</span>
-                      </motion.button>
+                  </motion.button>
                 </div>
               </div>
             </motion.aside>
@@ -1334,37 +1140,36 @@ const Feed = () => {
       {/* Main Content */}
       <div className={`flex-1 transition-all duration-300 ${isSidebarExpanded ? 'lg:ml-80' : 'lg:ml-20'}`}>
         {/* Navigation Bar */}
-        <nav className={`shadow-lg sticky top-0 z-50 transition-colors bg-white dark:bg-navy-800 ${
-          isLecturer ? 'border-b-2 border-b-purple-400/20 dark:border-b-purple-500/15' : ''
-        }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className={`flex ${isRTL ? 'flex-row-reverse' : 'flex-row'} justify-between items-center h-16 ${isRTL ? 'gap-4' : 'gap-4'}`}>
-            {/* Logo - Clickable on Mobile to Open Sidebar */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-3 cursor-pointer"
-              onClick={() => {
-                // On mobile, open sidebar; on desktop, navigate home
-                if (window.innerWidth < 1024) {
-                  setIsMobileSidebarOpen(true);
-                } else {
-                  navigate('/');
-                }
-              }}
-            >
-              <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-teal-500 rounded-lg flex items-center justify-center">
-                <FaUniversity className="text-white text-xl" />
-              </div>
-              <span className="text-xl font-bold text-gray-800 dark:text-white">
-                Project East
-              </span>
-            </motion.div>
+        <nav className={`shadow-lg sticky top-0 z-50 transition-colors bg-white dark:bg-navy-800 ${isLecturer ? 'border-b-2 border-b-purple-400/20 dark:border-b-purple-500/15' : ''
+          }`}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className={`flex ${isRTL ? 'flex-row-reverse' : 'flex-row'} justify-between items-center h-16 ${isRTL ? 'gap-4' : 'gap-4'}`}>
+              {/* Logo - Clickable on Mobile to Open Sidebar */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center gap-3 cursor-pointer"
+                onClick={() => {
+                  // On mobile, open sidebar; on desktop, navigate home
+                  if (window.innerWidth < 1024) {
+                    setIsMobileSidebarOpen(true);
+                  } else {
+                    navigate('/');
+                  }
+                }}
+              >
+                <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-teal-500 rounded-lg flex items-center justify-center">
+                  <FaUniversity className="text-white text-xl" />
+                </div>
+                <span className="text-xl font-bold text-gray-800 dark:text-white">
+                  Project East
+                </span>
+              </motion.div>
 
-            {/* Right Side */}
-            <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
-              {/* Notification Button - Student & Lecturer Only */}
-              {instituteData.isAuthenticated && (instituteData.userType === 'student' || instituteData.userType === 'lecturer') && (
+              {/* Right Side */}
+              <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                {/* Notification Button - Student & Lecturer Only */}
+                {instituteData.isAuthenticated && (instituteData.userType === 'student' || instituteData.userType === 'lecturer') && (
                   <div className="relative" ref={notificationRef}>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
@@ -1406,15 +1211,13 @@ const Feed = () => {
                                   key={notification.id}
                                   initial={{ opacity: 0, x: -20 }}
                                   animate={{ opacity: 1, x: 0 }}
-                                  className={`p-4 border-b border-gray-100 dark:border-navy-700 hover:bg-gray-50 dark:hover:bg-navy-900 transition-colors cursor-pointer ${
-                                    !notification.read ? 'bg-primary-50 dark:bg-primary-900/20' : ''
-                                  }`}
+                                  className={`p-4 border-b border-gray-100 dark:border-navy-700 hover:bg-gray-50 dark:hover:bg-navy-900 transition-colors cursor-pointer ${!notification.read ? 'bg-primary-50 dark:bg-primary-900/20' : ''
+                                    }`}
                                   onClick={() => setShowNotifications(false)}
                                 >
                                   <div className={`flex items-start gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                                    <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                                      !notification.read ? 'bg-primary-600' : 'bg-transparent'
-                                    }`} />
+                                    <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${!notification.read ? 'bg-primary-600' : 'bg-transparent'
+                                      }`} />
                                     <div className={`flex-1 min-w-0 ${isRTL ? 'text-right' : 'text-left'}`}>
                                       <h4 className="font-semibold text-sm text-gray-800 dark:text-white mb-1">
                                         {notification.title}
@@ -1423,10 +1226,10 @@ const Feed = () => {
                                         {notification.message}
                                       </p>
                                       <p className="text-xs text-gray-500 dark:text-gray-500">
-                                      {notification.day && notification.time 
-                                        ? `${notification.day.charAt(0).toUpperCase() + notification.day.slice(1)} at ${notification.time}`
-                                        : notification.time || 'Tomorrow'
-                                      }
+                                        {notification.day && notification.time
+                                          ? `${notification.day.charAt(0).toUpperCase() + notification.day.slice(1)} at ${notification.time}`
+                                          : notification.time || 'Tomorrow'
+                                        }
                                       </p>
                                     </div>
                                   </div>
@@ -1443,664 +1246,853 @@ const Feed = () => {
                       )}
                     </AnimatePresence>
                   </div>
-              )}
+                )}
 
-              {/* User Menu or Login/Signup */}
-              {instituteData.isAuthenticated ? (
-                <div className="relative">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setShowUserMenu(!showUserMenu)}
-                    className={`flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors`}
-                  >
-                    <div className="relative">
-                    <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-teal-500 rounded-full flex items-center justify-center overflow-hidden">
-                      {profileImage ? (
-                        <img
-                          src={profileImage}
-                          alt="Profile"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            setProfileImage(null);
-                          }}
-                        />
-                      ) : (
-                        <span className="text-white font-bold text-sm">
-                          {(username || instituteData.username || instituteData.name)?.[0]?.toUpperCase() || 'U'}
-                        </span>
-                      )}
-                      </div>
-                      {/* Verification Badge on Avatar */}
-                      {instituteData.isVerified && (
-                        <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center border-2 border-white dark:border-navy-800">
-                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                    <span className="hidden sm:block text-gray-800 dark:text-white font-medium">
-                      {username || instituteData.username || instituteData.name || 'User'}
-                    </span>
-                  </motion.button>
-
-                  <AnimatePresence>
-                    {showUserMenu && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-56 bg-white dark:bg-navy-800 rounded-lg shadow-xl border border-gray-200 dark:border-navy-700 overflow-hidden`}
-                      >
-                        <div className={`p-3 border-b border-gray-200 dark:border-navy-700 ${isRTL ? 'text-right' : 'text-left'}`}>
-                          <div className={`flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 mb-1`}>
-                          <p className="text-sm font-semibold text-gray-800 dark:text-white">
-                            {username || instituteData.username || instituteData.name || 'User'}
-                          </p>
-                            {/* Verification Badge */}
-                            {instituteData.isVerified ? (
-                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-xs font-medium">
-                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                </svg>
-                                {t('profile.verified') || 'Verified'}
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded text-xs font-medium">
-                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                                </svg>
-                                {t('profile.pendingVerification') || 'Pending'}
-                              </span>
-                            )}
-                          </div>
-                          {instituteData.email && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {instituteData.email}
-                            </p>
-                          )}
-                          <p className="text-xs text-gray-400 dark:text-gray-500 capitalize mt-1">
-                            {instituteData.userType}
-                          </p>
-                          {instituteData.userType === 'lecturer' && instituteData.institution && (
-                            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-navy-700">
-                              <p className={`text-xs font-medium text-primary-600 dark:text-teal-400 flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-1`}>
-                                <FaUniversity className="w-3 h-3" />
-                                {instituteData.institution}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* View Profile Button */}
-                          <button
-                            onClick={() => {
-                            setShowProfileModal(true);
-                              setShowUserMenu(false);
-                            }}
-                          className={`w-full px-4 py-2 ${isRTL ? 'text-right' : 'text-left'} text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 transition-colors`}
-                          >
-                          <FaUser className="w-4 h-4" />
-                          {t('nav.profile') || 'View Profile'}
-                          </button>
-
-                        <button
-                          onClick={handleLogout}
-                          className={`w-full px-4 py-2 ${isRTL ? 'text-right' : 'text-left'} text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 transition-colors border-t border-gray-200 dark:border-navy-700`}
-                        >
-                          <FaSignOutAlt />
-                          {t('nav.logout')}
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate('/login')}
-                    className="flex items-center gap-2 px-4 py-2 border border-primary-600 text-primary-600 dark:border-teal-400 dark:text-teal-400 rounded-lg hover:bg-primary-50 dark:hover:bg-navy-700 transition-colors"
-                  >
-                    <FaSignInAlt />
-                    <span>{t('nav.login')}</span>
-                  </motion.button>
-                  
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate('/home', { state: { showSignUp: true } })}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors"
-                  >
-                    <FaUser />
-                    <span>{t('nav.signUp')}</span>
-                  </motion.button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-primary-600 to-teal-500 text-white py-16 relative overflow-hidden">
-        {/* Animated Decorative Elements */}
-        <div className="absolute inset-0 pointer-events-none">
-          {/* Animated School Symbols */}
-          <motion.div
-            animate={{
-              x: [0, 100, 0],
-              y: [0, 50, 0],
-              rotate: [0, 15, -15, 0],
-            }}
-            transition={{
-              duration: 20,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className="absolute top-20 left-10 opacity-20"
-          >
-            <FaUniversity className="w-16 h-16 text-red-300" />
-          </motion.div>
-          
-          <motion.div
-            animate={{
-              x: [0, -80, 0],
-              y: [0, 30, 0],
-              rotate: [0, -10, 10, 0],
-            }}
-            transition={{
-              duration: 25,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className="absolute top-32 right-20 opacity-15"
-          >
-            <FaUniversity className="w-12 h-12 text-orange-300" />
-          </motion.div>
-          
-          <motion.div
-            animate={{
-              x: [0, 60, 0],
-              y: [0, -40, 0],
-              rotate: [0, 20, -20, 0],
-            }}
-            transition={{
-              duration: 18,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className="absolute bottom-20 left-1/4 opacity-20"
-          >
-            <FaUniversity className="w-10 h-10 text-red-300" />
-          </motion.div>
-          
-          <motion.div
-            animate={{
-              x: [0, -70, 0],
-              y: [0, 60, 0],
-              rotate: [0, -15, 15, 0],
-            }}
-            transition={{
-              duration: 22,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className="absolute bottom-32 right-1/3 opacity-15"
-          >
-            <FaUniversity className="w-14 h-14 text-orange-300" />
-          </motion.div>
-
-          {/* Animated Pens */}
-          <motion.div
-            animate={{
-              rotate: [0, 360],
-              y: [0, -20, 0],
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className="absolute top-1/4 left-1/4 opacity-25"
-          >
-            <FaPen className="w-8 h-8 text-orange-300" />
-          </motion.div>
-          
-          <motion.div
-            animate={{
-              rotate: [0, -360],
-              y: [0, 15, 0],
-            }}
-            transition={{
-              duration: 10,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className="absolute top-1/3 right-1/4 opacity-20"
-          >
-            <FaPen className="w-6 h-6 text-red-300" />
-          </motion.div>
-          
-          <motion.div
-            animate={{
-              rotate: [0, 360],
-              y: [0, -25, 0],
-            }}
-            transition={{
-              duration: 12,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className="absolute bottom-1/4 left-1/3 opacity-25"
-          >
-            <FaPen className="w-7 h-7 text-orange-300" />
-          </motion.div>
-
-          {/* Animated Books */}
-          <motion.div
-            animate={{
-              rotate: [0, 15, -15, 0],
-              x: [0, 10, -10, 0],
-            }}
-            transition={{
-              duration: 6,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className="absolute top-1/4 right-1/3 opacity-20"
-          >
-            <FaBook className="w-10 h-10 text-red-300" />
-          </motion.div>
-          
-          <motion.div
-            animate={{
-              rotate: [0, -20, 20, 0],
-              x: [0, -15, 15, 0],
-            }}
-            transition={{
-              duration: 7,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className="absolute bottom-1/3 right-1/5 opacity-25"
-          >
-            <FaBook className="w-9 h-9 text-orange-300" />
-          </motion.div>
-          
-          <motion.div
-            animate={{
-              rotate: [0, 10, -10, 0],
-              y: [0, -10, 10, 0],
-            }}
-            transition={{
-              duration: 9,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className="absolute top-1/2 left-1/5 opacity-20"
-          >
-            <FaBook className="w-8 h-8 text-red-300" />
-          </motion.div>
-        </div>
-
-        {/* Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-4xl md:text-5xl font-bold mb-4"
-          >
-            {instituteData.isAuthenticated 
-              ? `${t('feed.welcomeBack')}, ${instituteData.username || instituteData.firstName || instituteData.name || 'User'}!`
-              : t('feed.discoverExcellence')
-            }
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-xl text-white/90 max-w-2xl mx-auto"
-          >
-            {instituteData.isAuthenticated
-              ? isInstitution
-                ? t('feed.manageInstitution')
-                : t('feed.exploreInstitutions')
-              : t('feed.exploreInstitutions')
-            }
-          </motion.p>
-        </div>
-      </div>
-
-      {/* Social Media Style Feed */}
-      <div className="w-full flex justify-center py-8">
-        <div className="w-full max-w-[895px] px-4 sm:px-6">
-          {isLoadingFeed ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-12"
-            >
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 dark:border-teal-400"></div>
-              <p className="mt-4 text-gray-600 dark:text-gray-400">{t('common.loading')}</p>
-            </motion.div>
-          ) : feedError ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-12"
-            >
-              <p className="text-red-600 dark:text-red-400 mb-4">{feedError}</p>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors"
-              >
-                {t('common.retry') || 'Retry'}
-              </motion.button>
-            </motion.div>
-          ) : feedItems.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-12"
-            >
-              <p className="text-gray-600 dark:text-gray-400 text-lg">{t('feed.noFeedItems') || 'No feed items available'}</p>
-            </motion.div>
-          ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="space-y-4"
-          >
-          {feedItems.map((item, index) => (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700 overflow-hidden"
-            >
-              {/* Facebook-style Post */}
-              {(item.type === 'post' || item.title || item.description) && (
-                <>
-                  {/* Post Header - Publisher/Institution Profile */}
-                  <div className="p-4 flex items-center gap-3 relative">
+                {/* User Menu or Login/Signup */}
+                {instituteData.isAuthenticated ? (
+                  <div className="relative">
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => handleInstitutionProfileClick(item.publisher_username || item.institution_username)}
-                      onMouseEnter={(e) => handleInstitutionProfileHover(item.publisher_username || item.institution_username, e)}
-                      onMouseLeave={handleInstitutionProfileHoverLeave}
-                      className="flex-shrink-0 cursor-pointer relative"
+                      onClick={() => setShowUserMenu(!showUserMenu)}
+                      className={`flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors`}
                     >
-                      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-200 dark:border-navy-700 bg-gray-100 dark:bg-navy-700 flex items-center justify-center relative">
-                        {(item.publisher_profile_image || item.institution_profile_image) ? (
-                          <>
+                      <div className="relative">
+                        <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-teal-500 rounded-full flex items-center justify-center overflow-hidden">
+                          {profileImage ? (
                             <img
-                              src={item.publisher_profile_image || item.institution_profile_image}
-                              alt={item.publisher_username || item.institution_name || 'Publisher'}
+                              src={profileImage}
+                              alt="Profile"
                               className="w-full h-full object-cover"
                               onError={(e) => {
-                                console.error('Image failed to load:', e.target.src);
-                                e.target.style.display = 'none';
-                                const fallback = e.target.parentElement?.querySelector('.profile-fallback');
-                                if (fallback) {
-                                  fallback.style.display = 'flex';
-                                }
-                              }}
-                              onLoad={() => {
-                                console.log('Image loaded successfully:', item.publisher_profile_image || item.institution_profile_image);
+                                e.target.onerror = null;
+                                setProfileImage(null);
                               }}
                             />
-                            <div className="w-full h-full flex items-center justify-center text-primary-600 dark:text-teal-400 font-bold text-lg profile-fallback absolute inset-0" style={{ display: 'none' }}>
-                              {(item.publisher_username || item.institution_name || item.institution_username || 'P')?.[0]?.toUpperCase()}
-                            </div>
-                          </>
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-primary-600 dark:text-teal-400 font-bold text-lg">
-                            {(item.publisher_username || item.institution_name || item.institution_username || 'P')?.[0]?.toUpperCase()}
+                          ) : (
+                            <span className="text-white font-bold text-sm">
+                              {(username || instituteData.username || instituteData.name)?.[0]?.toUpperCase() || 'U'}
+                            </span>
+                          )}
+                        </div>
+                        {/* Verification Badge on Avatar */}
+                        {instituteData.isVerified && (
+                          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center border-2 border-white dark:border-navy-800">
+                            <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
                           </div>
                         )}
                       </div>
+                      <span className="hidden sm:block text-gray-800 dark:text-white font-medium">
+                        {username || instituteData.username || instituteData.name || 'User'}
+                      </span>
                     </motion.button>
-                    <div className="flex-1 min-w-0 relative">
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => handleInstitutionProfileClick(item.publisher_username || item.institution_username)}
-                        onMouseEnter={(e) => handleInstitutionProfileHover(item.publisher_username || item.institution_username, e)}
-                        onMouseLeave={handleInstitutionProfileHoverLeave}
-                        className="text-left w-full"
-                      >
-                        <h3 className="font-bold text-gray-800 dark:text-white hover:underline">
-                          {item.publisher_username || item.institution_name || item.institution_title || item.institution_username || 'Publisher'}
-                        </h3>
-                        {item.timestamp && (
-                          <p className="text-xs text-gray-500 dark:text-gray-500">
-                            {item.timestamp}
-                          </p>
-                        )}
-                      </motion.button>
-                    </div>
-                    
-                    {/* Hover Popup */}
-                    {hoveredInstitution === (item.publisher_username || item.institution_username) && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        className={`absolute ${isRTL ? 'left-0' : 'right-0'} top-full mt-2 w-64 bg-white dark:bg-navy-800 rounded-lg shadow-2xl border border-gray-200 dark:border-navy-700 z-50 p-4`}
-                        onMouseEnter={() => setHoveredInstitution(item.publisher_username || item.institution_username)}
-                        onMouseLeave={handleInstitutionProfileHoverLeave}
-                      >
-                        {isLoadingHoverInstitution ? (
-                          <div className="flex items-center justify-center py-4">
-                            <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 dark:border-teal-400"></div>
-                          </div>
-                        ) : hoverInstitutionData ? (
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary-200 dark:border-primary-800 bg-gray-100 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
-                                {hoverInstitutionData.profile_image ? (
-                                  <img
-                                    src={hoverInstitutionData.profile_image}
-                                    alt={hoverInstitutionData.title || hoverInstitutionData.username}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                      e.target.style.display = 'none';
-                                      e.target.nextSibling.style.display = 'flex';
-                                    }}
-                                  />
-                                ) : null}
-                                <div className="w-full h-full flex items-center justify-center text-primary-600 dark:text-teal-400 font-bold text-lg" style={{ display: hoverInstitutionData.profile_image ? 'none' : 'flex' }}>
-                                  {(hoverInstitutionData.title || hoverInstitutionData.username || 'I')?.[0]?.toUpperCase()}
-                                </div>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-bold text-gray-800 dark:text-white text-sm truncate">
-                                  {hoverInstitutionData.title || `${hoverInstitutionData.first_name || ''} ${hoverInstitutionData.last_name || ''}`.trim() || hoverInstitutionData.username}
-                                </h4>
-                                {hoverInstitutionData.location && (
-                                  <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 truncate">
-                                    <FaMapMarkerAlt className="text-xs flex-shrink-0" />
-                                    {hoverInstitutionData.location}
-                                  </p>
-                                )}
-                              </div>
+
+                    <AnimatePresence>
+                      {showUserMenu && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-56 bg-white dark:bg-navy-800 rounded-lg shadow-xl border border-gray-200 dark:border-navy-700 overflow-hidden`}
+                        >
+                          <div className={`p-3 border-b border-gray-200 dark:border-navy-700 ${isRTL ? 'text-right' : 'text-left'}`}>
+                            <div className={`flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 mb-1`}>
+                              <p className="text-sm font-semibold text-gray-800 dark:text-white">
+                                {username || instituteData.username || instituteData.name || 'User'}
+                              </p>
+                              {/* Verification Badge */}
+                              {instituteData.isVerified ? (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-xs font-medium">
+                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                  </svg>
+                                  {t('profile.verified') || 'Verified'}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded text-xs font-medium">
+                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                  </svg>
+                                  {t('profile.pendingVerification') || 'Pending'}
+                                </span>
+                              )}
                             </div>
-                            {hoverInstitutionData.about && (
-                              <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
-                                {hoverInstitutionData.about}
+                            {instituteData.email && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {instituteData.email}
                               </p>
                             )}
+                            <p className="text-xs text-gray-400 dark:text-gray-500 capitalize mt-1">
+                              {instituteData.userType}
+                            </p>
+                            {instituteData.userType === 'lecturer' && instituteData.institution && (
+                              <div className="mt-2 pt-2 border-t border-gray-200 dark:border-navy-700">
+                                <p className={`text-xs font-medium text-primary-600 dark:text-teal-400 flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-1`}>
+                                  <FaUniversity className="w-3 h-3" />
+                                  {instituteData.institution}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* View Profile Button */}
+                          <button
+                            onClick={() => {
+                              setShowProfileModal(true);
+                              setShowUserMenu(false);
+                            }}
+                            className={`w-full px-4 py-2 ${isRTL ? 'text-right' : 'text-left'} text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 transition-colors`}
+                          >
+                            <FaUser className="w-4 h-4" />
+                            {t('nav.profile') || 'View Profile'}
+                          </button>
+
+                          <button
+                            onClick={handleLogout}
+                            className={`w-full px-4 py-2 ${isRTL ? 'text-right' : 'text-left'} text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-navy-700 flex items-center ${isRTL ? 'flex-row-reverse' : ''} gap-2 transition-colors border-t border-gray-200 dark:border-navy-700`}
+                          >
+                            <FaSignOutAlt />
+                            {t('nav.logout')}
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => navigate('/login')}
+                      className="flex items-center gap-2 px-4 py-2 border border-primary-600 text-primary-600 dark:border-teal-400 dark:text-teal-400 rounded-lg hover:bg-primary-50 dark:hover:bg-navy-700 transition-colors"
+                    >
+                      <FaSignInAlt />
+                      <span>{t('nav.login')}</span>
+                    </motion.button>
+
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => navigate('/home', { state: { showSignUp: true } })}
+                      className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors"
+                    >
+                      <FaUser />
+                      <span>{t('nav.signUp')}</span>
+                    </motion.button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        {/* Hero Section */}
+        <div className="bg-gradient-to-r from-primary-600 to-teal-500 text-white py-16 relative overflow-hidden">
+          {/* Animated Decorative Elements */}
+          <div className="absolute inset-0 pointer-events-none">
+            {/* Animated School Symbols */}
+            <motion.div
+              animate={{
+                x: [0, 100, 0],
+                y: [0, 50, 0],
+                rotate: [0, 15, -15, 0],
+              }}
+              transition={{
+                duration: 20,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="absolute top-20 left-10 opacity-20"
+            >
+              <FaUniversity className="w-16 h-16 text-red-300" />
+            </motion.div>
+
+            <motion.div
+              animate={{
+                x: [0, -80, 0],
+                y: [0, 30, 0],
+                rotate: [0, -10, 10, 0],
+              }}
+              transition={{
+                duration: 25,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="absolute top-32 right-20 opacity-15"
+            >
+              <FaUniversity className="w-12 h-12 text-orange-300" />
+            </motion.div>
+
+            <motion.div
+              animate={{
+                x: [0, 60, 0],
+                y: [0, -40, 0],
+                rotate: [0, 20, -20, 0],
+              }}
+              transition={{
+                duration: 18,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="absolute bottom-20 left-1/4 opacity-20"
+            >
+              <FaUniversity className="w-10 h-10 text-red-300" />
+            </motion.div>
+
+            <motion.div
+              animate={{
+                x: [0, -70, 0],
+                y: [0, 60, 0],
+                rotate: [0, -15, 15, 0],
+              }}
+              transition={{
+                duration: 22,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="absolute bottom-32 right-1/3 opacity-15"
+            >
+              <FaUniversity className="w-14 h-14 text-orange-300" />
+            </motion.div>
+
+            {/* Animated Pens */}
+            <motion.div
+              animate={{
+                rotate: [0, 360],
+                y: [0, -20, 0],
+              }}
+              transition={{
+                duration: 8,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="absolute top-1/4 left-1/4 opacity-25"
+            >
+              <FaPen className="w-8 h-8 text-orange-300" />
+            </motion.div>
+
+            <motion.div
+              animate={{
+                rotate: [0, -360],
+                y: [0, 15, 0],
+              }}
+              transition={{
+                duration: 10,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="absolute top-1/3 right-1/4 opacity-20"
+            >
+              <FaPen className="w-6 h-6 text-red-300" />
+            </motion.div>
+
+            <motion.div
+              animate={{
+                rotate: [0, 360],
+                y: [0, -25, 0],
+              }}
+              transition={{
+                duration: 12,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="absolute bottom-1/4 left-1/3 opacity-25"
+            >
+              <FaPen className="w-7 h-7 text-orange-300" />
+            </motion.div>
+
+            {/* Animated Books */}
+            <motion.div
+              animate={{
+                rotate: [0, 15, -15, 0],
+                x: [0, 10, -10, 0],
+              }}
+              transition={{
+                duration: 6,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="absolute top-1/4 right-1/3 opacity-20"
+            >
+              <FaBook className="w-10 h-10 text-red-300" />
+            </motion.div>
+
+            <motion.div
+              animate={{
+                rotate: [0, -20, 20, 0],
+                x: [0, -15, 15, 0],
+              }}
+              transition={{
+                duration: 7,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="absolute bottom-1/3 right-1/5 opacity-25"
+            >
+              <FaBook className="w-9 h-9 text-orange-300" />
+            </motion.div>
+
+            <motion.div
+              animate={{
+                rotate: [0, 10, -10, 0],
+                y: [0, -10, 10, 0],
+              }}
+              transition={{
+                duration: 9,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="absolute top-1/2 left-1/5 opacity-20"
+            >
+              <FaBook className="w-8 h-8 text-red-300" />
+            </motion.div>
+          </div>
+
+          {/* Content */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-4xl md:text-5xl font-bold mb-4"
+            >
+              {instituteData.isAuthenticated
+                ? `${t('feed.welcomeBack')}, ${instituteData.username || instituteData.firstName || instituteData.name || 'User'}!`
+                : t('feed.discoverExcellence')
+              }
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="text-xl text-white/90 max-w-2xl mx-auto"
+            >
+              {instituteData.isAuthenticated
+                ? isInstitution
+                  ? t('feed.manageInstitution')
+                  : t('feed.exploreInstitutions')
+                : t('feed.exploreInstitutions')
+              }
+            </motion.p>
+          </div>
+        </div>
+
+        {/* Social Media Style Feed */}
+        <div className="w-full flex justify-center py-8">
+          <div className="w-full max-w-[895px] px-4 sm:px-6">
+            {isLoadingFeed ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-12"
+              >
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 dark:border-teal-400"></div>
+                <p className="mt-4 text-gray-600 dark:text-gray-400">{t('common.loading')}</p>
+              </motion.div>
+            ) : feedError ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-12"
+              >
+                <p className="text-red-600 dark:text-red-400 mb-4">{feedError}</p>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors"
+                >
+                  {t('common.retry') || 'Retry'}
+                </motion.button>
+              </motion.div>
+            ) : feedItems.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-12"
+              >
+                <p className="text-gray-600 dark:text-gray-400 text-lg">{t('feed.noFeedItems') || 'No feed items available'}</p>
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="space-y-4"
+              >
+                {feedItems.map((item, index) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    style={{ zIndex: hoveredItemId === item.id ? 40 : 1, position: 'relative' }}
+                    className="bg-white dark:bg-navy-800 rounded-lg shadow-md border border-gray-200 dark:border-navy-700"
+                  >
+                    {/* Facebook-style Post */}
+                    {(item.type === 'post' || item.title || item.description) && (
+                      <>
+                        {/* Post Header - Publisher/Institution Profile */}
+                        <div className="p-4 flex items-center gap-3 relative">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleInstitutionProfileClick(item.publisher_username || item.institution_username)}
+                            onMouseEnter={(e) => handleInstitutionProfileHover(item.id, item.publisher_username || item.institution_username, e)}
+                            onMouseLeave={handleInstitutionProfileHoverLeave}
+                            className="flex-shrink-0 cursor-pointer relative"
+                          >
+                            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-200 dark:border-navy-700 bg-gray-100 dark:bg-navy-700 flex items-center justify-center relative">
+                              {(item.publisher_profile_image || item.institution_profile_image) ? (
+                                <>
+                                  <img
+                                    src={item.publisher_profile_image || item.institution_profile_image}
+                                    alt={item.publisher_username || item.institution_name || 'Publisher'}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      console.error('Image failed to load:', e.target.src);
+                                      e.target.style.display = 'none';
+                                      const fallback = e.target.parentElement?.querySelector('.profile-fallback');
+                                      if (fallback) {
+                                        fallback.style.display = 'flex';
+                                      }
+                                    }}
+                                    onLoad={() => {
+                                      console.log('Image loaded successfully:', item.publisher_profile_image || item.institution_profile_image);
+                                    }}
+                                  />
+                                  <div className="w-full h-full flex items-center justify-center text-primary-600 dark:text-teal-400 font-bold text-lg profile-fallback absolute inset-0" style={{ display: 'none' }}>
+                                    {(item.publisher_username || item.institution_name || item.institution_username || 'P')?.[0]?.toUpperCase()}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-primary-600 dark:text-teal-400 font-bold text-lg">
+                                  {(item.publisher_username || item.institution_name || item.institution_username || 'P')?.[0]?.toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                          </motion.button>
+                          <div className="flex-1 min-w-0 relative">
                             <motion.button
                               whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.98 }}
                               onClick={() => handleInstitutionProfileClick(item.publisher_username || item.institution_username)}
-                              className="w-full px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                              onMouseEnter={(e) => handleInstitutionProfileHover(item.id, item.publisher_username || item.institution_username, e)}
+                              onMouseLeave={handleInstitutionProfileHoverLeave}
+                              className="text-left w-full"
                             >
-                              {t('feed.viewProfile') || 'View Profile'}
+                              <h3 className="font-bold text-gray-800 dark:text-white hover:underline">
+                                {item.publisher_username || item.institution_name || item.institution_title || item.institution_username || 'Publisher'}
+                              </h3>
+                              {item.timestamp && (
+                                <p className="text-xs text-gray-500 dark:text-gray-500">
+                                  {item.timestamp}
+                                </p>
+                              )}
                             </motion.button>
                           </div>
-                        ) : (
-                          <div className="text-center py-4">
-                            <p className="text-xs text-gray-500 dark:text-gray-500">{t('common.loading')}</p>
-                          </div>
-                        )}
-                      </motion.div>
-                    )}
-                  </div>
 
-                  {/* Post Content */}
-                  <div className="px-4 pb-4">
-                    {item.title && (
-                      <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
-                        {item.title}
-                      </h4>
-                    )}
-                    {item.description && (
-                      <p className="text-gray-700 dark:text-gray-300 text-sm sm:text-base mb-4 leading-relaxed whitespace-pre-wrap">
-                        {item.description}
-                      </p>
-                    )}
 
-                    {/* Post Images */}
-                    {item.images && item.images.length > 0 && (
-                      <div className={`mb-4 ${item.images.length === 1 ? '' : 'grid gap-2'} ${item.images.length === 2 ? 'grid-cols-2' : item.images.length === 3 ? 'grid-cols-2' : item.images.length === 4 ? 'grid-cols-2' : 'grid-cols-2'}`}>
-                        {item.images.slice(0, 4).map((imageObj, imgIndex) => {
-                          const imageUrl = imageObj.image ? getImageUrl(imageObj.image) : null;
-                          if (!imageUrl) return null;
-                          
-                          return (
-                            <div
-                              key={imgIndex}
-                              className={`relative overflow-hidden rounded-lg ${item.images.length === 1 ? 'h-96' : 'h-48'} ${imgIndex === 0 && item.images.length === 3 ? 'col-span-2' : ''}`}
+                          {/* Hover Popup - Moved inside relative container for better positioning */}
+                          {hoveredItemId === item.id && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                              className={`absolute ${isRTL ? 'right-0' : 'left-0'} top-full mt-2 w-64 bg-white dark:bg-navy-800 rounded-lg shadow-2xl border border-gray-200 dark:border-navy-700 z-50 p-4`}
+                              onMouseEnter={() => {
+                                if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                                setHoveredItemId(item.id);
+                              }}
+                              onMouseLeave={handleInstitutionProfileHoverLeave}
                             >
-                              <img
-                                src={imageUrl}
-                                alt={`Post image ${imgIndex + 1}`}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                }}
-                              />
-                            </div>
-                          );
-                        })}
-                        {item.images.length > 4 && (
-                          <div className="relative h-48 overflow-hidden rounded-lg bg-gray-100 dark:bg-navy-700 flex items-center justify-center">
-                            <span className="text-gray-600 dark:text-gray-400 font-semibold">
-                              +{item.images.length - 4} {t('feed.moreImages') || 'more'}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
+                              {isLoadingHoverInstitution ? (
+                                <div className="flex items-center justify-center py-4">
+                                  <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 dark:border-teal-400"></div>
+                                </div>
+                              ) : hoverInstitutionData ? (
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary-200 dark:border-primary-800 bg-gray-100 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
+                                      {hoverInstitutionData.profile_image ? (
+                                        <img
+                                          src={hoverInstitutionData.profile_image}
+                                          alt={hoverInstitutionData.title || hoverInstitutionData.username}
+                                          className="w-full h-full object-cover"
+                                          onError={(e) => {
+                                            e.target.style.display = 'none';
+                                            e.target.nextSibling.style.display = 'flex';
+                                          }}
+                                        />
+                                      ) : null}
+                                      <div className="w-full h-full flex items-center justify-center text-primary-600 dark:text-teal-400 font-bold text-lg" style={{ display: hoverInstitutionData.profile_image ? 'none' : 'flex' }}>
+                                        {(hoverInstitutionData.title || hoverInstitutionData.username || 'I')?.[0]?.toUpperCase()}
+                                      </div>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-bold text-gray-800 dark:text-white text-sm truncate">
+                                        {hoverInstitutionData.title || `${hoverInstitutionData.first_name || ''} ${hoverInstitutionData.last_name || ''}`.trim() || hoverInstitutionData.username}
+                                      </h4>
+                                      {hoverInstitutionData.location && (
+                                        <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 truncate">
+                                          <FaMapMarkerAlt className="text-xs flex-shrink-0" />
+                                          {hoverInstitutionData.location}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {hoverInstitutionData.about && (
+                                    <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                                      {hoverInstitutionData.about}
+                                    </p>
+                                  )}
+                                  <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={() => handleInstitutionProfileClick(item.publisher_username || item.institution_username)}
+                                    className="w-full px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                                  >
+                                    {t('feed.viewProfile') || 'View Profile'}
+                                  </motion.button>
+                                </div>
+                              ) : (
+                                <div className="text-center py-4">
+                                  <p className="text-xs text-gray-500 dark:text-gray-500">{t('common.loading')}</p>
+                                </div>
+                              )}
+                            </motion.div>
+                          )}
+                        </div>
 
-              {/* Lecturer Job Post */}
-              {item.type === 'job_post' && (
-                <div className="p-4 sm:p-6">
-                  <div className="flex items-start gap-4 mb-4">
-                    <img
-                      src={item.lecturerImage}
-                      alt={item.lecturerName}
-                      className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-                            {item.lecturerName}
-                          </h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {item.specialty} • {item.experience} {t('feed.experience')}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                            <FaMapMarkerAlt className="inline mr-1" />
-                            {item.location}
+                        {/* Hover Popup used to be here */}
+
+                        {/* Post Content */}
+                        <div className="px-4 pb-4">
+                          {item.title && (
+                            <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+                              {item.title}
+                            </h4>
+                          )}
+                          {item.description && (
+                            <p className="text-gray-700 dark:text-gray-300 text-sm sm:text-base mb-4 leading-relaxed whitespace-pre-wrap">
+                              {item.description}
+                            </p>
+                          )}
+
+                          {/* Post Images */}
+                          {item.images && item.images.length > 0 && (
+                            <div className={`mb-4 ${item.images.length === 1 ? '' : 'grid gap-2'} ${item.images.length === 2 ? 'grid-cols-2' : item.images.length === 3 ? 'grid-cols-2' : item.images.length === 4 ? 'grid-cols-2' : 'grid-cols-2'}`}>
+                              {item.images.slice(0, 4).map((imageObj, imgIndex) => {
+                                const imageUrl = imageObj.image ? getImageUrl(imageObj.image) : null;
+                                if (!imageUrl) return null;
+
+                                return (
+                                  <div
+                                    key={imgIndex}
+                                    className={`relative overflow-hidden rounded-lg ${item.images.length === 1 ? 'h-96' : 'h-48'} ${imgIndex === 0 && item.images.length === 3 ? 'col-span-2' : ''}`}
+                                  >
+                                    <img
+                                      src={imageUrl}
+                                      alt={`Post image ${imgIndex + 1}`}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                      }}
+                                    />
+                                  </div>
+                                );
+                              })}
+                              {item.images.length > 4 && (
+                                <div className="relative h-48 overflow-hidden rounded-lg bg-gray-100 dark:bg-navy-700 flex items-center justify-center">
+                                  <span className="text-gray-600 dark:text-gray-400 font-semibold">
+                                    +{item.images.length - 4} {t('feed.moreImages') || 'more'}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Lecturer Job Post */}
+                    {item.type === 'job_post' && (
+                      <div className="p-4 sm:p-6">
+                        <div className="flex items-start gap-4 mb-4">
+                          <img
+                            src={item.lecturerImage}
+                            alt={item.lecturerName}
+                            className="w-16 h-16 rounded-full object-cover border-2 border-primary-200 dark:border-primary-800"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between mb-2">
+                              <div>
+                                <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+                                  {item.lecturerName}
+                                </h3>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  {item.specialty} • {item.experience} {t('feed.experience')}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                  <FaMapMarkerAlt className="inline mr-1" />
+                                  {item.location}
+                                </p>
+                              </div>
+                              <span className="text-sm text-gray-500 dark:text-gray-500">{item.timestamp}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
+                          <div className="flex items-center gap-2 mb-2">
+                            <FaBriefcase className="text-blue-600 dark:text-blue-400" />
+                            <span className="font-semibold text-blue-800 dark:text-blue-300">{t('feed.lookingForJob')}</span>
+                          </div>
+                          <p className="text-gray-700 dark:text-gray-300">{item.message}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                            {t('feed.contact')}: <span className="font-medium">{item.contact}</span>
                           </p>
                         </div>
-                        <span className="text-sm text-gray-500 dark:text-gray-500">{item.timestamp}</span>
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FaBriefcase className="text-blue-600 dark:text-blue-400" />
-                      <span className="font-semibold text-blue-800 dark:text-blue-300">{t('feed.lookingForJob')}</span>
-                    </div>
-                    <p className="text-gray-700 dark:text-gray-300">{item.message}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                      {t('feed.contact')}: <span className="font-medium">{item.contact}</span>
-                    </p>
-                  </div>
-
-                  {/* Contact Button for Institutions */}
-                  {isInstitution && (
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => window.location.href = `mailto:${item.contact}`}
-                      className="w-full px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold"
-                    >
-                      {t('feed.contactLecturer')}
-                    </motion.button>
-                  )}
-                </div>
-              )}
-
-              {/* Job Card (public jobs) */}
-              {item.type === 'job' && (
-                <motion.div 
-                  className="p-4 sm:p-6 cursor-pointer"
-                  onClick={() => handleJobClick(item)}
-                  whileHover={{ scale: 1.01 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <div className="flex items-start gap-4 mb-4 relative">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleInstitutionProfileClick(item.publisher_username);
-                      }}
-                      onMouseEnter={(e) => handleInstitutionProfileHover(item.publisher_username, e)}
-                      onMouseLeave={handleInstitutionProfileHoverLeave}
-                      className="flex-shrink-0 cursor-pointer relative"
-                    >
-                      <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-purple-200 dark:border-purple-800 bg-gray-100 dark:bg-navy-700 flex items-center justify-center">
-                        {item.publisher_profile_image ? (
-                          <img
-                            src={getImageUrl(item.publisher_profile_image)}
-                            alt={item.publisher_username || 'publisher'}
-                            className="w-full h-full object-cover"
-                            onError={(e) => { e.target.style.display = 'none'; }}
-                          />
-                        ) : (
-                          <span className="text-purple-600 dark:text-purple-300 font-bold">
-                            {(item.publisher_username || 'J')[0].toUpperCase()}
-                          </span>
+                        {/* Contact Button for Institutions */}
+                        {isInstitution && (
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => window.location.href = `mailto:${item.contact}`}
+                            className="w-full px-4 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold"
+                          >
+                            {t('feed.contactLecturer')}
+                          </motion.button>
                         )}
                       </div>
-                    </motion.button>
-                    <div className="flex-1 relative">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-1">
-                            {item.title || t('feed.job') || 'Job'}
-                          </h3>
-                          {item.publisher_username && (
+                    )}
+
+                    {/* Job Card (public jobs) */}
+                    {item.type === 'job' && (
+                      <motion.div
+                        className="p-4 sm:p-6 cursor-pointer"
+                        onClick={() => handleJobClick(item)}
+                        whileHover={{ scale: 1.01 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <div className="flex items-start gap-4 mb-4 relative">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleInstitutionProfileClick(item.publisher_username);
+                            }}
+                            onMouseEnter={(e) => handleInstitutionProfileHover(item.id, item.publisher_username, e)}
+                            onMouseLeave={handleInstitutionProfileHoverLeave}
+                            className="flex-shrink-0 cursor-pointer relative"
+                          >
+                            <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-purple-200 dark:border-purple-800 bg-gray-100 dark:bg-navy-700 flex items-center justify-center">
+                              {item.publisher_profile_image ? (
+                                <img
+                                  src={getImageUrl(item.publisher_profile_image)}
+                                  alt={item.publisher_username || 'publisher'}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                />
+                              ) : (
+                                <span className="text-purple-600 dark:text-purple-300 font-bold">
+                                  {(item.publisher_username || 'J')[0].toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                          </motion.button>
+                          <div className="flex-1 relative">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex-1">
+                                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-1">
+                                  {item.title || t('feed.job') || 'Job'}
+                                </h3>
+                                {item.publisher_username && (
+                                  <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleInstitutionProfileClick(item.publisher_username);
+                                    }}
+                                    onMouseEnter={(e) => handleInstitutionProfileHover(item.id, item.publisher_username, e)}
+                                    onMouseLeave={handleInstitutionProfileHoverLeave}
+                                    className="text-sm text-gray-600 dark:text-gray-400 hover:underline"
+                                  >
+                                    @{item.publisher_username}
+                                  </motion.button>
+                                )}
+                                {item.created_at && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 flex items-center gap-1">
+                                    <FaClock className="inline text-gray-400 dark:text-gray-500" />
+                                    {formatTimestamp(item.created_at)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            {item.description && item.description.trim() !== '' && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-3 line-clamp-3">
+                                {item.description}
+                              </p>
+                            )}
+
+                            {/* Meta */}
+                            <div className="flex flex-wrap gap-3 text-sm text-gray-600 dark:text-gray-400 mt-3">
+                              {item.institution && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">
+                                  <FaUniversity className="w-3 h-3" />
+                                  {item.institution}
+                                </span>
+                              )}
+                              {item.city && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-navy-700 text-gray-700 dark:text-gray-300 rounded-full text-xs font-semibold">
+                                  <FaMapMarkerAlt className="w-3 h-3" />
+                                  {item.city}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Apply Button - Lecturers only */}
+                            {instituteData.isAuthenticated && instituteData.userType === 'lecturer' && (
+                              <div className="mt-4">
+                                <motion.button
+                                  whileHover={{ scale: 1.02 }}
+                                  whileTap={{ scale: 0.98 }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!instituteData.isVerified) {
+                                      setShowVerificationPopup(true);
+                                      return;
+                                    }
+                                    setSelectedJob(item);
+                                    setApplyJobMessage('');
+                                    setShowApplyJobModal(true);
+                                  }}
+                                  className="w-full sm:w-auto px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold text-sm"
+                                >
+                                  {t('feed.applyJob') || 'Apply'}
+                                </motion.button>
+                              </div>
+                            )}
+
+                            {/* Hover Popup for Job Card */}
+                            {hoveredItemId === item.id && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                className={`absolute ${isRTL ? 'right-0' : 'left-0'} top-full mt-2 w-64 bg-white dark:bg-navy-800 rounded-lg shadow-2xl border border-gray-200 dark:border-navy-700 z-50 p-4`}
+                                onMouseEnter={() => {
+                                  if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                                  setHoveredItemId(item.id);
+                                }}
+                                onMouseLeave={handleInstitutionProfileHoverLeave}
+                              >
+                                {isLoadingHoverInstitution ? (
+                                  <div className="flex items-center justify-center py-4">
+                                    <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 dark:border-teal-400"></div>
+                                  </div>
+                                ) : hoverInstitutionData ? (
+                                  <div className="space-y-3">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary-200 dark:border-primary-800 bg-gray-100 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
+                                        {hoverInstitutionData.profile_image ? (
+                                          <img
+                                            src={hoverInstitutionData.profile_image}
+                                            alt={hoverInstitutionData.title || hoverInstitutionData.username}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                              e.target.style.display = 'none';
+                                              e.target.nextSibling.style.display = 'flex';
+                                            }}
+                                          />
+                                        ) : null}
+                                        <div className="w-full h-full flex items-center justify-center text-primary-600 dark:text-teal-400 font-bold text-lg" style={{ display: hoverInstitutionData.profile_image ? 'none' : 'flex' }}>
+                                          {(hoverInstitutionData.title || hoverInstitutionData.username || 'I')?.[0]?.toUpperCase()}
+                                        </div>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="font-bold text-gray-800 dark:text-white text-sm truncate">
+                                          {hoverInstitutionData.title || `${hoverInstitutionData.first_name || ''} ${hoverInstitutionData.last_name || ''}`.trim() || hoverInstitutionData.username}
+                                        </h4>
+                                        {hoverInstitutionData.location && (
+                                          <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 truncate">
+                                            <FaMapMarkerAlt className="text-xs flex-shrink-0" />
+                                            {hoverInstitutionData.location}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {hoverInstitutionData.about && (
+                                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                                        {hoverInstitutionData.about}
+                                      </p>
+                                    )}
+                                    <motion.button
+                                      whileHover={{ scale: 1.02 }}
+                                      whileTap={{ scale: 0.98 }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleInstitutionProfileClick(item.publisher_username);
+                                      }}
+                                      className="w-full px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                                    >
+                                      {t('feed.viewProfile') || 'View Profile'}
+                                    </motion.button>
+                                  </div>
+                                ) : (
+                                  <div className="text-center py-4">
+                                    <p className="text-xs text-gray-500 dark:text-gray-500">{t('common.loading')}</p>
+                                  </div>
+                                )}
+                              </motion.div>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Course Card */}
+                    {item.type === 'course' && (
+                      <motion.div
+                        className="p-4 sm:p-6 cursor-pointer"
+                        onClick={() => handleCourseClick(item)}
+                        whileHover={{ scale: 1.01 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        {/* Course Header with Institution Info */}
+                        {item.publisher_username && (
+                          <div className="mb-4 flex items-center gap-3 relative">
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleInstitutionProfileClick(item.publisher_username);
+                              }}
+                              onMouseEnter={(e) => handleInstitutionProfileHover(item.id, item.publisher_username, e)}
+                              onMouseLeave={handleInstitutionProfileHoverLeave}
+                              className="flex-shrink-0 cursor-pointer relative"
+                            >
+                              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200 dark:border-navy-700 bg-gray-100 dark:bg-navy-700 flex items-center justify-center">
+                                {item.publisher_profile_image ? (
+                                  <img
+                                    src={getImageUrl(item.publisher_profile_image)}
+                                    alt={item.publisher_username}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                  />
+                                ) : (
+                                  <span className="text-primary-600 dark:text-teal-400 font-bold text-sm">
+                                    {(item.publisher_username || 'I')[0].toUpperCase()}
+                                  </span>
+                                )}
+                              </div>
+                            </motion.button>
                             <motion.button
                               whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.98 }}
@@ -2108,423 +2100,246 @@ const Feed = () => {
                                 e.stopPropagation();
                                 handleInstitutionProfileClick(item.publisher_username);
                               }}
-                              onMouseEnter={(e) => handleInstitutionProfileHover(item.publisher_username, e)}
+                              onMouseEnter={(e) => handleInstitutionProfileHover(item.id, item.publisher_username, e)}
                               onMouseLeave={handleInstitutionProfileHoverLeave}
-                              className="text-sm text-gray-600 dark:text-gray-400 hover:underline"
+                              className="text-sm font-semibold text-gray-700 dark:text-gray-300 hover:underline"
                             >
-                              @{item.publisher_username}
+                              {item.publisher_username || item.institution_name}
                             </motion.button>
-                          )}
-                          {item.created_at && (
-                            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 flex items-center gap-1">
-                              <FaClock className="inline text-gray-400 dark:text-gray-500" />
-                              {formatTimestamp(item.created_at)}
-                            </p>
-                          )}
-                        </div>
-                      </div>
 
-                      {item.description && item.description.trim() !== '' && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-3 line-clamp-3">
-                          {item.description}
-                        </p>
-                      )}
-
-                      {/* Meta */}
-                      <div className="flex flex-wrap gap-3 text-sm text-gray-600 dark:text-gray-400 mt-3">
-                        {item.institution && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">
-                            <FaUniversity className="w-3 h-3" />
-                            {item.institution}
-                          </span>
-                        )}
-                        {item.city && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-navy-700 text-gray-700 dark:text-gray-300 rounded-full text-xs font-semibold">
-                            <FaMapMarkerAlt className="w-3 h-3" />
-                            {item.city}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Apply Button - Lecturers only */}
-                      {instituteData.isAuthenticated && instituteData.userType === 'lecturer' && (
-                        <div className="mt-4">
-                          <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!instituteData.isVerified) {
-                                setShowVerificationPopup(true);
-                                return;
-                              }
-                              setSelectedJob(item);
-                              setApplyJobMessage('');
-                              setShowApplyJobModal(true);
-                            }}
-                            className="w-full sm:w-auto px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-colors font-semibold text-sm"
-                          >
-                            {t('feed.applyJob') || 'Apply'}
-                          </motion.button>
-                        </div>
-                      )}
-                      
-                      {/* Hover Popup for Job Card */}
-                      {hoveredInstitution === item.publisher_username && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                          className={`absolute ${isRTL ? 'left-0' : 'right-0'} top-full mt-2 w-64 bg-white dark:bg-navy-800 rounded-lg shadow-2xl border border-gray-200 dark:border-navy-700 z-50 p-4`}
-                          onMouseEnter={() => setHoveredInstitution(item.publisher_username)}
-                          onMouseLeave={handleInstitutionProfileHoverLeave}
-                        >
-                          {isLoadingHoverInstitution ? (
-                            <div className="flex items-center justify-center py-4">
-                              <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 dark:border-teal-400"></div>
-                            </div>
-                          ) : hoverInstitutionData ? (
-                            <div className="space-y-3">
-                              <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary-200 dark:border-primary-800 bg-gray-100 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
-                                  {hoverInstitutionData.profile_image ? (
-                                    <img
-                                      src={hoverInstitutionData.profile_image}
-                                      alt={hoverInstitutionData.title || hoverInstitutionData.username}
-                                      className="w-full h-full object-cover"
-                                      onError={(e) => {
-                                        e.target.style.display = 'none';
-                                        e.target.nextSibling.style.display = 'flex';
-                                      }}
-                                    />
-                                  ) : null}
-                                  <div className="w-full h-full flex items-center justify-center text-primary-600 dark:text-teal-400 font-bold text-lg" style={{ display: hoverInstitutionData.profile_image ? 'none' : 'flex' }}>
-                                    {(hoverInstitutionData.title || hoverInstitutionData.username || 'I')?.[0]?.toUpperCase()}
-                                  </div>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-bold text-gray-800 dark:text-white text-sm truncate">
-                                    {hoverInstitutionData.title || `${hoverInstitutionData.first_name || ''} ${hoverInstitutionData.last_name || ''}`.trim() || hoverInstitutionData.username}
-                                  </h4>
-                                  {hoverInstitutionData.location && (
-                                    <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 truncate">
-                                      <FaMapMarkerAlt className="text-xs flex-shrink-0" />
-                                      {hoverInstitutionData.location}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                              {hoverInstitutionData.about && (
-                                <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
-                                  {hoverInstitutionData.about}
-                                </p>
-                              )}
-                              <motion.button
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleInstitutionProfileClick(item.publisher_username);
+                            {/* Hover Popup for Course Card */}
+                            {hoveredItemId === item.id && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                className={`absolute ${isRTL ? 'right-0' : 'left-0'} top-full mt-2 w-64 bg-white dark:bg-navy-800 rounded-lg shadow-2xl border border-gray-200 dark:border-navy-700 z-50 p-4`}
+                                onMouseEnter={() => {
+                                  if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                                  setHoveredItemId(item.id);
                                 }}
-                                className="w-full px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                                onMouseLeave={handleInstitutionProfileHoverLeave}
                               >
-                                {t('feed.viewProfile') || 'View Profile'}
-                              </motion.button>
-                            </div>
-                          ) : (
-                            <div className="text-center py-4">
-                              <p className="text-xs text-gray-500 dark:text-gray-500">{t('common.loading')}</p>
-                            </div>
-                          )}
-                        </motion.div>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Course Card */}
-              {item.type === 'course' && (
-                <motion.div 
-                  className="p-4 sm:p-6 cursor-pointer"
-                  onClick={() => handleCourseClick(item)}
-                  whileHover={{ scale: 1.01 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  {/* Course Header with Institution Info */}
-                  {item.publisher_username && (
-                    <div className="mb-4 flex items-center gap-3 relative">
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleInstitutionProfileClick(item.publisher_username);
-                        }}
-                        onMouseEnter={(e) => handleInstitutionProfileHover(item.publisher_username, e)}
-                        onMouseLeave={handleInstitutionProfileHoverLeave}
-                        className="flex-shrink-0 cursor-pointer relative"
-                      >
-                        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200 dark:border-navy-700 bg-gray-100 dark:bg-navy-700 flex items-center justify-center">
-                          {item.publisher_profile_image ? (
-                            <img
-                              src={getImageUrl(item.publisher_profile_image)}
-                              alt={item.publisher_username}
-                              className="w-full h-full object-cover"
-                              onError={(e) => { e.target.style.display = 'none'; }}
-                            />
-                          ) : (
-                            <span className="text-primary-600 dark:text-teal-400 font-bold text-sm">
-                              {(item.publisher_username || 'I')[0].toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-                      </motion.button>
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleInstitutionProfileClick(item.publisher_username);
-                        }}
-                        onMouseEnter={(e) => handleInstitutionProfileHover(item.publisher_username, e)}
-                        onMouseLeave={handleInstitutionProfileHoverLeave}
-                        className="text-sm font-semibold text-gray-700 dark:text-gray-300 hover:underline"
-                      >
-                        {item.publisher_username || item.institution_name}
-                      </motion.button>
-                      
-                      {/* Hover Popup for Course Card */}
-                      {hoveredInstitution === item.publisher_username && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                          className={`absolute ${isRTL ? 'left-0' : 'right-0'} top-full mt-2 w-64 bg-white dark:bg-navy-800 rounded-lg shadow-2xl border border-gray-200 dark:border-navy-700 z-50 p-4`}
-                          onMouseEnter={() => setHoveredInstitution(item.publisher_username)}
-                          onMouseLeave={handleInstitutionProfileHoverLeave}
-                        >
-                          {isLoadingHoverInstitution ? (
-                            <div className="flex items-center justify-center py-4">
-                              <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 dark:border-teal-400"></div>
-                            </div>
-                          ) : hoverInstitutionData ? (
-                            <div className="space-y-3">
-                              <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary-200 dark:border-primary-800 bg-gray-100 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
-                                  {hoverInstitutionData.profile_image ? (
-                                    <img
-                                      src={hoverInstitutionData.profile_image}
-                                      alt={hoverInstitutionData.title || hoverInstitutionData.username}
-                                      className="w-full h-full object-cover"
-                                      onError={(e) => {
-                                        e.target.style.display = 'none';
-                                        e.target.nextSibling.style.display = 'flex';
-                                      }}
-                                    />
-                                  ) : null}
-                                  <div className="w-full h-full flex items-center justify-center text-primary-600 dark:text-teal-400 font-bold text-lg" style={{ display: hoverInstitutionData.profile_image ? 'none' : 'flex' }}>
-                                    {(hoverInstitutionData.title || hoverInstitutionData.username || 'I')?.[0]?.toUpperCase()}
+                                {isLoadingHoverInstitution ? (
+                                  <div className="flex items-center justify-center py-4">
+                                    <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 dark:border-teal-400"></div>
                                   </div>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-bold text-gray-800 dark:text-white text-sm truncate">
-                                    {hoverInstitutionData.title || `${hoverInstitutionData.first_name || ''} ${hoverInstitutionData.last_name || ''}`.trim() || hoverInstitutionData.username}
-                                  </h4>
-                                  {hoverInstitutionData.location && (
-                                    <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 truncate">
-                                      <FaMapMarkerAlt className="text-xs flex-shrink-0" />
-                                      {hoverInstitutionData.location}
-                                    </p>
-                                  )}
-                                </div>
+                                ) : hoverInstitutionData ? (
+                                  <div className="space-y-3">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary-200 dark:border-primary-800 bg-gray-100 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
+                                        {hoverInstitutionData.profile_image ? (
+                                          <img
+                                            src={hoverInstitutionData.profile_image}
+                                            alt={hoverInstitutionData.title || hoverInstitutionData.username}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                              e.target.style.display = 'none';
+                                              e.target.nextSibling.style.display = 'flex';
+                                            }}
+                                          />
+                                        ) : null}
+                                        <div className="w-full h-full flex items-center justify-center text-primary-600 dark:text-teal-400 font-bold text-lg" style={{ display: hoverInstitutionData.profile_image ? 'none' : 'flex' }}>
+                                          {(hoverInstitutionData.title || hoverInstitutionData.username || 'I')?.[0]?.toUpperCase()}
+                                        </div>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="font-bold text-gray-800 dark:text-white text-sm truncate">
+                                          {hoverInstitutionData.title || `${hoverInstitutionData.first_name || ''} ${hoverInstitutionData.last_name || ''}`.trim() || hoverInstitutionData.username}
+                                        </h4>
+                                        {hoverInstitutionData.location && (
+                                          <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 truncate">
+                                            <FaMapMarkerAlt className="text-xs flex-shrink-0" />
+                                            {hoverInstitutionData.location}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {hoverInstitutionData.about && (
+                                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                                        {hoverInstitutionData.about}
+                                      </p>
+                                    )}
+                                    <motion.button
+                                      whileHover={{ scale: 1.02 }}
+                                      whileTap={{ scale: 0.98 }}
+                                      onClick={() => handleInstitutionProfileClick(item.publisher_username)}
+                                      className="w-full px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                                    >
+                                      {t('feed.viewProfile') || 'View Profile'}
+                                    </motion.button>
+                                  </div>
+                                ) : (
+                                  <div className="text-center py-4">
+                                    <p className="text-xs text-gray-500 dark:text-gray-500">{t('common.loading')}</p>
+                                  </div>
+                                )}
+                              </motion.div>
+                            )}
+                          </div>
+                        )}
+                        <div className="flex flex-col sm:flex-row gap-4">
+                          <div className="w-full sm:w-32 h-32 rounded-xl overflow-hidden bg-gray-100 dark:bg-navy-700 flex-shrink-0">
+                            {item.course_image ? (
+                              <img
+                                src={getImageUrl(item.course_image)}
+                                alt={item.title || 'Course'}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-primary-600 dark:text-teal-400 font-bold text-lg">
+                                {(item.title || 'C')?.[0]?.toUpperCase()}
                               </div>
-                              {hoverInstitutionData.about && (
-                                <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
-                                  {hoverInstitutionData.about}
-                                </p>
+                            )}
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+                                  {item.title || t('feed.course') || 'Course'}
+                                </h3>
+                                {item.level && (
+                                  <p className="text-sm text-primary-600 dark:text-teal-400">
+                                    {item.level}
+                                  </p>
+                                )}
+                              </div>
+                              {item.price && (
+                                <span className="px-3 py-1 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-sm font-semibold">
+                                  {item.price} {item.currency || '$'}
+                                </span>
                               )}
-                              <motion.button
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={() => handleInstitutionProfileClick(item.publisher_username)}
-                                className="w-full px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-xs font-semibold transition-colors"
-                              >
-                                {t('feed.viewProfile') || 'View Profile'}
-                              </motion.button>
                             </div>
-                          ) : (
-                            <div className="text-center py-4">
-                              <p className="text-xs text-gray-500 dark:text-gray-500">{t('common.loading')}</p>
+
+                            {item.description && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3">
+                                {item.description}
+                              </p>
+                            )}
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-gray-600 dark:text-gray-400">
+                              {item.starting_date && (
+                                <div className="flex items-center gap-2">
+                                  <FaCalendarAlt className="text-primary-500 dark:text-teal-400" />
+                                  <span>{item.starting_date}</span>
+                                </div>
+                              )}
+                              {item.ending_date && (
+                                <div className="flex items-center gap-2">
+                                  <FaCalendarAlt className="text-primary-500 dark:text-teal-400" />
+                                  <span>{item.ending_date}</span>
+                                </div>
+                              )}
+                              {item.city && (
+                                <div className="flex items-center gap-2">
+                                  <FaMapMarkerAlt className="text-primary-500 dark:text-teal-400" />
+                                  <span>{item.city}</span>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </motion.div>
-                      )}
-                    </div>
-                  )}
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="w-full sm:w-32 h-32 rounded-xl overflow-hidden bg-gray-100 dark:bg-navy-700 flex-shrink-0">
-                      {item.course_image ? (
-                        <img
-                          src={getImageUrl(item.course_image)}
-                          alt={item.title || 'Course'}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-primary-600 dark:text-teal-400 font-bold text-lg">
-                          {(item.title || 'C')?.[0]?.toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-                            {item.title || t('feed.course') || 'Course'}
-                          </h3>
-                          {item.level && (
-                            <p className="text-sm text-primary-600 dark:text-teal-400">
-                              {item.level}
-                            </p>
-                          )}
-                        </div>
-                        {item.price && (
-                          <span className="px-3 py-1 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-sm font-semibold">
-                            {item.price} {item.currency || '$'}
-                          </span>
-                        )}
-                      </div>
 
-                      {item.description && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3">
-                          {item.description}
-                        </p>
-                      )}
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-gray-600 dark:text-gray-400">
-                        {item.starting_date && (
-                          <div className="flex items-center gap-2">
-                            <FaCalendarAlt className="text-primary-500 dark:text-teal-400" />
-                            <span>{item.starting_date}</span>
+                            {/* Enroll Button */}
+                            {isStudent && (
+                              <div className="pt-2">
+                                {item.is_enrolled ? (
+                                  <button
+                                    disabled
+                                    className="w-full sm:w-auto px-4 py-2 rounded-lg bg-gray-200 dark:bg-navy-700 text-gray-600 dark:text-gray-400 font-semibold cursor-not-allowed"
+                                  >
+                                    {t('feed.enrolled') || 'Enrolled'}
+                                  </button>
+                                ) : (
+                                  <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEnrollCourse(item);
+                                    }}
+                                    disabled={enrollingCourseId === (item.id || item.course_id)}
+                                    className={`w-full sm:w-auto px-4 py-2 rounded-lg font-semibold transition-colors ${enrollingCourseId === (item.id || item.course_id)
+                                      ? 'bg-primary-300 dark:bg-primary-700 text-white cursor-wait'
+                                      : 'bg-primary-600 hover:bg-primary-500 text-white'
+                                      }`}
+                                  >
+                                    {enrollingCourseId === (item.id || item.course_id)
+                                      ? t('common.loading') || 'Loading...'
+                                      : t('feed.enroll') || 'Enroll'}
+                                  </motion.button>
+                                )}
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {item.ending_date && (
-                          <div className="flex items-center gap-2">
-                            <FaCalendarAlt className="text-primary-500 dark:text-teal-400" />
-                            <span>{item.ending_date}</span>
-                          </div>
-                        )}
-                        {item.city && (
-                          <div className="flex items-center gap-2">
-                            <FaMapMarkerAlt className="text-primary-500 dark:text-teal-400" />
-                            <span>{item.city}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Enroll Button */}
-                      {isStudent && (
-                        <div className="pt-2">
-                          {item.is_enrolled ? (
-                            <button
-                              disabled
-                              className="w-full sm:w-auto px-4 py-2 rounded-lg bg-gray-200 dark:bg-navy-700 text-gray-600 dark:text-gray-400 font-semibold cursor-not-allowed"
-                            >
-                              {t('feed.enrolled') || 'Enrolled'}
-                            </button>
-                          ) : (
-                            <motion.button
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEnrollCourse(item);
-                              }}
-                              disabled={enrollingCourseId === (item.id || item.course_id)}
-                              className={`w-full sm:w-auto px-4 py-2 rounded-lg font-semibold transition-colors ${
-                                enrollingCourseId === (item.id || item.course_id)
-                                  ? 'bg-primary-300 dark:bg-primary-700 text-white cursor-wait'
-                                  : 'bg-primary-600 hover:bg-primary-500 text-white'
-                              }`}
-                            >
-                              {enrollingCourseId === (item.id || item.course_id)
-                                ? t('common.loading') || 'Loading...'
-                                : t('feed.enroll') || 'Enroll'}
-                            </motion.button>
-                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
+                      </motion.div>
+                    )}
 
-              {/* Institution Achievement */}
-              {item.type === 'achievement' && (
-                <div className="p-4 sm:p-6">
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-yellow-400">
-                      <img
-                        src={item.institutionImage}
-                        alt={item.institutionName}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-                            {item.institutionName}
-                          </h3>
-                          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                            <FaMapMarkerAlt className="inline mr-1" />
-                            {item.location}
-                          </p>
+                    {/* Institution Achievement */}
+                    {item.type === 'achievement' && (
+                      <div className="p-4 sm:p-6">
+                        <div className="flex items-start gap-4 mb-4">
+                          <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-yellow-400">
+                            <img
+                              src={item.institutionImage}
+                              alt={item.institutionName}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between mb-2">
+                              <div>
+                                <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+                                  {item.institutionName}
+                                </h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                  <FaMapMarkerAlt className="inline mr-1" />
+                                  {item.location}
+                                </p>
+                              </div>
+                              <span className="text-sm text-gray-500 dark:text-gray-500">{item.timestamp}</span>
+                            </div>
+                          </div>
                         </div>
-                        <span className="text-sm text-gray-500 dark:text-gray-500">{item.timestamp}</span>
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="mb-4 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 rounded-lg border-l-4 border-yellow-500">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FaTrophy className="text-yellow-600 dark:text-yellow-400 text-xl" />
-                      <span className="font-bold text-yellow-800 dark:text-yellow-300 text-lg">{item.achievement}</span>
-                    </div>
-                    <p className="text-gray-700 dark:text-gray-300">{item.description}</p>
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          ))}
-          </motion.div>
-        )}
+                        <div className="mb-4 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 rounded-lg border-l-4 border-yellow-500">
+                          <div className="flex items-center gap-2 mb-2">
+                            <FaTrophy className="text-yellow-600 dark:text-yellow-400 text-xl" />
+                            <span className="font-bold text-yellow-800 dark:text-yellow-300 text-lg">{item.achievement}</span>
+                          </div>
+                          <p className="text-gray-700 dark:text-gray-300">{item.description}</p>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </div>
         </div>
-      </div>
 
         {/* Footer */}
         <footer className="bg-white dark:bg-navy-800 border-t border-gray-200 dark:border-navy-700 mt-12 transition-colors">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-6">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => navigate('/about')}
-                className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-teal-400 transition-colors"
-              >
-                <FaInfoCircle className="w-4 h-4" />
-                <span className="text-sm font-medium">{t('feed.aboutUs')}</span>
-              </motion.button>
-            </div>
-            <div className="text-center md:text-right text-gray-600 dark:text-gray-400">
-              <p className="text-sm">
-                {t('feed.copyright')}
-              </p>
-              <p className="text-sm mt-2 text-gray-500 dark:text-gray-500">
-                {t('feed.developedBy')} <span className="font-semibold text-primary-600 dark:text-teal-400">Mohammed Salah</span> {t('feed.and')} <span className="font-semibold text-primary-600 dark:text-teal-400">Mustafa Mohammed</span>
-              </p>
-            </div>
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-6">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => navigate('/about')}
+                  className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-teal-400 transition-colors"
+                >
+                  <FaInfoCircle className="w-4 h-4" />
+                  <span className="text-sm font-medium">{t('feed.aboutUs')}</span>
+                </motion.button>
+              </div>
+              <div className="text-center md:text-right text-gray-600 dark:text-gray-400">
+                <p className="text-sm">
+                  {t('feed.copyright')}
+                </p>
+                <p className="text-sm mt-2 text-gray-500 dark:text-gray-500">
+                  {t('feed.developedBy')} <span className="font-semibold text-primary-600 dark:text-teal-400">Mohammed Salah</span> {t('feed.and')} <span className="font-semibold text-primary-600 dark:text-teal-400">Mustafa Mohammed</span>
+                </p>
+              </div>
             </div>
           </div>
         </footer>
@@ -2794,9 +2609,9 @@ const Feed = () => {
       )}
 
       {/* Profile Modal */}
-      <ProfileModal 
-        isOpen={showProfileModal} 
-        onClose={() => setShowProfileModal(false)} 
+      <ProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
       />
 
       {/* Institution Profile Modal */}
@@ -2969,9 +2784,9 @@ const Feed = () => {
       </AnimatePresence>
 
       {/* Keyboard Shortcuts Help Modal */}
-      <KeyboardShortcutsHelp 
-        isOpen={showKeyboardHelp} 
-        onClose={() => setShowKeyboardHelp(false)} 
+      <KeyboardShortcutsHelp
+        isOpen={showKeyboardHelp}
+        onClose={() => setShowKeyboardHelp(false)}
       />
     </div>
   );

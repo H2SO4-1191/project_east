@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FaUniversity, FaCheckCircle, FaExclamationTriangle, FaUpload, FaSpinner, FaCreditCard, FaCrown, FaClock, FaCalendarAlt } from 'react-icons/fa';
+import { FaUniversity, FaCheckCircle, FaExclamationTriangle, FaUpload, FaSpinner, FaCreditCard, FaCrown, FaClock, FaCalendarAlt, FaFacebook, FaInstagram, FaTwitter, FaTiktok } from 'react-icons/fa';
 import { useTranslation } from 'react-i18next';
 import Card from '../../components/Card';
 import AnimatedButton from '../../components/AnimatedButton';
@@ -15,7 +15,7 @@ const Settings = () => {
   const { t } = useTranslation();
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
-  
+
   // Verification form state
   const [verificationForm, setVerificationForm] = useState({
     title: '',
@@ -42,6 +42,10 @@ const Settings = () => {
     idcard_front: null,
     residence_front: null,
     residence_back: null,
+    facebook_link: '',
+    instagram_link: '',
+    x_link: '',
+    tiktok_link: '',
   });
 
   const [fileValidation, setFileValidation] = useState({
@@ -91,7 +95,7 @@ const Settings = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       if (!instituteData.isAuthenticated || !instituteData.accessToken) return;
-      
+
       try {
         const data = await authService.getInstitutionProfile(instituteData.accessToken, {
           refreshToken: instituteData.refreshToken,
@@ -102,7 +106,7 @@ const Settings = () => {
             });
           },
         });
-        
+
         if (data?.success && data?.data) {
           setProfileData(data.data);
         }
@@ -113,6 +117,29 @@ const Settings = () => {
 
     fetchProfile();
   }, [instituteData.isAuthenticated, instituteData.accessToken, instituteData.refreshToken, updateInstituteData]);
+
+  // Populate edit form when modal opens
+  useEffect(() => {
+    if (showEditProfileModal && profileData) {
+      setEditForm({
+        first_name: profileData.first_name || '',
+        last_name: profileData.last_name || '',
+        title: profileData.title || '',
+        location: profileData.location || '',
+        phone_number: profileData.phone_number || '',
+        about: profileData.about || '',
+        facebook_link: profileData.facebook_link || '',
+        instagram_link: profileData.instagram_link || '',
+        x_link: profileData.x_link || '',
+        tiktok_link: profileData.tiktok_link || '',
+        profile_image: null,
+        idcard_back: null,
+        idcard_front: null,
+        residence_front: null,
+        residence_back: null,
+      });
+    }
+  }, [showEditProfileModal, profileData]);
 
 
   const handleFileChange = async (fieldName, file) => {
@@ -150,13 +177,13 @@ const Settings = () => {
 
     try {
       const result = await authService.validateDocumentWithAI(file, instituteData.accessToken);
-      
+
       console.log('AI validation response:', result);
-      
+
       // Handle the actual API response format
       let confidence;
       let isValid;
-      
+
       if (result.document_percentage !== undefined) {
         // API returns percentage (0-100)
         confidence = result.document_percentage / 100; // Convert to 0-1 scale
@@ -169,7 +196,7 @@ const Settings = () => {
         console.error('Invalid AI response structure:', result);
         throw new Error('Invalid AI response format');
       }
-      
+
       setFileValidation(prev => ({
         ...prev,
         [fieldName]: {
@@ -186,7 +213,7 @@ const Settings = () => {
       }
     } catch (err) {
       console.error('AI validation error:', err);
-      
+
       setFileValidation(prev => ({
         ...prev,
         [fieldName]: {
@@ -207,7 +234,7 @@ const Settings = () => {
     // Check if all required files are uploaded and validated
     const requiredFiles = ['profile_image', 'idcard_back', 'idcard_front', 'residence_front', 'residence_back'];
     const missingFiles = requiredFiles.filter(field => !verificationForm[field]);
-    
+
     if (missingFiles.length > 0) {
       toast.error(t('dashboard.settingsPage.uploadAllRequired'));
       return;
@@ -232,7 +259,7 @@ const Settings = () => {
         {
           refreshToken: instituteData.refreshToken,
           onTokenRefreshed: (tokens) =>
-    updateInstituteData({
+            updateInstituteData({
               accessToken: tokens.access,
               refreshToken: tokens.refresh || instituteData.refreshToken,
             }),
@@ -240,7 +267,7 @@ const Settings = () => {
       );
 
       updateInstituteData({ isVerified: result.is_verified || true });
-      
+
       confetti({
         particleCount: 150,
         spread: 80,
@@ -249,7 +276,7 @@ const Settings = () => {
 
       toast.success(result.message || t('dashboard.settingsPage.institutionVerifiedSuccess'));
       setShowVerificationModal(false);
-      
+
       // Reset form
       setVerificationForm({
         title: '',
@@ -265,11 +292,11 @@ const Settings = () => {
       setFileValidation({});
     } catch (err) {
       console.error('Verification error:', err);
-      
+
       if (err?.errors) {
         setVerificationErrors(err.errors);
       }
-      
+
       toast.error(err?.message || t('dashboard.settingsPage.failedToVerify'));
     } finally {
       setIsSubmitting(false);
@@ -311,13 +338,13 @@ const Settings = () => {
 
     try {
       const result = await authService.validateDocumentWithAI(file, instituteData.accessToken);
-      
+
       console.log('AI validation response (edit):', result);
-      
+
       // Handle the actual API response format
       let confidence;
       let isValid;
-      
+
       if (result.document_percentage !== undefined) {
         // API returns percentage (0-100)
         confidence = result.document_percentage / 100; // Convert to 0-1 scale
@@ -330,7 +357,7 @@ const Settings = () => {
         console.error('Invalid AI response structure:', result);
         throw new Error('Invalid AI response format');
       }
-      
+
       setEditFileValidation(prev => ({
         ...prev,
         [fieldName]: {
@@ -347,7 +374,7 @@ const Settings = () => {
       }
     } catch (err) {
       console.error('AI validation error (edit):', err);
-      
+
       setEditFileValidation(prev => ({
         ...prev,
         [fieldName]: {
@@ -395,15 +422,15 @@ const Settings = () => {
 
       // Username cannot be changed - removed from edit form
 
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 },
-    });
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+      });
 
       toast.success(result.message || t('dashboard.settingsPage.profileUpdatedSuccess'));
       setShowEditProfileModal(false);
-      
+
       // Reset form
       setEditForm({
         first_name: '',
@@ -421,11 +448,11 @@ const Settings = () => {
       setEditFileValidation({});
     } catch (err) {
       console.error('Profile edit error:', err);
-      
+
       if (err?.errors) {
         setEditErrors(err.errors);
       }
-      
+
       toast.error(err?.message || t('dashboard.settingsPage.failedToUpdate'));
     } finally {
       setIsSubmitting(false);
@@ -460,10 +487,10 @@ const Settings = () => {
       if (result?.success && result?.url) {
         // Open Stripe onboarding URL in new window
         const stripeWindow = window.open(result.url, '_blank', 'width=800,height=600');
-        
+
         if (stripeWindow) {
           toast.success(t('dashboard.settingsPage.paymentMethodRedirect') || 'Redirecting to Stripe...');
-          
+
           // Listen for window close (basic check)
           const checkClosed = setInterval(() => {
             if (stripeWindow.closed) {
@@ -519,10 +546,10 @@ const Settings = () => {
       if (result?.success && result?.checkout_url) {
         // Open Stripe checkout URL in new window
         const stripeWindow = window.open(result.checkout_url, '_blank', 'width=800,height=600');
-        
+
         if (stripeWindow) {
           toast.success(t('dashboard.settingsPage.subscriptionRedirect') || 'Redirecting to checkout...');
-          
+
           // Listen for window close (basic check)
           const checkClosed = setInterval(() => {
             if (stripeWindow.closed) {
@@ -571,8 +598,8 @@ const Settings = () => {
                 </p>
               </div>
             </div>
-            <AnimatedButton 
-              onClick={() => setShowVerificationModal(true)} 
+            <AnimatedButton
+              onClick={() => setShowVerificationModal(true)}
               variant="teal"
               data-verify-button
             >
@@ -855,8 +882,8 @@ const Settings = () => {
               {verificationErrors.phone_number && (
                 <p className="text-red-500 text-xs mt-1">{verificationErrors.phone_number[0]}</p>
               )}
+            </div>
           </div>
-        </div>
 
           <div>
             <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
@@ -877,7 +904,7 @@ const Settings = () => {
           {/* File Upload Fields */}
           <div className="space-y-4">
             <h4 className="font-semibold text-gray-800 dark:text-white">{t('dashboard.settingsPage.requiredDocuments')}</h4>
-            
+
             {[
               { field: 'profile_image', label: t('dashboard.settingsPage.profileImage') },
               { field: 'idcard_front', label: t('dashboard.settingsPage.idCardFront') },
@@ -889,7 +916,7 @@ const Settings = () => {
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
                   {label} <span className="text-red-500">*</span>
                 </label>
-                
+
                 <div className="flex items-center gap-3">
                   <label className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-navy-700 rounded-lg hover:bg-gray-200 dark:hover:bg-navy-600 transition-colors">
@@ -897,7 +924,7 @@ const Settings = () => {
                       <span className="text-sm text-gray-700 dark:text-gray-300">
                         {verificationForm[field] ? verificationForm[field].name : t('dashboard.settingsPage.chooseFile')}
                       </span>
-          </div>
+                    </div>
                     <input
                       type="file"
                       accept="image/jpeg,image/jpg,image/png,image/webp"
@@ -918,9 +945,9 @@ const Settings = () => {
                       ) : (
                         <FaExclamationTriangle className="text-red-600" />
                       )}
-          </div>
+                    </div>
                   )}
-          </div>
+                </div>
 
                 {fileValidation[field] && (
                   <p className={`text-xs mt-2 ${fileValidation[field].isValid ? 'text-green-600' : 'text-red-600'}`}>
@@ -931,20 +958,20 @@ const Settings = () => {
                 {verificationErrors[field] && (
                   <p className="text-red-500 text-xs mt-1">{verificationErrors[field][0]}</p>
                 )}
-          </div>
+              </div>
             ))}
-        </div>
+          </div>
 
           <div className="flex gap-4 justify-end pt-4">
-          <AnimatedButton
+            <AnimatedButton
               type="button"
               onClick={() => setShowVerificationModal(false)}
               variant="secondary"
               disabled={isSubmitting}
             >
               {t('dashboard.settingsPage.cancel')}
-          </AnimatedButton>
-          <AnimatedButton
+            </AnimatedButton>
+            <AnimatedButton
               type="submit"
               variant="teal"
               disabled={isSubmitting || Object.values(isValidating).some(v => v)}
@@ -957,8 +984,8 @@ const Settings = () => {
               ) : (
                 t('dashboard.settingsPage.submitForVerification')
               )}
-          </AnimatedButton>
-        </div>
+            </AnimatedButton>
+          </div>
         </form>
       </Modal>
 
@@ -969,7 +996,7 @@ const Settings = () => {
         title={t('dashboard.settingsPage.editInstitutionProfile')}
       >
         <form onSubmit={handleEditProfileSubmit} className="space-y-6">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             {t('dashboard.settingsPage.updateInstitutionInfo')}
           </p>
 
@@ -1053,8 +1080,8 @@ const Settings = () => {
               {editErrors.phone_number && (
                 <p className="text-red-500 text-xs mt-1">{editErrors.phone_number[0]}</p>
               )}
+            </div>
           </div>
-        </div>
 
           <div>
             <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
@@ -1070,7 +1097,58 @@ const Settings = () => {
             {editErrors.about && (
               <p className="text-red-500 text-xs mt-1">{editErrors.about[0]}</p>
             )}
-              </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                <FaFacebook className="inline mr-2 text-blue-600" /> Facebook Link (Optional)
+              </label>
+              <input
+                type="text"
+                value={editForm.facebook_link || ''}
+                onChange={(e) => setEditForm(prev => ({ ...prev, facebook_link: e.target.value }))}
+                placeholder="https://facebook.com/..."
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg bg-white dark:bg-navy-800 text-gray-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                <FaInstagram className="inline mr-2 text-pink-600" /> Instagram Link (Optional)
+              </label>
+              <input
+                type="text"
+                value={editForm.instagram_link || ''}
+                onChange={(e) => setEditForm(prev => ({ ...prev, instagram_link: e.target.value }))}
+                placeholder="https://instagram.com/..."
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg bg-white dark:bg-navy-800 text-gray-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                <FaTwitter className="inline mr-2 text-blue-400" /> X (Twitter) Link (Optional)
+              </label>
+              <input
+                type="text"
+                value={editForm.x_link || ''}
+                onChange={(e) => setEditForm(prev => ({ ...prev, x_link: e.target.value }))}
+                placeholder="https://x.com/..."
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg bg-white dark:bg-navy-800 text-gray-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                <FaTiktok className="inline mr-2 text-black dark:text-white" /> TikTok Link (Optional)
+              </label>
+              <input
+                type="text"
+                value={editForm.tiktok_link || ''}
+                onChange={(e) => setEditForm(prev => ({ ...prev, tiktok_link: e.target.value }))}
+                placeholder="https://tiktok.com/@..."
+                className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg bg-white dark:bg-navy-800 text-gray-900 dark:text-white"
+              />
+            </div>
+          </div>
 
           {/* File Upload Fields (Optional) */}
           <div className="space-y-4">
@@ -1080,7 +1158,7 @@ const Settings = () => {
             <p className="text-xs text-gray-500 dark:text-gray-400">
               {t('dashboard.settingsPage.onlyUploadToUpdate')}
             </p>
-            
+
             {[
               { field: 'profile_image', label: t('dashboard.settingsPage.profileImage') },
               { field: 'idcard_front', label: t('dashboard.settingsPage.idCardFront') },
@@ -1092,7 +1170,7 @@ const Settings = () => {
                 <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
                   {label}
                 </label>
-                
+
                 <div className="flex items-center gap-3">
                   <label className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-navy-700 rounded-lg hover:bg-gray-200 dark:hover:bg-navy-600 transition-colors">
@@ -1100,7 +1178,7 @@ const Settings = () => {
                       <span className="text-sm text-gray-700 dark:text-gray-300">
                         {editForm[field] ? editForm[field].name : t('dashboard.settingsPage.chooseFileToUpdate')}
                       </span>
-              </div>
+                    </div>
                     <input
                       type="file"
                       accept="image/jpeg,image/jpg,image/png,image/webp"
@@ -1121,8 +1199,8 @@ const Settings = () => {
                       ) : (
                         <FaExclamationTriangle className="text-red-600" />
                       )}
-                </div>
-              )}
+                    </div>
+                  )}
                 </div>
 
                 {editFileValidation[field] && (
@@ -1135,8 +1213,8 @@ const Settings = () => {
                   <p className="text-red-500 text-xs mt-1">{editErrors[field][0]}</p>
                 )}
               </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
           <div className="flex gap-4 justify-end pt-4">
             <AnimatedButton

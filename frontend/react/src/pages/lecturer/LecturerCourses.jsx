@@ -86,6 +86,12 @@ const LecturerCourses = () => {
   const [viewLectureNumber, setViewLectureNumber] = useState(1);
   const [isLoadingGrades, setIsLoadingGrades] = useState(false);
   const [isLoadingAttendance, setIsLoadingAttendance] = useState(false);
+  const [examsList, setExamsList] = useState([]);
+  const [isLoadingExams, setIsLoadingExams] = useState(false);
+  const [selectedExamForGrades, setSelectedExamForGrades] = useState(null);
+  const [examsListForView, setExamsListForView] = useState([]);
+  const [isLoadingExamsForView, setIsLoadingExamsForView] = useState(false);
+  const [selectedExamForView, setSelectedExamForView] = useState(null);
 
   // Auth options helper
   const getAuthOptions = () => ({
@@ -122,8 +128,8 @@ const LecturerCourses = () => {
     setError(null);
 
     try {
-      // First, fetch the lecturer profile to get first_name and last_name
-      console.log('LecturerCourses: Fetching lecturer profile to get name...');
+      // Fetch the lecturer profile to get username
+      console.log('LecturerCourses: Fetching lecturer profile to get username...');
       const profileResponse = await authService.getLecturerMyProfile(
         instituteData.accessToken,
         {
@@ -140,140 +146,14 @@ const LecturerCourses = () => {
         }
       );
 
-      // Extract first_name and last_name from profile response
+      // Extract username from profile response
       const profileData = profileResponse?.success ? profileResponse.data : profileResponse;
-      const firstName = profileData?.first_name || '';
-      const lastName = profileData?.last_name || '';
-      
-      // Check if username is directly available (preferred)
-      let lecturerUsername = profileData?.username || profileResponse?.username;
-      
-      // If username not found, search explore endpoint using first_name and last_name
-      if (!lecturerUsername && (firstName || lastName)) {
-        console.log('LecturerCourses: Username not in profile, searching explore endpoint...');
-        console.log('LecturerCourses: Searching for:', { firstName, lastName });
-        
-        // Helper function to extract lecturers from explore response
-        const extractLecturers = (response) => {
-          if (response?.success && response?.results?.lecturers) {
-            return response.results.lecturers;
-          } else if (response?.results?.lecturers) {
-            return response.results.lecturers;
-          } else if (Array.isArray(response?.lecturers)) {
-            return response.lecturers;
-          }
-          return [];
-        };
-        
-        // Helper function to match lecturer by name
-        const matchLecturer = (lecturers) => {
-          return lecturers.find(lecturer => {
-            const lecturerName = (lecturer.name || '').toLowerCase().trim();
-            const fullName = `${firstName} ${lastName}`.toLowerCase().trim();
-            
-            // Check if lecturer name matches the full name
-            const nameParts = lecturerName.split(/\s+/);
-            const firstNameLower = firstName.toLowerCase().trim();
-            const lastNameLower = lastName.toLowerCase().trim();
-            
-            // Exact match
-            if (lecturerName === fullName) {
-              return true;
-            }
-            
-            // Check if both first and last name are in the lecturer's name
-            if (firstName && lastName) {
-              const hasFirstName = nameParts.some(part => part === firstNameLower);
-              const hasLastName = nameParts.some(part => part === lastNameLower);
-              if (hasFirstName && hasLastName) {
-                return true;
-              }
-            }
-            
-            // Check if lecturer name contains the full name
-            if (fullName && lecturerName.includes(fullName)) {
-              return true;
-            }
-            
-            return false;
-          });
-        };
-        
-        // First, try searching with the full name as query
-        const searchQuery = `${firstName} ${lastName}`.trim();
-        let exploreResponse;
-        let lecturers = [];
-        
-        try {
-          exploreResponse = await authService.exploreSearch(
-            searchQuery,
-            'lecturers',
-            instituteData.accessToken,
-            {
-              refreshToken: instituteData.refreshToken,
-              onTokenRefreshed: (tokens) => {
-                updateInstituteData({
-                  accessToken: tokens.access,
-                  refreshToken: tokens.refresh || instituteData.refreshToken,
-                });
-              },
-              onSessionExpired: () => {
-                // Handle silently
-              },
-            }
-          );
-          
-          console.log('LecturerCourses: Explore search response:', exploreResponse);
-          lecturers = extractLecturers(exploreResponse);
-          console.log('LecturerCourses: Found lecturers in search:', lecturers.length);
-        } catch (searchError) {
-          console.warn('LecturerCourses: Search failed, trying to fetch all lecturers:', searchError);
-        }
-        
-        // If search didn't return results, try fetching all lecturers
-        if (lecturers.length === 0) {
-          try {
-            exploreResponse = await authService.exploreSearch(
-              '',
-              'lecturers',
-              instituteData.accessToken,
-              {
-                refreshToken: instituteData.refreshToken,
-                onTokenRefreshed: (tokens) => {
-                  updateInstituteData({
-                    accessToken: tokens.access,
-                    refreshToken: tokens.refresh || instituteData.refreshToken,
-                  });
-                },
-                onSessionExpired: () => {
-                  // Handle silently
-                },
-              }
-            );
-            
-            lecturers = extractLecturers(exploreResponse);
-            console.log('LecturerCourses: Found all lecturers:', lecturers.length);
-          } catch (fetchError) {
-            console.error('LecturerCourses: Failed to fetch all lecturers:', fetchError);
-          }
-        }
-        
-        // Match lecturer by name
-        const matchedLecturer = matchLecturer(lecturers);
-        
-        if (matchedLecturer?.username) {
-          lecturerUsername = matchedLecturer.username;
-          console.log('LecturerCourses: Found matching lecturer with username:', lecturerUsername);
-        } else {
-          console.warn('LecturerCourses: No matching lecturer found in explore results');
-          console.warn('LecturerCourses: Available lecturers:', lecturers.map(l => ({ name: l.name, username: l.username })));
-        }
-      }
+      const lecturerUsername = profileData?.username || profileResponse?.username;
 
       if (!lecturerUsername) {
-        console.error('LecturerCourses: Username not found after all attempts');
+        console.error('LecturerCourses: Username not found in profile response');
         console.error('LecturerCourses: Profile response:', profileResponse);
-        setError(t('lecturerCourses.usernameNotFound') || 'Could not retrieve lecturer username');
+        setError(t('lecturerCourses.usernameNotFound') || 'Could not retrieve lecturer username from profile');
         setIsLoading(false);
         return;
       }
@@ -461,7 +341,7 @@ const LecturerCourses = () => {
       return;
     }
 
-    const validGrades = gradesForm.filter(g => g.student_id && g.score !== '');
+    const validGrades = gradesForm.filter(g => g.username && g.score !== '');
     if (validGrades.length === 0) {
       toast.error(t('lecturerCourses.enterAtLeastOneGrade') || 'Please enter at least one grade');
       return;
@@ -474,7 +354,7 @@ const LecturerCourses = () => {
         instituteData.accessToken,
         selectedExamId,
         validGrades.map(g => ({
-          student_id: parseInt(g.student_id),
+          username: g.username, // Use username instead of student_id
           score: parseFloat(g.score),
         })),
         getAuthOptions()
@@ -540,10 +420,11 @@ const LecturerCourses = () => {
     setCourseStudents([]);
     
     try {
-      console.log('LecturerCourses: Fetching students for course:', courseId);
+      console.log('LecturerCourses: Fetching students for course:', courseId, 'lecture:', lectureNumber);
       const response = await authService.getCourseStudents(
         instituteData.accessToken,
         courseId,
+        lectureNumber,
         getAuthOptions()
       );
       
@@ -614,23 +495,22 @@ const LecturerCourses = () => {
     
     try {
       // Prepare records with proper formatting
-      // Server requires student_id (username removed)
+      // Include both username and student_id for compatibility with backend
+      console.log('LecturerCourses: attendanceForm.records before filtering:', attendanceForm.records);
+      
       const records = attendanceForm.records
-        .filter(r => r.student_id) // Filter out any records without student_id
-        .map(r => {
-          const studentId = parseInt(r.student_id, 10);
-          if (isNaN(studentId)) {
-            console.warn('LecturerCourses: Invalid student_id:', r.student_id);
-            return null;
-          }
-          return {
-            student_id: studentId, // Include student_id (required by server)
-            status: r.status || 'present' // Default to 'present' if status is missing
-          };
-        })
-        .filter(r => r !== null); // Remove any null entries
+        .filter(r => r.username) // Only require username (student_id can be optional)
+        .map(r => ({
+          username: r.username, // Use username
+          student_id: r.student_id || r.id, // Include student_id if available, fallback to id
+          status: r.status || 'present' // Default to 'present' if status is missing
+        }))
+        .filter(r => r.username); // Final check to ensure username exists
+
+      console.log('LecturerCourses: Prepared records for submission:', records);
 
       if (records.length === 0) {
+        console.error('LecturerCourses: No valid records after filtering. Original records:', attendanceForm.records);
         toast.error(t('lecturerCourses.noValidStudents') || 'No valid students to mark attendance for');
         setIsSubmittingAttendance(false);
         return;
@@ -728,10 +608,96 @@ const LecturerCourses = () => {
     }
   };
 
-  // Fetch students for grades using endpoint: course/<course_id>/students/
-  const fetchCourseStudentsForGrades = async (courseId) => {
+  // Fetch exams list
+  const fetchExamsList = async (courseId) => {
     if (!courseId) {
-      console.error('LecturerCourses: Course ID is required for grades');
+      console.error('LecturerCourses: Course ID is required to fetch exams');
+      toast.error(t('lecturerCourses.courseIdRequired') || 'Course ID is required');
+      return;
+    }
+
+    setIsLoadingExams(true);
+    setExamsList([]);
+    
+    try {
+      console.log('LecturerCourses: Fetching exams list for course:', courseId);
+      const response = await authService.listExams(
+        instituteData.accessToken,
+        courseId,
+        getAuthOptions()
+      );
+      
+      console.log('LecturerCourses: Exams response:', response);
+      
+      // Handle response - it should return a list of exams
+      let exams = [];
+      if (response?.exams && Array.isArray(response.exams)) {
+        exams = response.exams;
+      } else if (response?.results && Array.isArray(response.results)) {
+        exams = response.results;
+      } else if (Array.isArray(response)) {
+        exams = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        exams = response.data;
+      }
+      
+      setExamsList(exams);
+      console.log('LecturerCourses: Loaded', exams.length, 'exams');
+    } catch (err) {
+      console.error('LecturerCourses: Error fetching exams:', err);
+      toast.error(err?.message || err?.data?.message || t('lecturerCourses.failedToLoadExams') || 'Failed to load exams');
+    } finally {
+      setIsLoadingExams(false);
+    }
+  };
+
+  // Fetch exams list for viewing grades
+  const fetchExamsListForView = async (courseId) => {
+    if (!courseId) {
+      console.error('LecturerCourses: Course ID is required to fetch exams');
+      toast.error(t('lecturerCourses.courseIdRequired') || 'Course ID is required');
+      return;
+    }
+
+    setIsLoadingExamsForView(true);
+    setExamsListForView([]);
+    
+    try {
+      console.log('LecturerCourses: Fetching exams list for viewing grades, course:', courseId);
+      const response = await authService.listExams(
+        instituteData.accessToken,
+        courseId,
+        getAuthOptions()
+      );
+      
+      console.log('LecturerCourses: Exams response for view:', response);
+      
+      // Handle response - it should return a list of exams
+      let exams = [];
+      if (response?.exams && Array.isArray(response.exams)) {
+        exams = response.exams;
+      } else if (response?.results && Array.isArray(response.results)) {
+        exams = response.results;
+      } else if (Array.isArray(response)) {
+        exams = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        exams = response.data;
+      }
+      
+      setExamsListForView(exams);
+      console.log('LecturerCourses: Loaded', exams.length, 'exams for viewing');
+    } catch (err) {
+      console.error('LecturerCourses: Error fetching exams for view:', err);
+      toast.error(err?.message || err?.data?.message || t('lecturerCourses.failedToLoadExams') || 'Failed to load exams');
+    } finally {
+      setIsLoadingExamsForView(false);
+    }
+  };
+
+  // Fetch students for selected exam
+  const fetchStudentsForExam = async (examId) => {
+    if (!examId) {
+      console.error('LecturerCourses: Exam ID is required');
       return;
     }
 
@@ -739,44 +705,53 @@ const LecturerCourses = () => {
     setCourseStudentsForGrades([]);
     
     try {
-      console.log('LecturerCourses: Fetching students for grades, course:', courseId);
-      const response = await authService.getCourseStudents(
+      console.log('LecturerCourses: Fetching students for exam:', examId);
+      
+      // Use the view grades endpoint to get the list of students for this exam
+      // This endpoint returns all students enrolled in the exam with their grades (if any)
+      const gradesResponse = await authService.viewExamGrades(
         instituteData.accessToken,
-        courseId,
+        examId,
         getAuthOptions()
       );
       
-      console.log('LecturerCourses: Students response for grades:', response);
+      console.log('LecturerCourses: Grades response for students list:', gradesResponse);
       
-      // Handle response - it should return a list of students
+      // Extract students from the grades response
       let students = [];
-      if (response?.students && Array.isArray(response.students)) {
-        students = response.students;
-      } else if (Array.isArray(response)) {
-        students = response;
-      } else if (response?.data && Array.isArray(response.data)) {
-        students = response.data;
-      } else if (response?.results && Array.isArray(response.results)) {
-        students = response.results;
+      if (gradesResponse?.grades && Array.isArray(gradesResponse.grades)) {
+        // If grades already exist, use them
+        students = gradesResponse.grades.map(grade => ({
+          username: grade.username || grade.student_username,
+          student_id: grade.student_id,
+          student_name: grade.student_name || grade.name || `Student ${grade.student_id}`,
+          score: grade.score !== null && grade.score !== undefined ? grade.score.toString() : ''
+        }));
+      } else if (gradesResponse?.students && Array.isArray(gradesResponse.students)) {
+        // If response has students array
+        students = gradesResponse.students.map(student => ({
+          username: student.username || student.user_name,
+          student_id: student.id || student.student_id,
+          student_name: student.name || `${student.first_name || ''} ${student.last_name || ''}`.trim(),
+          score: ''
+        }));
       }
       
       if (students.length > 0) {
         setCourseStudentsForGrades(students);
-        // Initialize grades form with all students (empty scores)
-        const initialGrades = students.map(student => ({
-          student_id: student.id,
-          student_name: student.name || `${student.first_name || ''} ${student.last_name || ''}`.trim(),
-          username: student.username,
-          score: ''
-        }));
-        setGradesForm(initialGrades);
-        console.log('LecturerCourses: Loaded', students.length, 'students for grades');
+        setGradesForm(students.map(s => ({
+          username: s.username,
+          student_id: s.student_id,
+          student_name: s.student_name,
+          score: s.score || ''
+        })));
+        console.log('LecturerCourses: Loaded', students.length, 'students for exam');
       } else {
-        console.warn('LecturerCourses: No students found for course', courseId);
-        toast.info(t('lecturerCourses.noStudentsForCourse') || 'No students found for this course');
+        console.warn('LecturerCourses: No students found for exam', examId);
+        toast.info(t('lecturerCourses.noStudentsForExam') || 'No students found for this exam');
       }
     } catch (err) {
-      console.error('LecturerCourses: Error fetching students for grades:', err);
+      console.error('LecturerCourses: Error fetching students for exam:', err);
       toast.error(err?.message || err?.data?.message || t('lecturerCourses.failedToLoadStudents') || 'Failed to load students');
     } finally {
       setIsLoadingStudentsForGrades(false);
@@ -1142,9 +1117,10 @@ const LecturerCourses = () => {
                             setGradesForm([]);
                             setCourseStudentsForGrades([]);
                             setSelectedExamId(null);
+                            setSelectedExamForGrades(null);
                             setShowGradesModal(true);
-                            // Fetch students for this course
-                            await fetchCourseStudentsForGrades(course.id);
+                            // Fetch exams list for selection
+                            await fetchExamsList(course.id);
                           }}
                           className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
                         >
@@ -1186,11 +1162,15 @@ const LecturerCourses = () => {
                         <motion.button
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
-                          onClick={() => {
+                          onClick={async () => {
                             setSelectedCourse(course);
                             setSelectedExamId(null);
+                            setSelectedExamForView(null);
                             setExamGrades(null);
+                            setExamsListForView([]);
                             setShowViewGradesModal(true);
+                            // Fetch exams list for selection
+                            await fetchExamsListForView(course.id);
                           }}
                           className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
                         >
@@ -1293,24 +1273,53 @@ const LecturerCourses = () => {
           setGradesForm([]);
           setCourseStudentsForGrades([]);
           setSelectedExamId(null);
+          setSelectedExamForGrades(null);
+          setExamsList([]);
         }}
         title={t('lecturerCourses.submitGrades') || 'Submit Grades'}
         size="lg"
       >
         <form onSubmit={handleSubmitGrades} className="space-y-4">
-          <div>
-            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-              {t('lecturerCourses.examId') || 'Exam ID'} *
-            </label>
-            <input
-              type="number"
-              value={selectedExamId || ''}
-              onChange={(e) => setSelectedExamId(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-              placeholder={t('lecturerCourses.enterExamId') || 'Enter exam ID'}
-              required
-            />
-          </div>
+          {/* Exam Selection */}
+          {!selectedExamForGrades && (
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
+                {t('lecturerCourses.selectExam') || 'Select Exam'} *
+              </label>
+              {isLoadingExams ? (
+                <div className="flex items-center justify-center py-8">
+                  <FaSpinner className="text-2xl text-primary-600 dark:text-teal-400 animate-spin" />
+                  <span className="ml-2 text-gray-600 dark:text-gray-400">
+                    {t('lecturerCourses.loadingExams') || 'Loading exams...'}
+                  </span>
+                </div>
+              ) : examsList.length > 0 ? (
+                <select
+                  value={selectedExamForGrades || ''}
+                  onChange={async (e) => {
+                    const examId = e.target.value;
+                    setSelectedExamForGrades(examId);
+                    setSelectedExamId(examId);
+                    await fetchStudentsForExam(examId);
+                  }}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                  required
+                >
+                  <option value="">{t('lecturerCourses.selectExam') || 'Select an exam...'}</option>
+                  {examsList.map(exam => (
+                    <option key={exam.id || exam.exam_id} value={exam.id || exam.exam_id}>
+                      {exam.title || exam.exam_title || `Exam ${exam.id || exam.exam_id}`}
+                      {exam.course_title && ` - ${exam.course_title}`}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="text-amber-600 dark:text-amber-400 text-sm">
+                  {t('lecturerCourses.noExamsAvailable') || 'No exams available. Please create an exam first.'}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Loading Students */}
           {isLoadingStudentsForGrades && (
@@ -1364,34 +1373,49 @@ const LecturerCourses = () => {
           )}
 
           {/* No Students Message */}
-          {!isLoadingStudentsForGrades && gradesForm.length === 0 && courseStudentsForGrades.length === 0 && (
+          {selectedExamForGrades && !isLoadingStudentsForGrades && gradesForm.length === 0 && courseStudentsForGrades.length === 0 && (
             <div className="text-center py-8">
               <FaUsers className="text-4xl text-gray-300 dark:text-gray-600 mx-auto mb-3" />
               <p className="text-gray-500 dark:text-gray-400">
-                {t('lecturerCourses.noStudentsForCourse') || 'No students found for this course'}
+                {t('lecturerCourses.noStudentsForExam') || 'No students found for this exam'}
               </p>
             </div>
           )}
 
-          <div className="flex gap-3 pt-4">
-            <button
-              type="submit"
-              disabled={isSubmittingGrades}
-              className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {isSubmittingGrades ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}
-              {t('lecturerCourses.submitAndSendEmail') || 'Submit & Send Emails'}
-            </button>
-            <button
-              type="button"
-              onClick={handleEditGrades}
-              disabled={isSubmittingGrades}
-              className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {isSubmittingGrades ? <FaSpinner className="animate-spin" /> : <FaEdit />}
-              {t('lecturerCourses.updateOnly') || 'Update Only'}
-            </button>
-          </div>
+          {/* Submit Buttons - Only show when exam is selected and students are loaded */}
+          {selectedExamForGrades && !isLoadingStudentsForGrades && gradesForm.length > 0 && (
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedExamForGrades(null);
+                  setSelectedExamId(null);
+                  setGradesForm([]);
+                  setCourseStudentsForGrades([]);
+                }}
+                className="px-4 py-3 bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-navy-600"
+              >
+                {t('common.back') || 'Back'}
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmittingGrades}
+                className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSubmittingGrades ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}
+                {t('lecturerCourses.submitAndSendEmail') || 'Submit & Send Emails'}
+              </button>
+              <button
+                type="button"
+                onClick={handleEditGrades}
+                disabled={isSubmittingGrades}
+                className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSubmittingGrades ? <FaSpinner className="animate-spin" /> : <FaEdit />}
+                {t('lecturerCourses.updateOnly') || 'Update Only'}
+              </button>
+            </div>
+          )}
         </form>
       </Modal>
 
@@ -1660,41 +1684,52 @@ const LecturerCourses = () => {
         onClose={() => {
           setShowViewGradesModal(false);
           setSelectedExamId(null);
+          setSelectedExamForView(null);
           setExamGrades(null);
+          setExamsListForView([]);
         }}
         title={t('lecturerCourses.viewGrades') || 'View Grades'}
         size="lg"
       >
         <div className="space-y-4">
-          {/* Exam ID Input */}
+          {/* Exam Selection */}
           {!examGrades && (
             <div>
               <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
-                {t('lecturerCourses.examId') || 'Exam ID'} *
+                {t('lecturerCourses.selectExam') || 'Select Exam'} *
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  value={selectedExamId || ''}
-                  onChange={(e) => setSelectedExamId(e.target.value)}
-                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
-                  placeholder={t('lecturerCourses.enterExamId') || 'Enter exam ID'}
-                />
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleViewGrades(selectedExamId)}
-                  disabled={!selectedExamId || isLoadingGrades}
-                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              {isLoadingExamsForView ? (
+                <div className="flex items-center justify-center py-8">
+                  <FaSpinner className="text-2xl text-primary-600 dark:text-teal-400 animate-spin" />
+                  <span className="ml-2 text-gray-600 dark:text-gray-400">
+                    {t('lecturerCourses.loadingExams') || 'Loading exams...'}
+                  </span>
+                </div>
+              ) : examsListForView.length > 0 ? (
+                <select
+                  value={selectedExamForView || ''}
+                  onChange={async (e) => {
+                    const examId = e.target.value;
+                    setSelectedExamForView(examId);
+                    setSelectedExamId(examId);
+                    await handleViewGrades(examId);
+                  }}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-navy-700 text-gray-900 dark:text-white"
+                  required
                 >
-                  {isLoadingGrades ? (
-                    <FaSpinner className="animate-spin" />
-                  ) : (
-                    <FaEye />
-                  )}
-                  <span>{t('lecturerCourses.view') || 'View'}</span>
-                </motion.button>
-              </div>
+                  <option value="">{t('lecturerCourses.selectExam') || 'Select an exam...'}</option>
+                  {examsListForView.map(exam => (
+                    <option key={exam.id || exam.exam_id} value={exam.id || exam.exam_id}>
+                      {exam.title || exam.exam_title || `Exam ${exam.id || exam.exam_id}`}
+                      {exam.course_title && ` - ${exam.course_title}`}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="text-amber-600 dark:text-amber-400 text-sm">
+                  {t('lecturerCourses.noExamsAvailable') || 'No exams available. Please create an exam first.'}
+                </p>
+              )}
             </div>
           )}
 
@@ -1788,6 +1823,7 @@ const LecturerCourses = () => {
                   onClick={() => {
                     setExamGrades(null);
                     setSelectedExamId(null);
+                    setSelectedExamForView(null);
                   }}
                   className="w-full px-4 py-3 bg-gray-100 dark:bg-navy-700 hover:bg-gray-200 dark:hover:bg-navy-600 text-gray-800 dark:text-white rounded-lg font-medium transition-colors"
                 >
@@ -1798,11 +1834,11 @@ const LecturerCourses = () => {
           )}
 
           {/* Empty State - No Exam Selected */}
-          {!examGrades && !isLoadingGrades && !selectedExamId && (
+          {!examGrades && !isLoadingGrades && !selectedExamForView && !isLoadingExamsForView && (
             <div className="text-center py-12">
               <FaChartLine className="text-4xl text-gray-300 dark:text-gray-600 mx-auto mb-3" />
               <p className="text-gray-500 dark:text-gray-400">
-                {t('lecturerCourses.enterExamIdToView') || 'Enter an exam ID to view grades'}
+                {t('lecturerCourses.selectExam') || 'Select an exam to view grades'}
               </p>
             </div>
           )}
