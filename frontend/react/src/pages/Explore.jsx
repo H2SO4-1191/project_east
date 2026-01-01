@@ -37,6 +37,7 @@ import { authService } from '../services/authService';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import Modal from '../components/Modal';
 import ProfileModal from '../components/ProfileModal';
+import EnrollmentConfirmationModal from '../components/EnrollmentConfirmationModal';
 import KeyboardShortcutsHelp from '../components/KeyboardShortcutsHelp';
 import toast from 'react-hot-toast';
 
@@ -85,6 +86,12 @@ const Explore = () => {
   const [enrollingCourseId, setEnrollingCourseId] = useState(null); // Track which course is being enrolled
   const [showEnrollmentContradiction, setShowEnrollmentContradiction] = useState(false);
   const [enrollmentContradiction, setEnrollmentContradiction] = useState(null);
+  const [showEnrollmentConfirmation, setShowEnrollmentConfirmation] = useState(false);
+  const [courseToEnroll, setCourseToEnroll] = useState(null); // Course pending enrollment confirmation
+  const [studentProfile, setStudentProfile] = useState(null); // Student profile data for confirmation modal
+  const [isLoadingStudentProfile, setIsLoadingStudentProfile] = useState(false);
+  const [courseDetails, setCourseDetails] = useState(null); // Full course details from API
+  const [isLoadingCourseDetails, setIsLoadingCourseDetails] = useState(false);
   
   // Progress modal state
   const [showProgressModal, setShowProgressModal] = useState(false);
@@ -802,7 +809,7 @@ const Explore = () => {
     setSelectedCourse(null);
   };
 
-  // Handle course enrollment
+  // Handle course enrollment - shows confirmation modal first
   const handleEnrollCourse = async (course, e) => {
     if (e) {
       e.stopPropagation();
@@ -831,13 +838,101 @@ const Explore = () => {
       return;
     }
 
-    setEnrollingCourseId(course.id);
+    // Fetch student profile and course details, then show confirmation modal
+    setCourseToEnroll(course);
+    setIsLoadingStudentProfile(true);
+    setIsLoadingCourseDetails(true);
+    
+    try {
+      // Fetch both student profile and course details in parallel
+      const [profileResponse, courseDetailsResponse] = await Promise.all([
+        authService.getStudentMyProfile(
+          instituteData.accessToken,
+          {
+            refreshToken: instituteData.refreshToken,
+            onTokenRefreshed: (tokens) => {
+              updateInstituteData({
+                accessToken: tokens.access,
+                refreshToken: tokens.refresh || instituteData.refreshToken,
+              });
+            },
+            onSessionExpired: () => {
+              toast.error(t('common.sessionExpired') || 'Session expired. Please log in again.');
+            },
+          }
+        ),
+        authService.getCourseDetails(course.id)
+      ]);
+
+      // Handle student profile response
+      if (profileResponse?.success && profileResponse?.data) {
+        const data = profileResponse.data;
+        // Handle different name field variations
+        let studentName = '';
+        if (data.first_name && data.last_name) {
+          studentName = `${data.first_name} ${data.last_name}`;
+        } else if (data.first_name) {
+          studentName = data.first_name;
+        } else if (data.full_name) {
+          studentName = data.full_name;
+        } else if (data.name) {
+          studentName = data.name;
+        } else if (instituteData.userName) {
+          studentName = instituteData.userName;
+        } else {
+          studentName = 'Student';
+        }
+
+        setStudentProfile({
+          profile_image: data.profile_image,
+          name: studentName,
+        });
+      } else {
+        // Set default profile if fetch fails
+        setStudentProfile({
+          profile_image: null,
+          name: instituteData.userName || 'Student',
+        });
+      }
+
+      // Handle course details response
+      if (courseDetailsResponse?.success && courseDetailsResponse?.data) {
+        setCourseDetails(courseDetailsResponse.data);
+      } else {
+        // Fallback to the course object passed in if API fails
+        setCourseDetails(course);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      // Set defaults if fetch fails
+      setStudentProfile({
+        profile_image: null,
+        name: instituteData.userName || 'Student',
+      });
+      setCourseDetails(course);
+    } finally {
+      setIsLoadingStudentProfile(false);
+      setIsLoadingCourseDetails(false);
+      setShowEnrollmentConfirmation(true);
+    }
+  };
+
+  // Actually perform the enrollment after confirmation
+  const confirmEnrollment = async () => {
+    if (!courseToEnroll || !courseToEnroll.id) {
+      toast.error(t('feed.courseNotFound') || 'Course ID not found');
+      setShowEnrollmentConfirmation(false);
+      setCourseToEnroll(null);
+      return;
+    }
+
+    setEnrollingCourseId(courseToEnroll.id);
 
     try {
       // First check if student is free (no schedule conflict)
       const checkResponse = await authService.checkStudentFree(
         instituteData.accessToken,
-        course.id,
+        courseToEnroll.id,
         {
           refreshToken: instituteData.refreshToken,
           onTokenRefreshed: (tokens) => {
@@ -855,6 +950,8 @@ const Explore = () => {
       // Check if there's a schedule conflict
       if (checkResponse?.success === false && checkResponse?.contradiction) {
         setEnrollmentContradiction(checkResponse.contradiction);
+        setShowEnrollmentConfirmation(false);
+        setCourseToEnroll(null);
         setShowEnrollmentContradiction(true);
         return;
       }
@@ -862,7 +959,7 @@ const Explore = () => {
       // If no conflict, proceed with enrollment
       const enrollResponse = await authService.enrollInCourse(
         instituteData.accessToken,
-        course.id,
+        courseToEnroll.id,
         {
           refreshToken: instituteData.refreshToken,
           onTokenRefreshed: (tokens) => {
@@ -880,9 +977,21 @@ const Explore = () => {
       // Handle enrollment success
       if (enrollResponse?.success) {
         toast.success(enrollResponse?.message || t('feed.enrollmentSuccess') || 'Enrolled successfully!');
+        // Close confirmation modal
+        setShowEnrollmentConfirmation(false);
+        setCourseToEnroll(null);
         // Close course modal if open
-        if (selectedCourse?.id === course.id) {
+        if (selectedCourse?.id === courseToEnroll.id) {
           setSelectedCourse(null);
+        }
+        // Handle checkout URL if provided (for payment)
+        if (enrollResponse?.checkout_url) {
+          const checkoutWindow = window.open(enrollResponse.checkout_url, '_blank', 'width=800,height=600');
+          if (checkoutWindow) {
+            toast.info(t('feed.completePayment') || 'Please complete the payment in the checkout window.');
+          } else {
+            toast.error(t('feed.popupBlocked') || 'Popup blocked. Please allow popups and try again.');
+          }
         }
       } else {
         toast.error(enrollResponse?.message || t('feed.enrollmentFailed') || 'Failed to enroll');
@@ -3954,6 +4063,21 @@ const Explore = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Enrollment Confirmation Modal */}
+      <EnrollmentConfirmationModal
+        isOpen={showEnrollmentConfirmation}
+        onClose={() => {
+          setShowEnrollmentConfirmation(false);
+          setCourseToEnroll(null);
+          setStudentProfile(null);
+          setCourseDetails(null);
+        }}
+        onConfirm={confirmEnrollment}
+        course={courseDetails || courseToEnroll}
+        studentProfile={studentProfile}
+        isLoading={enrollingCourseId === courseToEnroll?.id || isLoadingStudentProfile || isLoadingCourseDetails}
+      />
 
       {/* Enrollment Contradiction Modal */}
       <AnimatePresence>
