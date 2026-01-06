@@ -84,3 +84,5 @@ urlpatterns = [
     path("student/is-enrolled/<int:course_id>/", StudentIsEnrolledToCourseView.as_view()),
     path("student/add-payment-method/", StudentSetupPaymentMethodView.as_view()),
 ]
+
+# Shipping CD - 6.JAN.2026
