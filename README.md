@@ -15,7 +15,7 @@ Project East is a large-scale web platform connecting students, lecturers, and i
 ## Tech Stack
 
 - Backend: Python, Django, PostgreSQL  
-- Frontend: HTML, CSS, JavaScript  
+- Frontend: HTML, CSS, JavaScript, Flutter, React JS
 - AI: Python, Ultralytics YOLO (document classifier)  
 - Deployment: Docker, Google Cloud  
 
