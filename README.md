@@ -27,6 +27,6 @@ Project East is a large-scale web platform connecting students, lecturers, and i
 - pip install -r requirements.txt
 - python manage.py migrate
 
-##Author
+## Author
 
 H2SO4-1191 – Software Engineer
